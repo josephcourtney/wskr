@@ -1,0 +1,18 @@
+# Required fields
+template             = "python-lib"                                                                    # Name of the template to use (must match keys in templates.toml)
+template_version     = "v0.0.2"                                                                        # Tag or branch to pin the template
+template_description = "A minimal Python CLI/lib project using pyproject.toml, ruff, pytest, and clio"
+project_name         = "wskr"                                                            # Directory and placeholder name for the new project
+
+# Optional: components to include (order matters)
+[[components]]
+  name    = "cli"           # Sub-component in the template
+  version = "0.1.0"         # Version of that component
+  options = { docs = true } # Any feature flags for this component
+
+# Optional: global feature toggles
+[features]
+  docs = false
+[metadata]
+  author  = "Jane Doe"
+  license = "MIT"
