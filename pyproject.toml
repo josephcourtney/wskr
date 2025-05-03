@@ -1,7 +1,7 @@
 # =================================== project ====================================
 [project]
   name = "wskr"
-  version = "0.1.1"
+  version = "0.0.1"
   description = ""
   readme = "README.md"
   authors = [
@@ -17,10 +17,16 @@
   ]
   requires-python = ">=3.13"
   dependencies = [
+    "matplotlib>=3.10.1",
+    "numpy>=2.2.5",
+    "rich>=14.0.0",
+    "scipy>=1.15.2",
   ]
-
-  [project.scripts]
-    wskr = "wskr.cli:main"
+  [project.entry-points."matplotlib.backends"]
+    wskr        = "wskr.mpl.base"
+    wskr_kitty  = "wskr.mpl.kitty"
+    wskr_sixel  = "wskr.mpl.sixel"
+    wskr_iterm2 = "wskr.mpl.iterm2"
 
 [dependency-groups]
   dev = [

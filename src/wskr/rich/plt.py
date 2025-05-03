@@ -11,8 +11,8 @@ from rich.console import Console, ConsoleOptions, RenderResult
 from rich.measure import Measurement
 from rich.table import Table
 
-from jkit.plot import make_plot_grid
-from jkit.rich.img import RichImage
+from wskr.plot import make_plot_grid
+from wskr.rich.img import RichImage
 
 rng = np.random.default_rng()
 

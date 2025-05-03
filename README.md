@@ -1,151 +1,90 @@
 # wskr
 
-**wskr** is a minimal Python CLI template designed to get you up and running fast
+A modular, pluggable Matplotlib “image‐in‐terminal” backend.
 
----
+## What is wskr?
 
-## 🚀 Quick Start
+wskr lets you render Matplotlib figures as inline images in terminals that support Kitty, iTerm2, or Sixel protocols. It cleanly separates:
 
-Install it locally for development:
+- **Transports** (`wskr.tty.*`): how to talk to the terminal (e.g. Kitty image protocol, Sixel, etc.).
+- **Backends** (`wskr.mpl.*`): a generic Matplotlib FigureCanvas/FigureManager that uses a Transport to size and send a PNG.
+- **Rich integration** (`wskr.rich.*`): display plots in a `rich` console using the same transport layer.
+
+## Features
+
+- **Kitty backend** out of the box (via `KittyTransport`)
+- Planned support for iTerm2 & Sixel
+- Registry of transports so you can add new protocols without touching Matplotlib code
+- Automatic resizing to fill your terminal viewport while preserving aspect ratio
+- `rich` renderables for embedding plots in TUI applications
+
+## Installation
 
 ```bash
-git clone 
-cd wskr
-uv sync
+pip install wskr
 ```
 
-Or install directly with uv:
-
-```bash
-uv add wskr
-```
-
----
-
-## ✨ Features
-
-- Does a thing!
-
----
-
-## 🧠 Example
-
-Say your CLI just says hello:
+## Quick start
 
 ```python
-from clio.click_utils import command_with_io
+import matplotlib
+# choose one of: wskr (generic), wskr_kitty, wskr_sixel, wskr_iterm2
+matplotlib.use("wskr_kitty")
+import matplotlib.pyplot as plt
 
-@command_with_io
-def main(name: str) -> str:
-    return f"Hello, {name}!"
+# make a simple plot...
+plt.plot([0, 1, 2], [10, 20, 15], marker="o")
+plt.title("Hello, terminal!")
+plt.show()   # renders inline via Kitty protocol
 ```
 
-Now run:
+## Using with Rich
 
-```bash
-echo "World" | python -m wskr
-# → Hello, World!
+```python
+from rich.console import Console
+from wskr.plot import make_plot_grid
+from wskr.rich.plt import RichPlot
+
+console = Console()
+fig, ax = make_plot_grid(1, 1)
+ax.plot([0,1,2], [2,3,1], c="w")
+rich_plot = RichPlot(fig, desired_width=40, desired_height=10)
+console.print(rich_plot)
 ```
 
-From env:
+## Extending to new protocols
 
-```bash
-export NAME=Alice
-python -m wskr --input-source env --input-name NAME
-# → Hello, Alice!
-```
+1. Subclass `wskr.tty.base.ImageTransport` and implement:
 
-From file:
+   - `get_window_size_px()`
+   - `send_image(png_bytes: bytes)`
+   - `init_image(png_bytes: bytes) -> int`
 
-```bash
-echo "Charlie" > name.txt
-python -m wskr --input-source file --input-name name.txt
-# → Hello, Charlie!
-```
+2. Register your transport:
 
-To file:
+   ```python
+   from wskr.tty import register_image_transport
+   register_image_transport("myproto", MyProtoTransport)
+   ```
 
-```bash
-echo "Dana" | python -m wskr --output-dest file --output-name greeting.txt --force
-cat greeting.txt
-# → Hello, Dana!
-```
+3. Use it via environment variable or explicit name:
 
-## Keeping `__all__` in sync
+   ```bash
+   export WSKR_TRANSPORT=myproto
+   matplotlib.use("wskr")
+   ```
 
-This project ships with [`awl`](https://github.com/josephcourtney/awl) enabled as a pre‑commit hook. On each commit, `awl` will scan your `src/…/__init__.py` files and automatically update their `__all__` lists so you don’t have to remember to do it by hand.
-
-If you want to run it manually:
-
-````bash
-awl --dry-run       # preview changes
-awl --diff          # see unified diffs
-awl                 # apply in‑place
-
-
-## 📊 Project Visualization with Grobl
-
-We use [grobl](https://github.com/josephcourtney/grobl) to quickly generate a Markdown‑formatted tree of the entire project (plus file contents) and copy it to the clipboard. This helps reviewers and automated tools get instant visibility into our structure.
-
-**Key Features** :contentReference[oaicite:0]{index=0}
-- **Recursive traversal** of all subdirectories
-- **Markdown escaping** to handle special characters
-- **Clipboard integration** for one‑step copying
-- **Configurable ignore patterns** via a `.groblignore`
-- **File metadata** (line/character counts) alongside contents
-- **Built‑in testing** suite ensuring stable behavior
-
-**Installation & Usage**
-```bash
-# Install via pipx for sandboxed CLI:
-pipx install grobl
-
-# From the project root, run:
-grobl
-
-## 🧪 Testing
-
-Tests use `pytest` + `clio`:
+## Testing
 
 ```bash
 pytest
-````
-
-Run with coverage:
-
-```bash
-pytest --cov
 ```
 
----
+## License
 
-## 🛠 Dev Tools
-
-This project includes:
-
-- `ruff` for linting
-- `basedpyright` for type checking
-- `pytest` for testing
-- `hatchling` for builds
-
----
-
-## 📁 Project Structure
+GPL-3.0-only
 
 ```
-wskr/
-├── src/
-│   └── wskr/
-│       ├── __init__.py
-│       ├── cli.py        # main entrypoint
-│       ├── core.py       # business logic
-│       └── __main__.py   # supports `python -m wskr`
-├── tests/
-│   └── test_cli.py       # CLI tests
+
+Feel free to expand with detailed examples or tie into your project’s CI/workflows.
 ```
-
----
-
-## 📜 License
-
-GPLv3 © [Joseph M. Courtney](https://github.com/josephcourtney)
