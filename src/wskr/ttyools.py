@@ -1,4 +1,3 @@
-# ruff: noqa: PLW3201
 import os
 import sys
 import termios
@@ -15,8 +14,10 @@ T = TypeVar("T")
 # Reentrant lock for synchronizing access to the TTY
 _tty_lock = RLock()
 
+
 # Open TTY file descriptor safely
-_tty_fd = os.open(os.ttyname(sys.__stdout__.fileno()), os.O_RDWR)
+def _get_tty_fd() -> int:
+    return os.open(os.ttyname(sys.__stdout__.fileno()), os.O_RDWR)
 
 
 @contextmanager
@@ -56,9 +57,9 @@ def lock_tty(func):
 @lock_tty
 def write_tty(data: bytes) -> None:
     """Write data to the TTY."""
-    os.write(_tty_fd, data)
+    os.write(data)
     with suppress(termios.error):
-        termios.tcdrain(_tty_fd)
+        termios.tcdrain(_get_tty_fd())
 
 
 @lock_tty
@@ -68,13 +69,13 @@ def read_tty(
     """Read input directly from the TTY with optional blocking."""
     input_data = bytearray()
 
-    with tty_attributes(_tty_fd, min_bytes=min_bytes, echo=echo):
-        r, w, x = [_tty_fd], [], []
+    with tty_attributes(min_bytes=min_bytes, echo=echo):
+        r, w, x = [_get_tty_fd()], [], []
 
         # Read without blocking
         if timeout is None:
             while select(r, w, x, 0)[0]:
-                input_data.extend(os.read(_tty_fd, 100))
+                input_data.extend(os.read(_get_tty_fd(), 100))
         else:
             # Start the timeout-based reading
             start = monotonic()
@@ -82,11 +83,11 @@ def read_tty(
 
             # Read min_bytes initially if required
             if min_bytes > 0:
-                input_data.extend(os.read(_tty_fd, min_bytes))
+                input_data.extend(os.read(_get_tty_fd(), min_bytes))
 
             while (timeout < 0 or duration < timeout) and more(input_data):
                 if select(r, w, x, timeout - duration)[0]:
-                    input_data.extend(os.read(_tty_fd, 1))
+                    input_data.extend(os.read(_get_tty_fd(), 1))
                 duration = monotonic() - start
 
     return bytes(input_data)
@@ -94,8 +95,8 @@ def read_tty(
 
 def query_tty(request: bytes, more: callable, timeout: float | None = None) -> bytes | None:
     """Send a request to the terminal and read the response."""
-    with tty_attributes(_tty_fd, echo=False):
-        os.write(_tty_fd, request)
+    with tty_attributes(_get_tty_fd(), echo=False):
+        os.write(_get_tty_fd(), request)
         with suppress(termios.error):
-            termios.tcdrain(_tty_fd)
+            termios.tcdrain(_get_tty_fd())
         return read_tty(timeout=timeout, more=more)

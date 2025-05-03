@@ -1,23 +1,21 @@
 # ruff: noqa: PLW3201
-
-import re
-import sys
-from base64 import standard_b64encode
 from io import BytesIO
 from pathlib import Path
 from typing import ClassVar
 
-from rich.console import Console, ConsoleOptions
+from rich.console import Console, ConsoleOptions, RenderResult
 from rich.measure import Measurement
 from rich.table import Table
 from rich.text import Text
 
-from jkit.rich.ttyools import query_tty
+from wskr.tty.transport import ImageTransport, get_image_transport
 
 console = Console()
 
 
 class RichImage:
+    """Rich renderable: upload PNG once (init_image) then paint it cell-by-cell."""
+
     image_number = 0
 
     # diacritics used to encode the row and column indices
@@ -60,58 +58,38 @@ class RichImage:
     def __init__(
         self,
         image_path: str | BytesIO,
-        desired_width: int | None = None,
-        desired_height: int | None = None,
+        desired_width: int,
+        desired_height: int,
+        transport: ImageTransport | None = None,
     ):
         self.desired_width = desired_width
         self.desired_height = desired_height
-        self.image_number = type(self).image_number + 1
-        type(self).image_number = self.image_number
-        self.image_id = None
+        # inject or default
+        self.transport = transport or get_image_transport()
 
-        # load the image
+        # load raw PNG bytes
         if isinstance(image_path, BytesIO):
-            data = image_path.read()
+            image_path.seek(0)
+            png = image_path.read()
         else:
-            with Path(image_path).open("rb") as f:
-                data = f.read()
+            png = Path(image_path).read_bytes()
 
-        data = standard_b64encode(data)
-        while data:
-            chunk, data = data[:4096], data[4096:]
-            sys.stdout.buffer.write(f"\x1b_Ga=t,q=0,I={self.image_number},f=100,m=1;".encode("ascii"))
-            sys.stdout.flush()
-            if chunk:
-                sys.stdout.buffer.write(chunk)
-            sys.stdout.buffer.write(b"\033\\")
-            sys.stdout.flush()
+        # upload once and record kitty image ID
+        self.image_id = self.transport.init_image(png)
 
-        response = query_tty(
-            f"\x1b_Ga=t,I={self.image_number},f=100,m=0;\033\\".encode("ascii"),
-            lambda s: not s.endswith(b"\033\\"),
-            1000,
-        ).decode("ascii")
-        md = re.match(r"\x1b_Gi=(\d+),I=(\d+);(\w+)\x1b\\", response)
-        if md[3] == "OK" and int(md[2]) == self.image_number:
-            self.image_id = int(md[1])
-
-        sys.stdout.write(
-            f"\x1b_Ga=p,q=2,U=1,i={self.image_id},c={self.desired_width},r={self.desired_height}\033\\"
-        )
-        sys.stdout.flush()
-
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> None:
-        """Render the image as a placeholder using Rich's console."""
-        for i in range(self.desired_height):
-            s = f"\033[38;5;{self.image_id}m"
-            for j in range(self.desired_width):
-                s += f"\U0010eeee{self.RCD[i]}{self.RCD[j]}"
-            seg = Text.from_ansi(s + "\033[39m")
-            yield seg
-
-    def __rich_measure__(self, console: Console, options: ConsoleOptions) -> Measurement:
-        """Measure the dimensions of the renderable for layout."""
+    def __rich_measure__(self, console: Console, options: ConsoleOptions) -> Measurement:  # noqa: D105
         return Measurement(self.desired_width, self.desired_width)
+
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:  # noqa: D105
+        # paint each row with the kitty color trick
+        for row in range(self.desired_height):
+            esc = f"\x1b[38;5;{self.image_id}m"
+            line = (
+                esc
+                + "".join(f"\U0010eeee{self.RCD[row]}{self.RCD[col]}" for col in range(self.desired_width))
+                + "\x1b[39m"
+            )
+            yield Text.from_ansi(line)
 
 
 if __name__ == "__main__":
