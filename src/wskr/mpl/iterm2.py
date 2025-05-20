@@ -1,31 +1,32 @@
 import matplotlib.pyplot as plt
-from matplotlib import interactive, is_interactive
-from matplotlib._pylab_helpers import Gcf  # noqa: PLC2701
+from matplotlib import _api, interactive  # noqa: PLC2701
 from matplotlib.backend_bases import _Backend  # noqa: PLC2701
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 
-# TODO: import or implement an Iterm2Transport subclass
-# from wskr.tty.iterm2 import Iterm2Transport
+from wskr.mpl.base import BaseFigureManager, TerminalBackend
+from wskr.mpl.utils import detect_dark_mode
 
-plt.style.use("dark_background")
+# TODO: import or implement a ITerm2Transport subclass
+# from wskr.tty.iterm2 import ITerm2Transport
 
-if hasattr(__import__("sys"), "flags") and __import__("sys").flags.interactive:
-    interactive(True)  # noqa: FBT003
+if detect_dark_mode():
+    plt.style.use("dark_background")
+interactive(True)  # noqa: FBT003
+
+
+class StubManager(BaseFigureManager):
+    # We rely on TerminalBackend.show to raise, but override here if manager.show invoked directly
+    def show(self, *args, **kwargs):
+        msg = "iTerm2 backend not yet implemented"
+        raise NotImplementedError(msg)
+
+
+class StubCanvas(FigureCanvasAgg):
+    manager_class = _api.classproperty(lambda _: StubManager)
 
 
 @_Backend.export
-class _BackendIterm2Agg(_Backend):
-    """Stub for iTerm2 inline-image protocol backend."""
-
-    FigureCanvas = None
-    FigureManager = None
-
-    @classmethod
-    def draw_if_interactive(cls):
-        manager = Gcf.get_active()
-        if is_interactive() and manager and getattr(manager.canvas.figure, "get_axes", list)():
-            cls.show()
-
-    @classmethod
-    def show(cls, *args, **kwargs):
-        msg = "iTerm2 backend not yet implemented"
-        raise NotImplementedError(msg)
+class _BackendIterm2Agg(TerminalBackend):
+    FigureCanvas = StubCanvas
+    FigureManager = StubManager
+    not_impl_msg = "iTerm2 backend not yet implemented"

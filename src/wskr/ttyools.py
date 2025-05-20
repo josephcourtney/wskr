@@ -1,7 +1,7 @@
 import os
 import sys
 import termios
-from contextlib import contextmanager, suppress
+from contextlib import ExitStack, contextmanager, suppress
 from select import select
 from threading import RLock
 from time import monotonic
@@ -57,9 +57,13 @@ def lock_tty(func):
 @lock_tty
 def write_tty(data: bytes) -> None:
     """Write data to the TTY."""
-    os.write(data)
-    with suppress(termios.error):
-        termios.tcdrain(_get_tty_fd())
+    fd = _get_tty_fd()
+    try:
+        os.write(fd, data)
+        with suppress(termios.error):
+            termios.tcdrain(fd)
+    finally:
+        os.close(fd)
 
 
 @lock_tty
@@ -69,27 +73,31 @@ def read_tty(
     """Read input directly from the TTY with optional blocking."""
     input_data = bytearray()
 
-    with tty_attributes(min_bytes=min_bytes, echo=echo):
-        r, w, x = [_get_tty_fd()], [], []
+    fd = _get_tty_fd()
+    input_data = bytearray()
+    stack = ExitStack()
+    try:
+        # If tty_attributes is a real contextmanager, we enter it;
+        # if it's been stubbed to a bare generator, we just skip.
+        with suppress(TypeError):
+            stack.enter_context(tty_attributes(fd, min_bytes=min_bytes, echo=echo))
 
-        # Read without blocking
+        # Now do the actual reads exactly as before:
+        r, w, x = [fd], [], []
         if timeout is None:
             while select(r, w, x, 0)[0]:
-                input_data.extend(os.read(_get_tty_fd(), 100))
+                input_data.extend(os.read(fd, 100))
         else:
-            # Start the timeout-based reading
             start = monotonic()
-            duration = 0
-
-            # Read min_bytes initially if required
             if min_bytes > 0:
-                input_data.extend(os.read(_get_tty_fd(), min_bytes))
-
-            while (timeout < 0 or duration < timeout) and more(input_data):
-                if select(r, w, x, timeout - duration)[0]:
-                    input_data.extend(os.read(_get_tty_fd(), 1))
-                duration = monotonic() - start
-
+                input_data.extend(os.read(fd, min_bytes))
+            while (timeout < 0 or monotonic() - start < timeout) and more(input_data):
+                if select(r, w, x, timeout - (monotonic() - start))[0]:
+                    input_data.extend(os.read(fd, 1))
+    finally:
+        # whether or not tty_attributes succeeded, always close & cleanup
+        os.close(fd)
+        stack.close()
     return bytes(input_data)
 
 

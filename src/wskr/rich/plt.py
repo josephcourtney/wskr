@@ -1,11 +1,13 @@
-# ruff: noqa: PLW3201
+from __future__ import annotations
+
 import array
 import fcntl
 import sys
 import termios
+from functools import lru_cache
 from io import BytesIO
+from typing import TYPE_CHECKING
 
-import matplotlib.pyplot as plt
 import numpy as np
 from rich.console import Console, ConsoleOptions, RenderResult
 from rich.measure import Measurement
@@ -13,6 +15,9 @@ from rich.table import Table
 
 from wskr.plot import make_plot_grid
 from wskr.rich.img import RichImage
+
+if TYPE_CHECKING:
+    import matplotlib.pyplot as plt
 
 rng = np.random.default_rng()
 
@@ -22,13 +27,28 @@ dpi_macbook_pro_13in_m2_2022 = 227
 dpi_external_monitors_195 = 137
 
 
-def get_terminal_size() -> tuple[float, float]:
+@lru_cache(maxsize=1)
+def get_terminal_size() -> tuple[float, float, int, int]:
     """Determine the pixel dimensions of each character cell in the terminal."""
     buf = array.array("H", [0, 0, 0, 0])
-    fcntl.ioctl(sys.stdout, termios.TIOCGWINSZ, buf)
+    try:
+        fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, buf)
+    except OSError:
+        return (8, 16, 80, 24)
     n_row, n_col, w_px, h_px = buf
-
     return w_px, h_px, n_col, n_row
+
+
+def _render_to_buffer(rich_plot: RichPlot) -> BytesIO:
+    buf = BytesIO()
+    rich_plot.figure.savefig(
+        buf,
+        format="PNG",
+        dpi=rich_plot.dpi * rich_plot.zoom,
+        transparent=True,
+    )
+    buf.seek(0)
+    return buf
 
 
 class RichPlot:
@@ -71,14 +91,26 @@ class RichPlot:
             desired_height = self.desired_height
         return desired_width, desired_height
 
-    def __rich_measure__(self, console: Console, options: ConsoleOptions) -> Measurement:
+    def _render_to_buffer(self) -> BytesIO:
+        """Render the figure to a PNG in memory."""
+        buf = BytesIO()
+        self.figure.savefig(
+            buf,
+            format="PNG",
+            dpi=self.dpi * self.zoom,
+            transparent=True,
+        )
+        buf.seek(0)
+        return buf
+
+    def __rich_measure__(self, console: Console, options: ConsoleOptions) -> Measurement:  # noqa: PLW3201
         """Measure the width needed for the figure."""
         desired_width, _desired_height = self._adapt_size(console, options)
         max_width = min(desired_width, options.max_width)
         min_width = min(desired_width, options.max_width)
         return Measurement(min_width, max_width)
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:  # noqa: PLW3201
         """Render the figure within the terminal constraints."""
         w_px, h_px, n_col, n_row = get_terminal_size()
 
@@ -88,15 +120,9 @@ class RichPlot:
         h_cell_in = desired_height * h_px / (n_row * self.dpi)
         self.figure.set_size_inches(w_cell_in / self.zoom, h_cell_in / self.zoom)
 
-        buf = BytesIO()
-        self.figure.savefig(
-            buf,
-            format="PNG",
-            dpi=self.dpi * self.zoom,
-            transparent=True,
+        img = RichImage(
+            image_path=self._render_to_buffer(), desired_width=desired_width, desired_height=desired_height
         )
-        buf.seek(0)
-        img = RichImage(image_path=buf, desired_width=desired_width, desired_height=desired_height)
         yield from img.__rich_console__(console, options)
 
 

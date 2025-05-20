@@ -1,32 +1,35 @@
 import matplotlib.pyplot as plt
-from matplotlib import interactive, is_interactive
-from matplotlib._pylab_helpers import Gcf  # noqa: PLC2701
+from matplotlib import (
+    _api,  # noqa: PLC2701
+    interactive,
+)
 from matplotlib.backend_bases import _Backend  # noqa: PLC2701
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+
+from wskr.mpl.base import BaseFigureManager, TerminalBackend
+
+# from wskr.tty.sixel import SixelTransport
+from wskr.mpl.utils import detect_dark_mode
 
 # TODO: import or implement a SixelTransport subclass
 # from wskr.tty.sixel import SixelTransport
 
-plt.style.use("dark_background")
+if detect_dark_mode():
+    plt.style.use("dark_background")
 
-# heuristic for interactive
-if hasattr(__import__("sys"), "flags") and __import__("sys").flags.interactive:
-    interactive(True)  # noqa: FBT003
+interactive(True)  # noqa: FBT003
+
+
+class StubManager(BaseFigureManager):
+    pass  # Backend.show will handle the not-implemented error
+
+
+class StubCanvas(FigureCanvasAgg):
+    manager_class = _api.classproperty(lambda _: StubManager)
 
 
 @_Backend.export
-class _BackendSixelAgg(_Backend):
-    """Stub for Sixel-protocol backend."""
-
-    FigureCanvas = None
-    FigureManager = None
-
-    @classmethod
-    def draw_if_interactive(cls):
-        manager = Gcf.get_active()
-        if is_interactive() and manager and getattr(manager.canvas.figure, "get_axes", list)():
-            cls.show()
-
-    @classmethod
-    def show(cls, *args, **kwargs):
-        msg = "Sixel backend not yet implemented"
-        raise NotImplementedError(msg)
+class _BackendSixelAgg(TerminalBackend):
+    FigureCanvas = StubCanvas
+    FigureManager = StubManager
+    not_impl_msg = "Sixel backend not yet implemented"

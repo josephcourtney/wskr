@@ -1,107 +1,118 @@
+import os
 import sys
 from io import BytesIO
 from typing import Any
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import _api, interactive, is_interactive  # noqa: PLC2701
 from matplotlib._pylab_helpers import Gcf  # noqa: PLC2701
 from matplotlib.backend_bases import FigureManagerBase, _Backend  # noqa: PLC2701
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
-from wskr.tty.base import ImageTransport as BaseTransport
-from wskr.tty.transport import get_image_transport  # <— pluggable factory
+from wskr.mpl.utils import autosize_figure, detect_dark_mode
+from wskr.tty.base import ImageTransport
+from wskr.tty.registry import get_image_transport
 
-plt.style.use("dark_background")
-
-# heuristic for interactive repl
 if sys.flags.interactive:
-    interactive(True)  # noqa: FBT003
+    interactive(b=True)
+
+if detect_dark_mode():
+    plt.style.use("dark_background")
+
+
+def render_figure_to_terminal(canvas: FigureCanvasAgg, transport: ImageTransport) -> None:
+    """Resize and render a Matplotlib figure to the terminal using a given transport."""
+    width_px, height_px = transport.get_window_size_px()
+    try:
+        scale = float(os.getenv("WSKR_SCALE", "1.0"))
+    except ValueError:
+        scale = 1.0
+    width_px = int(width_px * scale)
+    height_px = int(height_px * scale)
+
+    autosize_figure(canvas.figure, width_px, height_px)
+
+    buf = BytesIO()
+    canvas.print_png(buf)
+    buf.seek(0)
+    transport.send_image(buf.read())
 
 
 class WskrFigureManager(FigureManagerBase):
-    """
-    Generic terminal-image figure manager.
-
-    If no transport is passed in, we pull one from the registry (default: kitty).
-    """
-
     def __init__(
         self,
         canvas: FigureCanvasAgg,
         num: int = 1,
-        transport: BaseTransport | None = None,
+        transport: ImageTransport | None = None,
     ) -> None:
         super().__init__(canvas, num)
-        # inject default transport if none supplied
         self.transport = transport or get_image_transport()
 
-    def show(self, *args: Any, **kwargs: Any) -> None:  # noqa: ARG002
-        """Display the plot.
-
-        1) Query the transport for the terminal's pixel-width/height
-        2) Resize the Matplotlib figure (in inches) to *fill* that viewport
-           (but preserve aspect ratio, and respect user-set fig sizes).
-        3) Render to PNG and hand off to the transport.
-        """
-        # 1) window size in pixels
-        width_px, height_px = self.transport.get_window_size_px()
-        # 2. Compute new figure size in inches
-        dpi = self.canvas.figure.dpi
-        orig_w, orig_h = self.canvas.figure.get_size_inches()
-        aspect = orig_h / orig_w if orig_w else 1.0
-
-        if aspect > 1:
-            new_h = height_px / dpi
-            new_w = new_h / aspect
-        else:
-            new_w = width_px / dpi
-            new_h = new_w * aspect
-
-        self.canvas.figure.set_size_inches(new_w, new_h)
-
-        # 3. Render and send
-        buffer = BytesIO()
-        self.canvas.print_png(buffer)
-        buffer.seek(0)
-        self.transport.send_image(buffer.read())
+    def show(self, *_args: Any, **_kwargs: Any) -> None:
+        render_figure_to_terminal(self.canvas, self.transport)
 
 
 class WskrFigureCanvas(FigureCanvasAgg):
     manager_class: Any = _api.classproperty(lambda _: WskrFigureManager)
 
     def draw(self) -> None:
-        """Override Agg.draw so that in interactive mode we immediately show the new image in the terminal."""
-        super().draw()
-        # only if there's at least one axis to render…
-        if is_interactive() and self.figure.get_axes():
-            # self.manager was set by new_manager()
-            self.manager.show()
+        # Prevent recursive draws triggered by Matplotlib’s stale callbacks
+        if getattr(self, "_in_draw", False):
+            return
+        self._in_draw = True
+        try:
+            super().draw()
+            if is_interactive() and self.figure.get_axes():
+                self.manager.show()
+        finally:
+            self._in_draw = False
 
-    # ensure draw_idle (called by pyplot in interactive) also triggers draw()
     draw_idle = draw
 
 
-@_Backend.export
-class _BackendTermAgg(_Backend):
-    """Function-based API fallback.  If someone does `module://wskr.mpl.base`."""
+class BaseFigureManager(FigureManagerBase):
+    """Minimal backend manager parameterized by transport class."""
 
-    FigureCanvas = WskrFigureCanvas
-    FigureManager = WskrFigureManager
+    def __init__(
+        self,
+        canvas: FigureCanvasAgg,
+        num: int,
+        transport_cls: type[ImageTransport],
+    ) -> None:
+        super().__init__(canvas, num)
+        self.transport = transport_cls()
+
+    def show(self, *_args: Any, **_kwargs: Any) -> None:
+        render_figure_to_terminal(self.canvas, self.transport)
+
+
+class TerminalBackend(_Backend):
+    """Generic Matplotlib backend for terminal-image protocols."""
+
+    not_impl_msg: str | None = None
 
     @classmethod
     def draw_if_interactive(cls):
         manager = Gcf.get_active()
-        if is_interactive() and manager and manager.canvas.figure.get_axes():
+        if mpl.is_interactive() and manager and manager.canvas.figure.get_axes():
             cls.show()
 
     @classmethod
-    def show(cls, *args, **kwargs):
+    def show(cls, *args: Any, **kwargs: Any) -> None:
+        if cls.not_impl_msg is not None:
+            raise NotImplementedError(cls.not_impl_msg)
         manager = Gcf.get_active()
         if manager:
             manager.show(*args, **kwargs)
             Gcf.destroy_all()
 
 
-# For Matplotlib's entry-point / Canvas-based API:
 FigureCanvas = WskrFigureCanvas
 FigureManager = WskrFigureManager
+
+
+@_Backend.export
+class _BackendTermAgg(TerminalBackend):
+    FigureCanvas = WskrFigureCanvas
+    FigureManager = WskrFigureManager

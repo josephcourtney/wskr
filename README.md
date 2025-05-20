@@ -24,6 +24,27 @@ wskr lets you render Matplotlib figures as inline images in terminals that suppo
 pip install wskr
 ```
 
+## Architecture
+
+```mermaid
+flowchart TD
+  A[Your Code<br/>import & plt.show()] --> B[Matplotlib Backend<br/>“wskr”]
+  B --> C{Which Transport?}
+  C -->|WSKR_TRANSPORT=kitty| D[KittyTransport]
+  C -->|default (noop)| E[NoOpTransport]
+  D --> F[TerminalBackend.show()]
+  E --> G[Warn & exit]
+  F --> H[transport.get_window_size_px()]
+  H --> I[autosize_figure()]
+  I --> J[canvas.print_png() → send_image()]
+  J --> K[Terminal renders inline image]
+  subgraph RichIntegration
+    L[RichPlot/RichImage] --> M[init_image() once]
+    M --> N[Cell-by-cell painting]
+  end
+  A --> L
+```
+
 ## Quick start
 
 ```python
@@ -54,25 +75,104 @@ console.print(rich_plot)
 
 ## Extending to new protocols
 
-1. Subclass `wskr.tty.base.ImageTransport` and implement:
+To add a new terminal protocol (e.g. `MyTerm`) for inline Matplotlib rendering:
 
-   - `get_window_size_px()`
-   - `send_image(png_bytes: bytes)`
-   - `init_image(png_bytes: bytes) -> int`
+### ✅ Step 1: Implement a Custom Transport
 
-2. Register your transport:
+Create a class that inherits from `ImageTransport` and implements:
 
-   ```python
-   from wskr.tty import register_image_transport
-   register_image_transport("myproto", MyProtoTransport)
-   ```
+```python
+from wskr.tty.base import ImageTransport
 
-3. Use it via environment variable or explicit name:
+class MyTermTransport(ImageTransport):
+    def get_window_size_px(self) -> tuple[int, int]:
+        # return (width_px, height_px)
+        ...
 
-   ```bash
-   export WSKR_TRANSPORT=myproto
-   matplotlib.use("wskr")
-   ```
+    def send_image(self, png_bytes: bytes) -> None:
+        # display image in terminal
+        ...
+
+    def init_image(self, png_bytes: bytes) -> int:
+        # optional: upload image once, return an ID
+        ...
+```
+
+Then register it:
+
+```python
+from wskr.tty.registry import register_image_transport
+register_image_transport("myterm", MyTermTransport)
+```
+
+---
+
+### ✅ Step 2: Define a Matplotlib Backend
+
+Use the shared base classes for minimal boilerplate:
+
+```python
+import matplotlib.pyplot as plt
+from matplotlib import _api
+from matplotlib.backend_bases import _Backend
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib._pylab_helpers import Gcf
+
+from wskr.mpl.base_backend import BaseFigureManager
+from myterm_module import MyTermTransport  # your transport from Step 1
+
+plt.style.use("dark_background")
+
+
+class MyTermFigureManager(BaseFigureManager):
+    def __init__(self, canvas: FigureCanvasAgg, num: int = 1):
+        super().__init__(canvas, num, MyTermTransport)
+
+
+class MyTermFigureCanvas(FigureCanvasAgg):
+    manager_class = _api.classproperty(lambda _: MyTermFigureManager)
+
+
+@_Backend.export
+class _BackendMyTermAgg(_Backend):
+    FigureCanvas = MyTermFigureCanvas
+    FigureManager = MyTermFigureManager
+
+    @classmethod
+    def draw_if_interactive(cls):
+        manager = Gcf.get_active()
+        if manager and manager.canvas.figure.get_axes():
+            cls.show()
+
+    @classmethod
+    def show(cls, *args, **kwargs):
+        manager = Gcf.get_active()
+        if manager:
+            manager.show(*args, **kwargs)
+            Gcf.destroy_all()
+```
+
+---
+
+### ✅ Step 3: Add It to `pyproject.toml`
+
+```toml
+[project.entry-points."matplotlib.backends"]
+wskr_myterm = "your_module_path"
+```
+
+---
+
+### ✅ Step 4: Use It
+
+```python
+import matplotlib
+matplotlib.use("wskr_myterm")
+
+import matplotlib.pyplot as plt
+plt.plot([1, 2, 3])
+plt.show()
+```
 
 ## Testing
 

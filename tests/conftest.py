@@ -1,6 +1,20 @@
+import contextlib
+import os
+import select
+import termios
+
 import pytest
 
+from wskr import ttyools
+from wskr.tty.base import ImageTransport
+
 MAX_OUTPUT_LINES = 32
+MAX_TIME_PER_TEST = 5
+
+
+def pytest_collection_modifyitems(config, items):  # call signature defined by pytest
+    for test in items:
+        test.add_marker(pytest.mark.timeout(MAX_TIME_PER_TEST))
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -21,3 +35,63 @@ def pytest_runtest_logreport(report: pytest.TestReport) -> None:
             else:
                 new_sections.append((title, content))
         report.sections = new_sections
+
+
+class DummyTransport(ImageTransport):
+    def __init__(self, width=800, height=600):
+        self.width = width
+        self.height = height
+        self.last_image = None
+        self.counter = 0
+
+    def get_window_size_px(self) -> tuple[int, int]:
+        return (self.width, self.height)
+
+    def send_image(self, png_bytes: bytes) -> None:
+        self.last_image = png_bytes
+
+    def init_image(self, png_bytes: bytes) -> int:
+        self.last_image = png_bytes
+        self.counter += 1
+        return self.counter
+
+
+@pytest.fixture
+def dummy_transport() -> DummyTransport:
+    return DummyTransport()
+
+
+@pytest.fixture
+def dummy_png() -> bytes:
+    return b"\x89PNG\r\n\x1a\n" + b"\x00" * 12
+
+
+@pytest.fixture
+def fake_tty(monkeypatch, tmp_path):
+    # 1) Track all closes
+    closed = []
+
+    # 2) os.ttyname() → some fake file
+    monkeypatch.setattr(os, "ttyname", lambda fd: str(tmp_path / "tty"))
+
+    # 3) os.open → fake fd
+    fake_fd = 99
+    monkeypatch.setattr(os, "open", lambda *a, **kw: fake_fd)
+
+    # 4) record os.close calls into closed[]
+    monkeypatch.setattr(os, "close", closed.append)
+
+    # 5) os.write doesn't actually write
+    monkeypatch.setattr(os, "write", lambda fd, data: len(data))
+
+    # 6) termios.tcdrain → no-op
+    monkeypatch.setattr(termios, "tcdrain", lambda fd: None)
+
+    # 7) Replace ttyools.tty_attributes with a real no-op context manager
+    monkeypatch.setattr(ttyools, "tty_attributes", lambda *args, **kwargs: contextlib.nullcontext())
+
+    # 8) select.select always reports no data
+    monkeypatch.setattr(select, "select", lambda r, w, x, t: ([], [], []))
+
+    # Finally, return our closed-list so tests can assert on it
+    return closed
