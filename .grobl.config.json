@@ -1,5 +1,6 @@
 {
   "exclude_tree": [
+    "scripts",
     "__pycache__",
     "*.egg-info",
     "*.ipynb",

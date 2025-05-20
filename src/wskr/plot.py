@@ -1,8 +1,8 @@
+from types import MethodType
+
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import cm
-from matplotlib.colors import Normalize
-from scipy.interpolate import interpn
+from matplotlib.cbook import Grouper
 
 
 def create_share_dict(share_param, ranges):
@@ -36,18 +36,31 @@ def initialize_subplots(
     """Initialize subplots within the figure."""
     ax = np.empty(len(ranges), dtype=object)
     for i, rng in enumerate(ranges):
-        kwargs_ = kwargs.copy()
-        if subplot_kwargs and i in subplot_kwargs:
-            kwargs_.update(subplot_kwargs[i])
+        # merge base kwargs with any per-subplot overrides
+        overrides = subplot_kwargs.get(i, {}) if subplot_kwargs else {}
+        kwargs_ = {**kwargs, **overrides}
 
         share_x = ax[sharex_dict[i]] if i in sharex_dict else None
         share_y = ax[sharey_dict[i]] if i in sharey_dict else None
         if kwargs_.get("projection") == "3d" and i in sharez_dict:
             kwargs_["sharez"] = ax[sharez_dict[i]]
-
-        ax[i] = fig.add_subplot(
-            gs[rng[0] : rng[1] + 1, rng[2] : rng[3] + 1], *args, sharex=share_x, sharey=share_y, **kwargs_
+        axis = fig.add_subplot(
+            gs[rng[0] : rng[1] + 1, rng[2] : rng[3] + 1],
+            *args,
+            sharex=share_x,
+            sharey=share_y,
+            **kwargs_,
         )
+
+        # If this is a 3D subplot, give it get_shared_z_axes()
+        if kwargs_.get("projection") == "3d":
+
+            def get_shared_z_axes(self):
+                return self._shared_z_axes
+
+            axis.get_shared_z_axes = MethodType(get_shared_z_axes, axis)
+        ax[i] = axis
+
     return ax
 
 
@@ -123,6 +136,12 @@ def make_plot_grid(
         GridSpec instance used to create the subplots.
 
     """
+    if sharez and sharez is not True:
+        subplot_kwargs = subplot_kwargs or {}
+        for group in sharez:
+            for idx in group:
+                subplot_kwargs.setdefault(idx, {}).setdefault("projection", "3d")
+
     gs_kwargs = gs_kwargs or {}
     figure_kwargs = figure_kwargs or {}
 
@@ -139,45 +158,30 @@ def make_plot_grid(
     sharez_dict = create_share_dict(sharez, ranges)
 
     ax = initialize_subplots(
-        fig, gs, ranges, sharex_dict, sharey_dict, sharez_dict, subplot_kwargs, *args, **kwargs
+        fig,
+        gs,
+        ranges,
+        sharex_dict,
+        sharey_dict,
+        sharez_dict,
+        subplot_kwargs,
+        *args,
+        **kwargs,
     )
+
+    # Handle 3D Z-axis sharing
+    if sharez and sharez is not True:
+
+        def _get_shared_z_axes(self):
+            return self._shared_z_axes
+
+        for group in sharez:
+            g = Grouper()
+            base_ax = ax[group[0]]
+            for idx in group:
+                g.join(base_ax, ax[idx])
+                axis = ax[idx]
+                axis._shared_z_axes = g  # noqa: SLF001
+                axis.get_shared_z_axes = MethodType(_get_shared_z_axes, axis)
 
     return (fig, ax, gs) if return_gridspec else (fig, ax)
-
-
-def stream_plot(t, arr, ax):
-    """Generate a stream plot."""
-    v = np.cumsum(arr, axis=1)
-    ax.fill_between(t, 0, v[:, 0])
-    for i in range(v.shape[1] - 1):
-        ax.fill_between(t, v[:, i], v[:, i + 1])
-    ax.fill_between(t, v[:, -1], np.sum(arr, axis=1))
-    ax.set_xlim(0, np.max(t))
-    ax.set_ylim(0, np.max(np.sum(arr, axis=1)))
-
-
-def density_scatter(x, y, ax=None, bins=20, *, sort=True, **kwargs):
-    """Scatter plot colored by 2d histogram."""
-    if ax is None:
-        _, ax = plt.subplots()
-
-    data, x_e, y_e = np.histogram2d(x, y, bins=bins, density=True)
-    z = interpn(
-        (0.5 * (x_e[1:] + x_e[:-1]), 0.5 * (y_e[1:] + y_e[:-1])),
-        data,
-        np.vstack([x, y]).T,
-        method="splinef2d",
-        bounds_error=False,
-        fill_value=0,
-    )
-
-    if sort:
-        idx = z.argsort()
-        x, y, z = x[idx], y[idx], z[idx]
-
-    ax.scatter(x, y, c=z, **kwargs)
-    norm = Normalize(vmin=np.min(z), vmax=np.max(z))
-    cbar = ax.figure.colorbar(cm.ScalarMappable(norm=norm), ax=ax)
-    cbar.ax.set_ylabel("Density")
-
-    return ax

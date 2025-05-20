@@ -1,0 +1,22 @@
+def kitty_session(request, tmp_path):
+    proc = subprocess.Popen(cmd, env=env, close_fds=False)
+
+    # launch kitty
+    proc = subprocess.Popen(
+        [
+            kitty,
+            "-1",
+            "--title",
+            title,
+            "--override",
+            "allow_remote_control=yes",
+            "--override",
+            "remember_window_title=no",
+            "sh",
+            "-c",
+            f"{sys.executable} '{payload}'",
+        ],
+        env=env,
+        close_fds=False,
+    )
+

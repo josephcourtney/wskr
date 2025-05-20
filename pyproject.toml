@@ -1,7 +1,7 @@
 # =================================== project ====================================
 [project]
   name = "wskr"
-  version = "0.0.1"
+  version = "0.0.2"
   description = ""
   readme = "README.md"
   authors = [
@@ -19,6 +19,7 @@
   dependencies = [
     "matplotlib>=3.10.1",
     "numpy>=2.2.5",
+    "pytest-timeout>=2.4.0",
     "rich>=14.0.0",
     "scipy>=1.15.2",
   ]
@@ -39,6 +40,7 @@
     "awl",
     "commitizen>=4.6.0",
     "freezegun>=1.5.1",
+    "pytest-rich>=0.2.0",
   ]
 
 # =================================== build ====================================
@@ -53,10 +55,11 @@
 
   [tool.ruff.lint]
     ignore = [
-      # "TD002",  # Missing author in TODO; try: `# TODO(<author_name>): ...` or `# TODO @<author_name>: ...`
-      # "TD003",  # Missing issue link for this TODO
-      # "FIX002", # Line contains TODO, consider resolving the issue
+      "TD002",  # Missing author in TODO; try: `# TODO(<author_name>): ...` or `# TODO @<author_name>: ...`
+      "TD003",  # Missing issue link for this TODO
+      "FIX002", # Line contains TODO, consider resolving the issue
     ]
+
 
 # =================================== typecheck ===================================
 [tool.basedpyright]
