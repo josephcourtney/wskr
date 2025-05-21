@@ -57,7 +57,7 @@ class WskrFigureCanvas(FigureCanvasAgg):
     manager_class: Any = _api.classproperty(lambda _: WskrFigureManager)
 
     def draw(self) -> None:
-        # Prevent recursive draws triggered by Matplotlib’s stale callbacks
+        # Prevent recursive draws triggered by Matplotlib's stale callbacks
         if getattr(self, "_in_draw", False):
             return
         self._in_draw = True

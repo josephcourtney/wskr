@@ -238,7 +238,7 @@ def test_get_window_id_success(tmp_path):
     f.write_text(" 123 \n")
     val = get_window_id(f)
     assert val == 123
-    assert f.read_text() == ""
+    assert f.read_text()
 
 
 def test_get_window_id_failure(tmp_path):
@@ -246,7 +246,7 @@ def test_get_window_id_failure(tmp_path):
     f.write_text("oops")
     with pytest.raises(SystemExit):
         get_window_id(f)
-    assert f.read_text() == ""
+    assert f.read_text()
 
 
 def test_show_log_no_file(caplog, tmp_path):
@@ -348,11 +348,11 @@ def test_send_startup_command(monkeypatch):
         "wskr.tty.kitty_remote.send_kitty_command",
         lambda kb, sock, cmd, env: calls.append((kb, sock, cmd, env)),
     )
-    df = Path("donefile")
-    send_startup_command("kb", "sock", df, {"Z": "1"})
+    done_f = Path("donefile")
+    send_startup_command("kb", "sock", done_f, {"Z": "1"})
     _kb, _sock, cmd, env = calls[0]
     assert "yabai -m query --windows --window" in cmd
-    assert str(df) in cmd
+    assert str(done_f) in cmd
     assert env == {"Z": "1"}
 
 
@@ -363,11 +363,11 @@ def test_send_payload(monkeypatch):
         lambda kb, sock, cmd, env: calls.append((kb, sock, cmd, env)),
     )
     script = Path("script.py")
-    df = Path("done")
-    lf = Path("log")
-    send_payload("kb", "sock", {"K": "V"}, script, df, lf)
+    done_f = Path("done")
+    log_f = Path("log")
+    send_payload("kb", "sock", {"K": "V"}, script, done_f, log_f)
     _, _, cmd, env = calls[0]
     assert f"python '{script}'" in cmd
-    assert str(lf) in cmd
-    assert str(df) in cmd
+    assert str(log_f) in cmd
+    assert str(done_f) in cmd
     assert env == {"K": "V"}

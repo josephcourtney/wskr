@@ -11,9 +11,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from rich.console import Console, ConsoleOptions, RenderResult
 from rich.measure import Measurement
-from rich.table import Table
 
-from wskr.plot import make_plot_grid
 from wskr.rich.img import RichImage
 
 if TYPE_CHECKING:
@@ -124,50 +122,3 @@ class RichPlot:
             image_path=self._render_to_buffer(), desired_width=desired_width, desired_height=desired_height
         )
         yield from img.__rich_console__(console, options)
-
-
-def sparkline(x, y, columns=8, rows=1):
-    fig, ax = make_plot_grid(1, 1)
-    ax[0].plot(x, y, c="w")
-    ax[0].axis("off")
-    ax[0].margins(0)
-    fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
-    return RichPlot(
-        figure=fig,
-        desired_width=columns,
-        desired_height=rows,
-        dpi=dpi_macbook_pro_13in_m2_2022,
-    )
-
-
-if __name__ == "__main__":
-    dpi = dpi_macbook_pro_13in_m2_2022
-    w_px, h_px, n_col, n_row = get_terminal_size()
-    print(f"cell size:       {w_px / n_col:>6.2f} x{h_px / n_row:>6.2f} pixels")
-    print(f"cell resolution: {dpi * n_col / w_px:>6.2f} x{dpi * n_row / h_px:>6.2f} cell/inch")
-
-    table = Table(title="Sparklines", show_lines=False)
-    table.add_column("column 1", justify="left")
-    table.add_column("column 2", justify="center")
-    table.add_column("column 3", justify="right")
-    for _i in range(3):
-        table.add_row("name", "detail", sparkline(np.linspace(0, 1, 32), rng.normal(size=32)))
-    console.print(table)
-
-    fig, ax = make_plot_grid(1, 1, figure_kwargs={"layout": "constrained"})
-    x = np.linspace(0, 1, 128)
-    y = np.exp((2j * np.pi * 5 - 3) * x)
-    ax[0].plot(x, y.real, c="w")
-    ax[0].set_xlim(left=0)
-    ax[0].spines["bottom"].set_position("zero")
-    ax[0].spines["top"].set_visible(False)
-    ax[0].spines["right"].set_visible(False)
-    ax[0].xaxis.set_tick_params(which="both", direction="inout")
-    ax[0].xaxis.set_tick_params(which="major", length=7.0)
-    ax[0].xaxis.set_tick_params(which="minor", length=4.0)
-
-    y_max = np.max([abs(e) for e in ax[0].get_ylim()])
-    ax[0].set_ylim(-y_max, y_max)
-
-    rp = RichPlot(figure=fig, desired_width=40, desired_height=20, dpi=dpi_macbook_pro_13in_m2_2022)
-    console.print(rp)

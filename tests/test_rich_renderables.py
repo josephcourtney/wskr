@@ -4,7 +4,7 @@ from typing import Any
 from rich.console import Console
 from rich.text import Text
 
-from wskr.plot import make_plot_grid
+from jkit.plot import make_plot_grid
 from wskr.rich.img import RichImage
 from wskr.rich.plt import RichPlot
 

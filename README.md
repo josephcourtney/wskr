@@ -24,27 +24,6 @@ wskr lets you render Matplotlib figures as inline images in terminals that suppo
 pip install wskr
 ```
 
-## Architecture
-
-```mermaid
-flowchart TD
-  A[Your Code<br/>import & plt.show()] --> B[Matplotlib Backend<br/>“wskr”]
-  B --> C{Which Transport?}
-  C -->|WSKR_TRANSPORT=kitty| D[KittyTransport]
-  C -->|default (noop)| E[NoOpTransport]
-  D --> F[TerminalBackend.show()]
-  E --> G[Warn & exit]
-  F --> H[transport.get_window_size_px()]
-  H --> I[autosize_figure()]
-  I --> J[canvas.print_png() → send_image()]
-  J --> K[Terminal renders inline image]
-  subgraph RichIntegration
-    L[RichPlot/RichImage] --> M[init_image() once]
-    M --> N[Cell-by-cell painting]
-  end
-  A --> L
-```
-
 ## Quick start
 
 ```python
@@ -63,7 +42,7 @@ plt.show()   # renders inline via Kitty protocol
 
 ```python
 from rich.console import Console
-from wskr.plot import make_plot_grid
+from jkit.plot import make_plot_grid
 from wskr.rich.plt import RichPlot
 
 console = Console()
@@ -183,8 +162,3 @@ pytest
 ## License
 
 GPL-3.0-only
-
-```
-
-Feel free to expand with detailed examples or tie into your project’s CI/workflows.
-```

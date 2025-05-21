@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -27,15 +28,15 @@ def find_executable(name: str) -> str:
     path = shutil.which(name)
     if not path:
         msg = f"'{name}' not found in PATH."
-        logging.error(msg)
+        logger.error(msg)
         raise FileNotFoundError(msg)
     return path
 
 
 def run(
-    cmd: list[str], capture_output: bool = False, check: bool = False, **kwargs
+    cmd: list[str], *, capture_output: bool = False, check: bool = False, **kwargs
 ) -> subprocess.CompletedProcess | bytes:
-    logging.debug("Running: %s", " ".join(cmd))
+    logger.debug("Running: %s", " ".join(cmd))
     if capture_output and not check:
         return subprocess.check_output(cmd, **kwargs)
     return subprocess.run(cmd, capture_output=capture_output, check=check, **kwargs)
@@ -45,12 +46,12 @@ def try_json_output(cmd: list[str]) -> list[dict] | None:
     try:
         return json.loads(run(cmd, capture_output=True))
     except Exception as e:
-        logging.debug("JSON parsing failed: %s", e)
+        logger.debug("JSON parsing failed: %s", e)
         return None
 
 
 def _abort(msg: str) -> None:
-    logging.error(msg)
+    logger.error(msg)
     sys.exit(1)
 
 
@@ -110,7 +111,7 @@ def take_screenshot(yabai_bin: str, predicate: Callable[[dict], bool], dest: Pat
     win_id = next((w["id"] for w in windows if predicate(w)), None)
 
     if win_id is None:
-        logging.error("No matching window for screenshot.")
+        logger.error("No matching window for screenshot.")
         return False
 
     result = run(
@@ -125,10 +126,10 @@ def take_screenshot(yabai_bin: str, predicate: Callable[[dict], bool], dest: Pat
         check=True,
     )
     if result.returncode == 0 and dest.exists():
-        logging.info("Screenshot saved to %s", dest)
+        logger.info("Screenshot saved to %s", dest)
         return True
 
-    logging.error("Screenshot failed: %s", result.stderr.decode())
+    logger.error("Screenshot failed: %s", result.stderr.decode())
     return False
 
 
@@ -187,13 +188,13 @@ def get_window_id(done_file: Path) -> int:
 
 def show_log(log_file: Path) -> None:
     if not log_file.exists():
-        logging.error("No log file found at %s", log_file)
+        logger.error("No log file found at %s", log_file)
         return
 
-    logging.debug("==== BEGIN KITTY SESSION LOG ====")
+    logger.debug("==== BEGIN KITTY SESSION LOG ====")
     for line in log_file.read_text(encoding="utf-8").splitlines():
-        logging.debug("[KITTY] %s", line)
-    logging.debug("==== END KITTY SESSION LOG ====\n")
+        logger.debug("[KITTY] %s", line)
+    logger.debug("==== END KITTY SESSION LOG ====\n")
 
 
 def cleanup_temp_files(*paths: Path) -> None:
@@ -213,8 +214,9 @@ def terminate_process(proc: subprocess.Popen) -> None:
                 with contextlib.suppress(subprocess.TimeoutExpired):
                     proc.wait(timeout=2)
 
-    except PermissionError as e:
-        logging.exception("Failed to terminate kitty process: %s", e)
+    except PermissionError:
+        logger.exception("Failed to terminate kitty process")
+        raise
 
 
 def send_startup_command(kitty_bin: str, sock: str, done_file: Path, env: dict) -> None:
