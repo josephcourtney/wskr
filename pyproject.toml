@@ -41,7 +41,8 @@
     "commitizen>=4.6.0",
     "freezegun>=1.5.1",
     "pytest-rich>=0.2.0",
-  ]
+    "jkit",
+]
 
 # =================================== build ====================================
 [build-system]
@@ -116,6 +117,7 @@
 
 [tool.uv.sources]
   awl = { git = "https://github.com/josephcourtney/awl" }
+jkit = { git = "ssh://git@github.com-josephcourtney/josephcourtney/jkit.git" }
 
 [tool.commitizen]
   name                     = "cz_conventional_commits"

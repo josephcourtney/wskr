@@ -2,12 +2,14 @@ import contextlib
 import importlib
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
 import types
 from pathlib import Path
 
+import numpy as np
 from PIL import Image, ImageChops
 
 import wskr.tty.kitty as kitty_mod
@@ -25,6 +27,8 @@ from wskr.tty.kitty_remote import (
     wait_for_file_to_exist,
     wait_for_file_with_content,
 )
+
+logger = logging.getLogger(__name__)
 
 # The payload demo lives under tests/payloads/payload.py
 PAYLOAD_MODULE = "tests.payloads.payload"
@@ -52,7 +56,7 @@ def test_payload_script_generates_image_and_done(tmp_path, monkeypatch):
 
         return Img()
 
-    def fake_Draw(im):
+    def fake_draw(im):
         class Draw:
             def ellipse(self, *args, **kwargs):
                 pass
@@ -63,7 +67,7 @@ def test_payload_script_generates_image_and_done(tmp_path, monkeypatch):
         return Draw()
 
     fake_Image.new = fake_new
-    fake_ImageDraw.Draw = fake_Draw
+    fake_ImageDraw.Draw = fake_draw
 
     monkeypatch.setitem(sys.modules, "PIL", fake_PIL)
     monkeypatch.setitem(sys.modules, "PIL.Image", fake_Image)
@@ -73,7 +77,7 @@ def test_payload_script_generates_image_and_done(tmp_path, monkeypatch):
     monkeypatch.setattr(kitty_mod.KittyTransport, "__init__", lambda self: None)
     monkeypatch.setattr(kitty_mod.KittyTransport, "send_image", lambda self, png: None)
 
-    # 5) Stub input() so it doesn’t block
+    # 5) Stub input() so it doesn't block
     monkeypatch.setattr("builtins.input", lambda prompt="": "")
 
     # 6) Fake argv for payload
@@ -151,7 +155,7 @@ def test_full_kitty_remote_workflow(tmp_path, monkeypatch):
     # 5) take_screenshot writes SCREEN
     monkeypatch.setattr(kr, "query_windows", lambda _: [{"id": 42}])
 
-    def fake_run(cmd, check=False, **kw):
+    def fake_run(cmd, *, check=False, **kw):
         Path(cmd[-1]).write_bytes(b"SCREEN")
         return type("R", (), {"returncode": 0, "stderr": b""})()
 
@@ -192,7 +196,7 @@ def test_take_screenshot_matches_reference(tmp_path, monkeypatch):
     monkeypatch.setattr(kr, "query_windows", lambda _: [{"id": 1}])
 
     # 4) Stub run() to copy the reference into our dest
-    def fake_run(cmd, check=False, **kw):
+    def fake_run(cmd, *, check=False, **kw):
         dest.write_bytes(ref.read_bytes())
         return type("R", (), {"returncode": 0, "stderr": b""})()
 
@@ -209,13 +213,13 @@ def test_take_screenshot_matches_reference(tmp_path, monkeypatch):
 def test_compare_screenshot():
     def show_log(log_file: Path) -> None:
         if not log_file.exists():
-            logging.error("No log file found at %s", log_file)
+            logger.error("No log file found at %s", log_file)
             return
 
-        logging.debug("==== BEGIN KITTY SESSION LOG ====")
+        logger.debug("==== BEGIN KITTY SESSION LOG ====")
         for line in log_file.read_text(encoding="utf-8").splitlines():
-            logging.debug("[KITTY] %s", line)
-        logging.debug("==== END KITTY SESSION LOG ====\n")
+            logger.debug("[KITTY] %s", line)
+        logger.debug("==== END KITTY SESSION LOG ====\n")
 
     def cleanup_temp_files(*paths: Path) -> None:
         for path in paths:
@@ -232,13 +236,14 @@ def test_compare_screenshot():
                     # give it another 2s to exit cleanly, then swallow any further timeout
                     with contextlib.suppress(subprocess.TimeoutExpired):
                         proc.wait(timeout=2)
-        except PermissionError as e:
-            logging.exception("Failed to terminate kitty process: %s", e)
+        except PermissionError:
+            logger.exception("Failed to terminate kitty process")
+            raise
 
     def prepare_paths() -> tuple[Path, Path, str, str]:
         done_file = Path(tempfile.NamedTemporaryFile(delete=False).name)
         log_file = done_file.with_suffix(".log")
-        uid = done_file.name.split(os.sep)[-1]
+        uid = done_file.name.parts[-1]
         sock = f"unix:/tmp/kitty-{uid}.sock"
         return done_file, log_file, sock, uid
 
@@ -279,14 +284,11 @@ def test_compare_screenshot():
     assert ref.exists(), "Need a reference at tests/data/reference/cap_0001.png"
     assert capture_path.exists()
 
-    # load both images and compare their pixel data with small tolerance
-    import numpy as np
-
     img_ref = Image.open(ref).convert("RGB")
     w, h = img_ref.size
     strip = 260
 
-    # 3) recompute & save the pixel‐difference
+    # 3) recompute & save the pixel-difference
     img_ref = img_ref.crop((0, 0, w, h - strip))
     img_got = Image.open(capture_path).convert("RGB").crop((0, 0, w, h - strip))
     img_diff = ImageChops.difference(img_ref, img_got)
@@ -315,18 +317,19 @@ def test_compare_screenshot():
 
         # 4) let the user know where they landed
         print(f"Saved debug images to {debug_dir}", file=sys.stderr)
+        kitty_path = Path(shutil.which("kitty")).resolve()
 
         # 5) display all three inline via kitty icat
         subprocess.run(
-            ["kitty", "+kitten", "icat", "--align", "left", str(ref_path)],
+            [kitty_path, "+kitten", "icat", "--align", "left", str(ref_path)],
             check=False,
         )
         subprocess.run(
-            ["kitty", "+kitten", "icat", "--align", "right", str(got_path)],
+            [kitty_path, "+kitten", "icat", "--align", "right", str(got_path)],
             check=False,
         )
         subprocess.run(
-            ["kitty", "+kitten", "icat", "--align", "center", str(diff_path)],
+            [kitty_path, "+kitten", "icat", "--align", "center", str(diff_path)],
             check=False,
         )
         raise

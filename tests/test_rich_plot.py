@@ -1,7 +1,7 @@
 import numpy as np
 from rich.console import Console
 
-from wskr.plot import make_plot_grid
+from jkit.plot import make_plot_grid
 from wskr.rich.plt import RichPlot, get_terminal_size, sparkline
 
 
