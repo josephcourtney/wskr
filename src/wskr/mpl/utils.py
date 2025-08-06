@@ -88,7 +88,22 @@ def detect_dark_mode() -> bool:
         try:
             if fn():
                 return True
-        except (KeyError, RuntimeError, ValueError, OSError):
-            # Couldn't detect via env-var or OSC (no TTY, etc.) → default to light
-            continue
+        except (KeyError, RuntimeError, ValueError, OSError) as e:
+            logger.debug(f"{fn.__name__} failed: {e}")
     return False
+
+
+def compute_terminal_figure_size(
+    desired_width: int,
+    desired_height: int,
+    w_px: int,
+    h_px: int,
+    n_col: int,
+    n_row: int,
+    dpi: int,
+    zoom: float,
+) -> tuple[float, float]:
+    """Compute figure size in inches for desired cell dimensions."""
+    w_cell_in = desired_width * w_px / (n_col * dpi)
+    h_cell_in = desired_height * h_px / (n_row * dpi)
+    return w_cell_in / zoom, h_cell_in / zoom

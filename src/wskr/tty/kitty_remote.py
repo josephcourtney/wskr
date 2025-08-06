@@ -182,8 +182,6 @@ def get_window_id(done_file: Path) -> int:
         return int(done_file.read_text().strip())
     except Exception as e:
         _abort(f"Failed to parse window id: {e}")
-    finally:
-        done_file.write_text("")
 
 
 def show_log(log_file: Path) -> None:
@@ -216,7 +214,6 @@ def terminate_process(proc: subprocess.Popen) -> None:
 
     except PermissionError:
         logger.exception("Failed to terminate kitty process")
-        raise
 
 
 def send_startup_command(kitty_bin: str, sock: str, done_file: Path, env: dict) -> None:

@@ -241,7 +241,7 @@ def test_compare_screenshot():
             raise
 
     def prepare_paths() -> tuple[Path, Path, str, str]:
-        done_file = Path(tempfile.NamedTemporaryFile(delete=False).name)
+        done_file = Path(tempfile.NamedTemporaryFile(delete=False))
         log_file = done_file.with_suffix(".log")
         uid = done_file.name.parts[-1]
         sock = f"unix:/tmp/kitty-{uid}.sock"

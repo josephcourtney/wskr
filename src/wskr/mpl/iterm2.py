@@ -1,3 +1,5 @@
+import os
+
 import matplotlib.pyplot as plt
 from matplotlib import _api, interactive  # noqa: PLC2701
 from matplotlib.backend_bases import _Backend  # noqa: PLC2701
@@ -8,6 +10,12 @@ from wskr.mpl.utils import detect_dark_mode
 
 # TODO: import or implement a ITerm2Transport subclass
 # from wskr.tty.iterm2 import ITerm2Transport
+
+
+if os.getenv("WSKR_ENABLE_ITEMR2", "false").lower() != "true":
+    msg = "iTerm2 backend is not yet implemented. Set WSKR_ENABLE_ITERM2=true to bypass."
+    raise ImportError(msg)
+
 
 if detect_dark_mode():
     plt.style.use("dark_background")

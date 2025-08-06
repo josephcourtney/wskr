@@ -1,3 +1,5 @@
+import os
+
 import matplotlib.pyplot as plt
 from matplotlib import (
     _api,  # noqa: PLC2701
@@ -10,6 +12,10 @@ from wskr.mpl.base import BaseFigureManager, TerminalBackend
 
 # from wskr.tty.sixel import SixelTransport
 from wskr.mpl.utils import detect_dark_mode
+
+if os.getenv("WSKR_ENABLE_SIXEL", "false").lower() != "true":
+    msg = "Sixel backend is not yet implemented. Set WSKR_ENABLE_SIXEL=true to bypass."
+    raise ImportError(msg)
 
 # TODO: import or implement a SixelTransport subclass
 # from wskr.tty.sixel import SixelTransport
