@@ -12,6 +12,7 @@ import numpy as np
 from rich.console import Console, ConsoleOptions, RenderResult
 from rich.measure import Measurement
 
+from wskr.mpl.utils import compute_terminal_figure_size
 from wskr.rich.img import RichImage
 
 if TYPE_CHECKING:
@@ -114,8 +115,9 @@ class RichPlot:
 
         desired_width, desired_height = self._adapt_size(console, options)
 
-        w_cell_in = desired_width * w_px / (n_col * self.dpi)
-        h_cell_in = desired_height * h_px / (n_row * self.dpi)
+        w_cell_in, h_cell_in = compute_terminal_figure_size(
+            desired_width, desired_height, w_px, h_px, n_col, n_row, self.dpi, self.zoom
+        )
         self.figure.set_size_inches(w_cell_in / self.zoom, h_cell_in / self.zoom)
 
         img = RichImage(

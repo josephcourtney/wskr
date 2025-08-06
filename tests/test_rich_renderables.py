@@ -1,10 +1,10 @@
 import io
 from typing import Any
 
+from jkit.plot import make_plot_grid
 from rich.console import Console
 from rich.text import Text
 
-from jkit.plot import make_plot_grid
 from wskr.rich.img import RichImage
 from wskr.rich.plt import RichPlot
 

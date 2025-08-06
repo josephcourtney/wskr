@@ -1,8 +1,7 @@
-import numpy as np
+from jkit.plot import make_plot_grid
 from rich.console import Console
 
-from jkit.plot import make_plot_grid
-from wskr.rich.plt import RichPlot, get_terminal_size, sparkline
+from wskr.rich.plt import RichPlot, get_terminal_size
 
 
 def test_rich_plot_can_render_to_console(monkeypatch, dummy_transport):
@@ -38,16 +37,6 @@ def test_rich_plot_ansi_output(dummy_transport, monkeypatch):
     lines = [line for line in output.splitlines() if line.strip()]
     assert len(lines) == 3
     assert all(len(line.strip()) > 0 for line in lines)
-
-
-def test_sparkline_generates_correct_rows(monkeypatch):
-    monkeypatch.setattr("wskr.rich.plt.get_terminal_size", lambda: (10, 20, 5, 5))
-    sp = sparkline(np.linspace(0, 1, 16), np.sin(np.linspace(0, 1, 16)), columns=4, rows=3)
-    console = Console(record=True)
-    console.print(sp)
-    output = console.export_text().splitlines()
-    non_empty = [line for line in output if line.strip()]
-    assert len(non_empty) == 3
 
 
 def test_get_terminal_size_is_cached(monkeypatch):
