@@ -1,7 +1,7 @@
 # =================================== project ====================================
 [project]
   name = "wskr"
-  version = "0.0.2"
+  version = "0.0.3"
   description = ""
   readme = "README.md"
   authors = [
@@ -15,7 +15,7 @@
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
   ]
-  requires-python = ">=3.13"
+  requires-python = ">=3.12"
   dependencies = [
     "matplotlib>=3.10.1",
     "numpy>=2.2.5",
@@ -42,13 +42,23 @@
     "freezegun>=1.5.1",
     "pytest-rich>=0.2.0",
     "jkit",
-]
+  ]
 
 # =================================== build ====================================
 [build-system]
   requires      = ["uv_build>=0.6,<0.7"]
   build-backend = "uv_build"
 
+[[tool.uv.index]]
+  name        = "testpypi"
+  url         = "https://test.pypi.org/simple/"
+  publish-url = "https://test.pypi.org/legacy/"
+  explicit    = true
+
+[[tool.uv.index]]
+  name        = "pypi"
+  url         = "https://pypi.org/simple/"
+  publish-url = "https://upload.pypi.org/legacy/"
 
 # ==================================== lint ====================================
 [tool.ruff]
@@ -65,7 +75,7 @@
 # =================================== typecheck ===================================
 [tool.basedpyright]
   typeCheckingMode = "recommended"
-  pythonVersion = "3.13"
+  pythonVersion = "3.12"
   pythonPlatform = "Darwin"
   reportImplicitOverride = false
   reportMissingTypeStubs = false
@@ -116,8 +126,8 @@
   output = ".coverage.xml"
 
 [tool.uv.sources]
-  awl = { git = "https://github.com/josephcourtney/awl" }
-jkit = { git = "ssh://git@github.com-josephcourtney/josephcourtney/jkit.git" }
+  awl  = { git = "https://github.com/josephcourtney/awl" }
+  jkit = { git = "ssh://git@github.com-josephcourtney/josephcourtney/jkit.git" }
 
 [tool.commitizen]
   name                     = "cz_conventional_commits"
