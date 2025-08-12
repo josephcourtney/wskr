@@ -1,7 +1,7 @@
 # =================================== project ====================================
 [project]
   name = "wskr"
-  version = "0.0.3"
+  version = "0.0.4"
   description = ""
   readme = "README.md"
   authors = [
@@ -17,12 +17,13 @@
   ]
   requires-python = ">=3.12"
   dependencies = [
+    "jkit>=0.0.13",
     "matplotlib>=3.10.1",
     "numpy>=2.2.5",
     "pytest-timeout>=2.4.0",
     "rich>=14.0.0",
     "scipy>=1.15.2",
-  ]
+]
   [project.entry-points."matplotlib.backends"]
     wskr        = "wskr.mpl.base"
     wskr_kitty  = "wskr.mpl.kitty"
@@ -41,7 +42,6 @@
     "commitizen>=4.6.0",
     "freezegun>=1.5.1",
     "pytest-rich>=0.2.0",
-    "jkit",
   ]
 
 # =================================== build ====================================
@@ -126,7 +126,6 @@
   output = ".coverage.xml"
 
 [tool.uv.sources]
-  awl  = { git = "https://github.com/josephcourtney/awl" }
   jkit = { git = "ssh://git@github.com-josephcourtney/josephcourtney/jkit.git" }
 
 [tool.commitizen]
