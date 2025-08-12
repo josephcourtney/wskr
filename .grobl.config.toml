@@ -1,0 +1,4 @@
+exclude_tree = [".git", ".hg", ".svn", ".DS_Store", "Thumbs.db", ".idea", ".vscode", "*.sublime-workspace", "*.sublime-project", "__pycache__", ".venv", "venv", "env", ".env", "node_modules", "bower_components", "target", "dist", "build", ".pytest_cache", ".mypy_cache", ".tox", ".coverage", ".coverage.xml", "coverage.xml", "*.egg-info", "*.log", "*.tmp", "*.bak", "*.lock", "*.xcuserdatad", "*.xcworkspace"]
+exclude_print = ["LICENSE", "LICENSE.*", "COPYING", "CODE_OF_CONDUCT.md", "CONTRIBUTING.md", "README.*", "docs", "docs/*", "dist", "dist/*", "build", "build/*", "*.lproj/*", "*.xcassets/*", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.svg", "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "poetry.lock", "Pipfile.lock", "Cargo.lock", "composer.lock", "Gemfile.lock", "uv.lock", "ruff.default.toml"]
+include_tree_tags = "directory"
+include_file_tags = "file"
