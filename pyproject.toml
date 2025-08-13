@@ -126,7 +126,7 @@
   output = ".coverage.xml"
 
 [tool.uv.sources]
-  jkit = { git = "ssh://git@github.com-josephcourtney/josephcourtney/jkit.git" }
+  jkit = { git = "ssh://git@github.com/josephcourtney/jkit.git" }
 
 [tool.commitizen]
   name                     = "cz_conventional_commits"
