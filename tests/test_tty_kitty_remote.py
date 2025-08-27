@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from wskr.tty import kitty_remote
 from wskr.tty.kitty_remote import (
     WindowConfig,
     _abort,
@@ -52,14 +53,14 @@ def test_find_executable_not_found(monkeypatch, caplog):
 
 def test_run_uses_check_output(monkeypatch):
     # capture_output=True, check=False → uses check_output
-    monkeypatch.setattr(subprocess, "check_output", lambda cmd, **kw: b"stdout")
+    monkeypatch.setattr(kitty_remote.runner, "check_output", lambda cmd, **kw: b"stdout")
     res = run(["echo", "hi"], capture_output=True, check=False)
     assert res == b"stdout"
 
 
 def test_run_uses_run(monkeypatch):
     fake = subprocess.CompletedProcess(args=["x"], returncode=0)
-    monkeypatch.setattr(subprocess, "run", lambda *args, **kw: fake)
+    monkeypatch.setattr(kitty_remote.runner, "run", lambda *args, **kw: fake)
     res = run(["ls"], capture_output=False, check=True, timeout=0.1)
     assert res is fake
 
