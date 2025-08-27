@@ -3,16 +3,19 @@ import re
 import shutil
 import subprocess  # noqa: S404
 import sys
+import time
 
+from wskr.config import CACHE_TTL_S, DEFAULT_TTY_ROWS, IMAGE_CHUNK_SIZE
 from wskr.ttyools import query_tty
 
 from .base import ImageTransport
 
 logger = logging.getLogger(__name__)
-_IMAGE_CHUNK_SIZE = 4096
 
 
 class KittyTransport(ImageTransport):
+    __slots__ = ("_cache_time", "_cached_size", "_kitty", "_next_img")
+
     def __init__(self) -> None:
         self._kitty = shutil.which("kitty")
         if not self._kitty:
@@ -20,10 +23,20 @@ class KittyTransport(ImageTransport):
             raise RuntimeError(msg)
         self._next_img = 1
         self._cached_size: tuple[int, int] | None = None
+        self._cache_time = 0.0
+
+    def invalidate_cache(self) -> None:
+        """Drop any cached window-size information."""
+        self._cached_size = None
+        self._cache_time = 0.0
 
     def get_window_size_px(self) -> tuple[int, int]:
-        logger.debug("KittyTransport.get_window_size_px: cached_size=%r", self._cached_size)
-        if self._cached_size is not None:
+        logger.debug(
+            "KittyTransport.get_window_size_px: cached_size=%r age=%.2f",
+            self._cached_size,
+            time.time() - self._cache_time,
+        )
+        if self._cached_size is not None and (time.time() - self._cache_time) < CACHE_TTL_S:
             return self._cached_size
         try:
             proc = subprocess.run(  # noqa: S603
@@ -39,9 +52,10 @@ class KittyTransport(ImageTransport):
             size = (800, 600)
         else:
             # terminals are typically 24 rows tall
-            rows = 24
+            rows = DEFAULT_TTY_ROWS
             size = (w_px, h_px - (3 * h_px) // rows)
         self._cached_size = size
+        self._cache_time = time.time()
         logger.debug("KittyTransport.get_window_size_px: computed_size=%r", size)
         return size
 
@@ -96,8 +110,8 @@ class KittyTransport(ImageTransport):
         img_num = self._next_img
         self._next_img += 1
 
-        for i in range(0, len(png_bytes), _IMAGE_CHUNK_SIZE):
-            self._send_chunk(img_num, png_bytes[i : i + _IMAGE_CHUNK_SIZE])
+        for i in range(0, len(png_bytes), IMAGE_CHUNK_SIZE):
+            self._send_chunk(img_num, png_bytes[i : i + IMAGE_CHUNK_SIZE])
         self._send_chunk(img_num, b"", final=True)
 
         resp = query_tty(
@@ -114,3 +128,7 @@ class KittyTransport(ImageTransport):
             msg = f"Unexpected kitty response: {text!r}"
             raise RuntimeError(msg)
         return int(m.group(1))
+
+    def close(self) -> None:
+        """Clear any cached data."""
+        self.invalidate_cache()

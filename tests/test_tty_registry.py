@@ -1,5 +1,5 @@
 from wskr.tty.base import ImageTransport
-from wskr.tty.registry import get_image_transport, register_image_transport
+from wskr.tty.registry import TransportName, get_image_transport, register_image_transport
 from wskr.tty.transport import NoOpTransport
 
 
@@ -26,4 +26,13 @@ def test_unknown_key_fallbacks_to_noop():
 def test_bad_transport_registration(monkeypatch):
     register_image_transport("bad", BadTransport)
     t = get_image_transport("bad")
+    assert isinstance(t, NoOpTransport)
+
+
+def test_get_image_transport_with_enum(monkeypatch):
+    monkeypatch.setattr(
+        "wskr.tty.registry._IMAGE_TRANSPORTS",
+        {TransportName.NOOP.value: NoOpTransport},
+    )
+    t = get_image_transport(TransportName.NOOP)
     assert isinstance(t, NoOpTransport)
