@@ -6,6 +6,8 @@ import logging
 import re
 import sys
 
+from wskr.errors import TransportRuntimeError
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,10 +35,10 @@ class KittyChunkParser:
         """Validate and extract the kitty image ID from ``resp``."""
         if not resp:
             msg = "No response from kitty on image init"
-            raise RuntimeError(msg)
+            raise TransportRuntimeError(msg)
         text = resp.decode("ascii")
         m = cls._RESP_RE.match(text)
         if not m or int(m.group(2)) != img_num:
             msg = f"Unexpected kitty response: {text!r}"
-            raise RuntimeError(msg)
+            raise TransportRuntimeError(msg)
         return int(m.group(1))

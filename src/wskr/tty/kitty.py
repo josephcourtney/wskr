@@ -1,10 +1,10 @@
 import logging
 import shutil
-import subprocess  # noqa: S404
 import sys
 import time
 
 from wskr.config import CACHE_TTL_S, DEFAULT_TTY_ROWS, IMAGE_CHUNK_SIZE, TIMEOUT_S
+from wskr.errors import CommandRunnerError, TransportUnavailableError
 from wskr.tty.command import CommandRunner
 from wskr.tty.kitty_parser import KittyChunkParser
 from wskr.ttyools import query_tty
@@ -21,7 +21,8 @@ class KittyTransport(ImageTransport):
         self._kitty = shutil.which("kitty")
         if not self._kitty:
             msg = "[wskr] Kitty transport not available: 'kitty' binary not found."
-            raise RuntimeError(msg)
+            raise TransportUnavailableError(msg)
+        logger.debug("KittyTransport.__init__: kitty=%s timeout=%s", self._kitty, TIMEOUT_S)
         self._next_img = 1
         self._cached_size: tuple[int, int] | None = None
         self._cache_time = 0.0
@@ -48,9 +49,10 @@ class KittyTransport(ImageTransport):
                 check=True,
             )
             w_px, h_px = map(int, proc.stdout.strip().split("x"))
-        except (subprocess.CalledProcessError, ValueError) as e:
-            logger.warning("KittyTransport.get_window_size_px failed: %s", e)
+        except (CommandRunnerError, ValueError):
+            logger.warning("KittyTransport.get_window_size_px failed", exc_info=True)
             size = (800, 600)
+            logger.debug("KittyTransport.get_window_size_px: using fallback size=%r", size)
         else:
             # terminals are typically 24 rows tall
             rows = DEFAULT_TTY_ROWS
@@ -64,6 +66,7 @@ class KittyTransport(ImageTransport):
     def _tput_lines() -> int:
         tput = shutil.which("tput")
         if not tput:
+            logger.debug("KittyTransport._tput_lines: tput not found, defaulting to 24")
             return 24
         try:
             proc = CommandRunner().run(
@@ -76,13 +79,19 @@ class KittyTransport(ImageTransport):
             try:
                 return int(out or "24")
             except ValueError:
-                logger.warning("KittyTransport._tput_lines parse failed: %r", out)
+                logger.warning("KittyTransport._tput_lines parse failed: %r", out, exc_info=True)
                 return 24
-        except subprocess.CalledProcessError as e:
-            logger.warning("KittyTransport._tput_lines failed: %s", e)
+        except CommandRunnerError:
+            logger.warning("KittyTransport._tput_lines failed", exc_info=True)
             return 24
 
     def send_image(self, png_bytes: bytes) -> None:
+        logger.debug(
+            "KittyTransport.send_image: kitty=%s timeout=%s bytes=%d",
+            self._kitty,
+            self._runner.timeout,
+            len(png_bytes),
+        )
         try:
             self._runner.run(
                 [self._kitty, "+kitten", "icat", "--align", "center"],
@@ -90,12 +99,14 @@ class KittyTransport(ImageTransport):
                 stdout=sys.stderr,
                 check=True,
             )
-        except subprocess.CalledProcessError:
+        except CommandRunnerError:
             logger.exception("Error sending image via kitty icat")
 
     def init_image(self, png_bytes: bytes) -> int:
         img_num = self._next_img
         self._next_img += 1
+
+        logger.debug("KittyTransport.init_image: img=%d bytes=%d", img_num, len(png_bytes))
 
         for i in range(0, len(png_bytes), IMAGE_CHUNK_SIZE):
             KittyChunkParser.send_chunk(img_num, png_bytes[i : i + IMAGE_CHUNK_SIZE])

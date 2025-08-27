@@ -8,6 +8,7 @@ import pytest
 
 import wskr.config as cfg
 import wskr.tty.kitty as kitty_mod
+from wskr.errors import CommandRunnerError, TransportRuntimeError, TransportUnavailableError
 from wskr.tty import kitty
 from wskr.tty.kitty import KittyTransport
 from wskr.tty.kitty_parser import KittyChunkParser
@@ -19,7 +20,7 @@ def test_parse_init_response_success():
 
 def test_kitty_transport_init_fails(monkeypatch):
     monkeypatch.setattr("shutil.which", lambda _: None)
-    with pytest.raises(RuntimeError, match="not available"):
+    with pytest.raises(TransportUnavailableError, match="not available"):
         kitty.KittyTransport()
 
 
@@ -127,7 +128,8 @@ def test_send_image_uses_timeout(monkeypatch):
 
 def test_get_window_size_px_fallback(monkeypatch):
     def bad_run(self, *a, **k):
-        raise subprocess.CalledProcessError(1, a[0])
+        msg = "boom"
+        raise CommandRunnerError(msg)
 
     monkeypatch.setattr(kitty_mod.CommandRunner, "run", bad_run)
     kt = KittyTransport()
@@ -160,7 +162,8 @@ def test_tput_lines_parse_error(monkeypatch):
 
 def test_send_image_logs_error(monkeypatch, caplog):
     def bad_run(self, *a, **k):
-        raise subprocess.CalledProcessError(1, a[0])
+        msg = "boom"
+        raise CommandRunnerError(msg)
 
     monkeypatch.setattr(kitty_mod.CommandRunner, "run", bad_run)
     kt = KittyTransport()
@@ -183,7 +186,7 @@ def test_init_image_no_response(monkeypatch, dummy_png):
     monkeypatch.setattr(KittyChunkParser, "send_chunk", lambda *a, **k: None)
     monkeypatch.setattr("wskr.tty.kitty.query_tty", lambda *a, **k: b"")
     kt = KittyTransport()
-    with pytest.raises(RuntimeError, match="No response"):
+    with pytest.raises(TransportRuntimeError, match="No response"):
         kt.init_image(dummy_png)
 
 
@@ -191,7 +194,7 @@ def test_init_image_bad_response(monkeypatch, dummy_png):
     monkeypatch.setattr(KittyChunkParser, "send_chunk", lambda *a, **k: None)
     monkeypatch.setattr("wskr.tty.kitty.query_tty", lambda *a, **k: b"\x1b_Gi=7,i=2;FAIL\x1b\\")
     kt = KittyTransport()
-    with pytest.raises(RuntimeError, match="Unexpected"):
+    with pytest.raises(TransportRuntimeError, match="Unexpected"):
         kt.init_image(dummy_png)
 
 

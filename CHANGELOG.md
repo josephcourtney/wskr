@@ -1,3 +1,12 @@
+## [0.0.10] - 2025-08-27
+
+### Added
+- add transport runtime error and command runner error types
+- log kitty operations with detailed context
+
+### Changed
+- standardize backend logging and diagnostics
+
 ## [0.0.9] - 2025-08-27
 
 ### Added

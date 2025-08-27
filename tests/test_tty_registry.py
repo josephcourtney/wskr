@@ -81,6 +81,19 @@ def test_entry_points_autoload(monkeypatch):
     configure(FALLBACK="noop")
 
 
+def test_entry_points_failure(monkeypatch):
+    configure(FALLBACK="noop")
+    monkeypatch.setattr(registry, "_ENTRYPOINTS_LOADED", False)
+
+    def bad_entry_points(*, group):
+        msg = "boom"
+        raise RuntimeError(msg)
+
+    monkeypatch.setattr(importlib.metadata, "entry_points", bad_entry_points)
+    # Should not raise despite entry point discovery failure
+    assert isinstance(get_image_transport("noop"), NoOpTransport)
+
+
 def test_get_image_transport_with_enum(monkeypatch):
     monkeypatch.setattr(
         registry,

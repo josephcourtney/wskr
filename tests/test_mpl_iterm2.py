@@ -11,7 +11,7 @@ def test_iterm2_import_raises(monkeypatch):
     sys.modules.pop("wskr.mpl.iterm2", None)
     with pytest.raises(
         FeatureUnavailableError,
-        match=r"iTerm2 backend is not yet implemented\. Set WSKR_ENABLE_ITERM2=true to bypass\."
+        match=r"iTerm2 backend is not yet implemented\. Set WSKR_ENABLE_ITERM2=true to bypass\.",
     ):
         import wskr.mpl.iterm2  # noqa: PLC0415
     orig_wskr_enable_iterm2 = os.environ.get("WSKR_ENABLE_ITERM2")
