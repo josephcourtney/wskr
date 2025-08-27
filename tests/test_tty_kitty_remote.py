@@ -153,7 +153,7 @@ def test_take_screenshot_success(monkeypatch, tmp_path):
     def fake_run(cmd, check):
         # create file to simulate screencapture side-effect
         dst = Path(cmd[-1])
-        dst.write_text("")
+        dst.write_text("", encoding="utf-8")
         return Res()
 
     monkeypatch.setattr("wskr.tty.kitty_remote.run", fake_run)
