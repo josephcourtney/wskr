@@ -1,7 +1,6 @@
 # ruff: noqa: PLW3201
 from io import BytesIO
 from pathlib import Path
-from typing import ClassVar
 
 from rich.console import Console, ConsoleOptions, RenderResult
 from rich.measure import Measurement
@@ -16,7 +15,7 @@ from wskr.tty.transport import ImageTransport
 
 # load diacritics table from external data file
 _rcd_path = Path(__file__).with_name("rcd.txt")
-RCD: ClassVar[str] = _rcd_path.read_text(encoding="utf-8")
+RCD: str = _rcd_path.read_text(encoding="utf-8")
 
 
 class RichImage:
