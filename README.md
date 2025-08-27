@@ -40,13 +40,15 @@ plt.show()   # renders inline via Kitty protocol
 
 ## Using with Rich
 
+import matplotlib.pyplot as plt
+
 ```python
 from rich.console import Console
-from jkit.plot import make_plot_grid
 from wskr.rich.plt import RichPlot
 
 console = Console()
-fig, ax = make_plot_grid(1, 1)
+fig = plt.figure()
+ax = fig.add_subplot(111)
 ax.plot([0,1,2], [2,3,1], c="w")
 rich_plot = RichPlot(fig, desired_width=40, desired_height=10)
 console.print(rich_plot)
