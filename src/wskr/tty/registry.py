@@ -67,6 +67,11 @@ def _load_entry_points() -> None:
             logger.warning("Failed to load transport %s", ep.name, exc_info=True)
 
 
+def load_entry_points() -> None:
+    """Public wrapper to load ``wskr.image_transports`` entry points."""
+    _load_entry_points()
+
+
 def get_image_transport(name: str | TransportName | None = None) -> ImageTransport:
     """Return an initialised transport instance.
 
@@ -102,5 +107,6 @@ def get_image_transport(name: str | TransportName | None = None) -> ImageTranspo
 __all__ = [
     "TransportName",
     "get_image_transport",
+    "load_entry_points",
     "register_image_transport",
 ]

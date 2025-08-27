@@ -1,3 +1,11 @@
+## [0.0.11] - 2025-08-27
+
+### Added
+- add demonstration CLI via ``python -m wskr.demo``
+- add ``darkdetect``-based fallback for dark-mode detection
+- add ``query_kitty_color`` helper for theme-aware plotting
+- add ``load_entry_points`` function for third-party transports
+
 ## [0.0.10] - 2025-08-27
 
 ### Added
