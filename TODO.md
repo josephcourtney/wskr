@@ -17,12 +17,12 @@
 * [ ] Centralize configuration — Add `wskr.config` module supporting env + kwargs with precedence; surface knobs (timeouts, cache TTLs, fallback behavior, dark-mode policy).
 * [ ] Improve structured logging — Standardize logger names and messages; include key fields (transport, timeout, bytes, img\_id) for Kitty operations; add `logger.debug` on decisions (fallbacks, gates).
 * [ ] Strengthen error messages (style preference) — Assign exception messages to variables before raising (personal style) across the codebase for consistency.
-* [ ] Use type aliases & annotations — Add precise types for callables: e.g., `type MorePredicate = Callable[[bytes], bool]` in `ttyools.py`; annotate public APIs throughout.
+* [x] Use type aliases & annotations — Add precise types for callables: e.g., `type MorePredicate = Callable[[bytes], bool]` in `ttyools.py`; annotate public APIs throughout.
 * [ ] Path handling with `pathlib` — Replace raw string paths with `Path` in `RichImage`, payload scripts, and kitty\_remote helper paths; ensure encoding explicitness when reading files.
 * [ ] Add `__slots__` to high-churn classes — For `RichImage` and lightweight transport helpers to reduce memory overhead during repeated renders.
 * [ ] Avoid global Console — In `src/wskr/rich/img.py`/`plt.py`, avoid module-level `Console()`; take console from Rich call context only to reduce hidden globals.
 * [ ] Document backend selection — README: document Matplotlib backend entry points and how to choose (`MPLBACKEND=wskr_kitty`) plus feature gates; clarify test environment hints.
-* [ ] Harden `tty_attributes` usage — Ensure the fd is captured once, use it consistently, and avoid multiple `os.open()` calls; add tests that assert a single open/close per operation.
+* [x] Harden `tty_attributes` usage — Ensure the fd is captured once, use it consistently, and avoid multiple `os.open()` calls; add tests that assert a single open/close per operation.
 * [ ] Unify PNG rendering path — Deduplicate `_render_to_buffer` in `plt.py` (two versions exist) to a single function; add test that asserts identical bytes for both call sites.
 * [ ] Graceful teardown hooks — Provide `close()`/context manager for transports that may hold resources later; no-op for current transports; add to interface for forward compatibility.
 * [ ] Replace magic numbers — Extract `_IMAGE_CHUNK_SIZE = 4096`, rows=24 heuristic, etc., into `wskr.config` with sensible defaults and docstrings.
