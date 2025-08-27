@@ -28,19 +28,19 @@
 
 # transport
 
-* [ ] Map failures in `src/wskr/tty/registry.py` to those new error types
-* [ ] Update `get_image_transport()` to distinguish “unknown key” vs “init failed” vs “disabled”
-* [ ] Only fall back to `NoOpTransport` when `WSKR_FALLBACK=noop` (or `error`) is explicitly configured
-* [ ] Change `WskrFigureManager` to accept an `ImageTransport` factory `Callable[[], ImageTransport]`
-* [ ] Spike a pure-Python Kitty transport behind a `WSKR_TRANSPORT=kitty_py` feature flag
-* [ ] Add CLI flags to `demo` for width, height, zoom, and transport choice
-* [ ] Replace import-time `ImportError` stubs in `mpl/sixel.py` with a `FeatureUnavailable` check
-* [ ] Replace import-time `ImportError` stubs in `mpl/iterm2.py` with a `FeatureUnavailable` check
-* [ ] Make those backends register as “disabled” unless the corresponding `WSKR_ENABLE_*` env var is set
+* [x] Map failures in `src/wskr/tty/registry.py` to those new error types
+* [x] Update `get_image_transport()` to distinguish “unknown key” vs “init failed” vs “disabled”
+* [x] Only fall back to `NoOpTransport` when `WSKR_FALLBACK=noop` (or `error`) is explicitly configured
+* [x] Change `WskrFigureManager` to accept an `ImageTransport` factory `Callable[[], ImageTransport]`
+* [x] Spike a pure-Python Kitty transport behind a `WSKR_TRANSPORT=kitty_py` feature flag
+* [x] Add CLI flags to `demo` for width, height, zoom, and transport choice
+* [x] Replace import-time `ImportError` stubs in `mpl/sixel.py` with a `FeatureUnavailable` check
+* [x] Replace import-time `ImportError` stubs in `mpl/iterm2.py` with a `FeatureUnavailable` check
+* [x] Make those backends register as “disabled” unless the corresponding `WSKR_ENABLE_*` env var is set
 
 # plugin infrastructure
 
-* [ ] Keep `register_image_transport()` but extend it to auto-load entry points
+* [x] Keep `register_image_transport()` but extend it to auto-load entry points
 
 # logging
 
@@ -52,8 +52,8 @@
 # error messages
 
 * [ ] Audit exception messages across the codebase and assign each to a local variable before raising
-* [ ] Define a `TransportInitError` exception
-* [ ] Define a `TransportUnavailableError` exception
+* [x] Define a `TransportInitError` exception
+* [x] Define a `TransportUnavailableError` exception
 * [ ] Define a `TransportRuntimeError` exception
 * [ ] Surface structured errors (custom exception types) from `CommandRunner`
 * [ ] Wrap entry-point loading in `try/except` and emit clear diagnostics on failure

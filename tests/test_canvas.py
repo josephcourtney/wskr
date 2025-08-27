@@ -9,7 +9,7 @@ def test_manager_resizes_figure_and_sends_image(dummy_transport):
     fig = plt.figure()
     canvas = FigureCanvasAgg(fig)
     transport = dummy_transport
-    manager = WskrFigureManager(canvas=canvas, transport=transport)
+    manager = WskrFigureManager(canvas=canvas, transport_factory=lambda: transport)
 
     manager.show()
 

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-from wskr.tty.kitty import KittyTransport
+from wskr.tty.registry import get_image_transport
 
 
 def draw_circle(size):
@@ -34,13 +34,13 @@ def main():
     p.add_argument("--scenario", choices=["circle", "checker"], required=True)
     p.add_argument("--width", type=int, default=200)
     p.add_argument("--height", type=int, default=200)
+    p.add_argument("--zoom", type=float, default=1.0)
+    p.add_argument("--transport", default=os.getenv("WSKR_TRANSPORT", "kitty"))
     args = p.parse_args()
 
     # pick image
-    if args.scenario == "circle":
-        im = draw_circle((args.width, args.height))
-    else:
-        im = draw_checker((args.width, args.height))
+    size = (int(args.width * args.zoom), int(args.height * args.zoom))
+    im = draw_circle(size) if args.scenario == "circle" else draw_checker(size)
 
     # write to a temp file that Kitty will display
     out = Path.cwd() / "payload.png"
@@ -48,7 +48,7 @@ def main():
 
     # send via wskr
     png = out.read_bytes()
-    KittyTransport().send_image(png)
+    get_image_transport(args.transport).send_image(png)
     Path(os.environ["KITTY_DEMO_DONE_FILE"]).write_text("done", encoding="utf-8")
     input("press ENTER…")
 
