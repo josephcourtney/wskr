@@ -1,9 +1,17 @@
-import sys
-import termios
-import tty
+"""Utilities for querying colour information from Kitty terminals."""
 
-OSC = "\033]"
-ST = "\007"  # BEL terminator; you can also use "\033\\"
+from __future__ import annotations
+
+import re
+from typing import TYPE_CHECKING
+
+from wskr.ttyools import query_tty
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+OSC = "\x1b]"
+ST = "\x07"
 
 KITTY_COLOR_KEYS = (
     "foreground",
@@ -17,49 +25,43 @@ KITTY_COLOR_KEYS = (
     *[str(k) for k in range(16)],
 )
 
+_RESP_RE = re.compile(rb"(?:\]21;|;)([^=]+)=rgb:([0-9A-Fa-f]{2})/([0-9A-Fa-f]{2})/([0-9A-Fa-f]{2})")
 
-def query_colors(keys=KITTY_COLOR_KEYS):
-    """
-    Query Kitty for the given list of color keys or, by default, all of them.
 
-    Returns a dict mapping each key to its reported value (string).
-    """
-    # build the query string, e.g. "\033]21;foreground=?;ansi_1=?\007"
-    body = ";".join(f"{k}=?" for k in keys)
-    query = f"{OSC}21;{body}{ST}"
-    sys.stdout.write(query)
-    sys.stdout.flush()
-
-    # read response until ST
-    fd = sys.stdin.fileno()
-    old = termios.tcgetattr(fd)
-    try:
-        tty.setraw(fd)
-        buf = ""
-        while True:
-            ch = sys.stdin.read(1)
-            buf += ch
-            # Stop on BEL or ESC \
-            if ch == "\007" or buf.endswith("\033\\"):
-                break
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old)
-
-    # strip OSC/ST, split into key=val pairs
-    # buf will be like "\033]21;foreground=rgb:ff/00/00;ansi_1=#008800\007"
-    # remove leading "\033]21;" and trailing BEL/ESC\
-    core = buf.lstrip("\033]").lstrip("21;").rstrip("\007").rstrip("\033\\")
-    parts = core.split(";")
-    result = {}
-    for p in parts:
-        if "=" in p:
-            k, v = p.split("=", 1)
-            if not v:
-                result[k] = None
-            else:
-                result[k] = (
-                    int(v[4:6], 16),
-                    int(v[7:9], 16),
-                    int(v[10:12], 16),
-                )
+def _parse_response(resp: bytes) -> dict[str, tuple[int, int, int] | None]:
+    result: dict[str, tuple[int, int, int] | None] = {}
+    for match in _RESP_RE.finditer(resp):
+        key = match.group(1).decode()
+        r, g, b = (int(p, 16) for p in match.groups()[1:])
+        result[key] = (r, g, b)
     return result
+
+
+def query_colors(
+    keys: Iterable[str] = KITTY_COLOR_KEYS,
+    *,
+    timeout: float | None = None,
+) -> dict[str, tuple[int, int, int] | None]:
+    """Query Kitty for the given colour ``keys``.
+
+    Returns a mapping of key to ``(r, g, b)`` tuples in 0-255 range. Missing
+    keys yield ``None`` values.
+    """
+    body = ";".join(f"{k}=?" for k in keys)
+    req = f"{OSC}21;{body}{ST}".encode()
+    resp = query_tty(req, more=lambda b: not b.endswith(ST.encode()), timeout=timeout)
+    if not resp:
+        return {}
+    return _parse_response(resp)
+
+
+def query_kitty_color(
+    key: str,
+    *,
+    timeout: float | None = None,
+) -> tuple[int, int, int] | None:
+    """Return the Kitty colour for ``key`` or ``None`` if unavailable."""
+    return query_colors([key], timeout=timeout).get(key)
+
+
+__all__ = ["KITTY_COLOR_KEYS", "query_colors", "query_kitty_color"]

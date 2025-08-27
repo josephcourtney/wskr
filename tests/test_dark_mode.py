@@ -1,5 +1,6 @@
 import os
 import pty
+import sys
 import threading
 
 import pytest
@@ -92,3 +93,19 @@ def test_detect_dark_mode_override(monkeypatch):
     assert utils.detect_dark_mode() is True
     monkeypatch.setenv("WSKR_DARK_MODE", "0")
     assert utils.detect_dark_mode() is False
+
+
+def test_darkdetect_strategy(monkeypatch):
+    class DummyDD:
+        @staticmethod
+        def theme() -> str:
+            return "Dark"
+
+    monkeypatch.setitem(sys.modules, "darkdetect", DummyDD)
+    monkeypatch.setattr(utils, "darkdetect", DummyDD)
+    # Ensure earlier strategies fail so DarkDetectStrategy is used
+    monkeypatch.delenv("COLORFGBG", raising=False)
+    monkeypatch.setattr(utils, "query_tty", lambda *_a, **_k: b"")
+    assert utils.detect_dark_mode(strategies=[utils.DarkDetectStrategy()]) is True
+    DummyDD.theme = staticmethod(lambda: "Light")  # type: ignore[assignment]
+    assert utils.detect_dark_mode(strategies=[utils.DarkDetectStrategy()]) is False
