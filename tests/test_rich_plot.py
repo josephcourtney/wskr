@@ -1,3 +1,5 @@
+from io import BytesIO
+
 import matplotlib.pyplot as plt
 from rich.console import Console
 
@@ -19,6 +21,18 @@ def test_rich_plot_can_render_to_console(monkeypatch, dummy_transport):
     output = console.export_text()
 
     assert output.strip()
+
+
+def test_render_to_buffer_matches_savefig():
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot([0, 1], [1, 1])
+    rp = RichPlot(fig)
+    new_bytes = rp._render_to_buffer().getvalue()
+    buf = BytesIO()
+    fig.savefig(buf, format="PNG", dpi=rp.dpi * rp.zoom, transparent=True)
+    buf.seek(0)
+    assert new_bytes == buf.getvalue()
 
 
 def test_rich_plot_ansi_output(dummy_transport, monkeypatch):
