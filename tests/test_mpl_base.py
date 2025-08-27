@@ -24,7 +24,7 @@ def test_manager_init_and_show_roundtrip(dummy_transport):
     fig = plt.figure()
     canvas = FigureCanvasAgg(fig)  # use the standard Agg canvas
     transport = dummy_transport
-    manager = WskrFigureManager(canvas, transport=transport)
+    manager = WskrFigureManager(canvas, transport_factory=lambda: transport)
 
     # sanity-check our wiring
     assert manager.canvas is canvas

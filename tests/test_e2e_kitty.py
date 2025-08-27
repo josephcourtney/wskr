@@ -13,7 +13,6 @@ import numpy as np
 import pytest
 from PIL import Image, ImageChops
 
-import wskr.tty.kitty as kitty_mod
 import wskr.tty.kitty_remote as kr
 from wskr.tty.kitty_remote import (
     WindowConfig,
@@ -77,9 +76,12 @@ def test_payload_script_generates_image_and_done(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "PIL.Image", fake_Image)
     monkeypatch.setitem(sys.modules, "PIL.ImageDraw", fake_ImageDraw)
 
-    # 4) Stub KittyTransport so no external calls happen
-    monkeypatch.setattr(kitty_mod.KittyTransport, "__init__", lambda self: None)
-    monkeypatch.setattr(kitty_mod.KittyTransport, "send_image", lambda self, png: None)
+    # 4) Stub image transport to avoid external calls
+    class Dummy:
+        def send_image(self, png):
+            pass
+
+    monkeypatch.setattr("wskr.tty.registry.get_image_transport", lambda name="kitty": Dummy())
 
     # 5) Stub input() so it doesn't block
     monkeypatch.setattr("builtins.input", lambda prompt="": "")

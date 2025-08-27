@@ -7,13 +7,14 @@ from matplotlib import (
 from matplotlib.backend_bases import _Backend  # noqa: PLC2701
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
+from wskr.errors import FeatureUnavailableError
 from wskr.mpl.base import BaseFigureManager, TerminalBackend
 
 # from wskr.tty.sixel import SixelTransport
 
 if os.getenv("WSKR_ENABLE_SIXEL", "false").lower() != "true":
     msg = "Sixel backend is not yet implemented. Set WSKR_ENABLE_SIXEL=true to bypass."
-    raise ImportError(msg)
+    raise FeatureUnavailableError(msg)
 
 # TODO: import or implement a SixelTransport subclass  # noqa: FIX002, TD002, TD003
 # from wskr.tty.sixel import SixelTransport
