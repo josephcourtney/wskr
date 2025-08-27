@@ -2,8 +2,6 @@ import logging
 import os
 import re
 
-from matplotlib.figure import Figure
-
 from wskr.ttyools import query_tty
 
 logger = logging.getLogger(__name__)
@@ -13,42 +11,12 @@ _ENV_BG_THRESHOLD = 8
 # Luminance threshold below which we consider the background dark
 _LUMINANCE_THRESHOLD = 0.5
 
-
-def autosize_figure(figure: Figure, width_px: int, height_px: int) -> None:
-    """Resize the figure to fit the terminal window, preserving aspect ratio."""
-    # Skip resizing if we got non-positive dimensions
-    if width_px <= 0 or height_px <= 0:
-        logger.warning(
-            "autosize_figure: received non-positive dimensions (%d, %d), skipping resize",
-            width_px,
-            height_px,
-        )
-        return
-
-    dpi = figure.dpi
-    orig_w, orig_h = figure.get_size_inches()
-    aspect = orig_h / orig_w if orig_w else 1.0
-
-    if aspect > 1:
-        new_h = height_px / dpi
-        new_w = new_h / aspect
-    else:
-        new_w = width_px / dpi
-        new_h = new_w * aspect
-
-    figure.set_size_inches(new_w, new_h)
-
-
 # OSC sequence to query the terminal's background color.
 # We send BEL-terminated “11;?” and expect back e.g.
 #   '\x1b]11;rgb:hhhh/hhhh/hhhh\x07'
 # where each 'hhhh' is a 16-bit hex channel.
 _OSC_BG_QUERY = b"\033]11;?\007"
-_OSC_BG_RESP_RE = re.compile(
-    rb"\]11;rgb:([0-9A-Fa-f]{4})/"
-    rb"([0-9A-Fa-f]{4})/"
-    rb"([0-9A-Fa-f]{4})"
-)
+_OSC_BG_RESP_RE = re.compile(rb"\]11;rgb:([0-9A-Fa-f]{4})/" rb"([0-9A-Fa-f]{4})/" rb"([0-9A-Fa-f]{4})")
 
 
 def is_dark_mode_env() -> bool:
@@ -94,19 +62,3 @@ def detect_dark_mode() -> bool:
         except (KeyError, RuntimeError, ValueError, OSError) as e:
             logger.debug("%s failed: %s", fn.__name__, e)
     return False
-
-
-def compute_terminal_figure_size(
-    desired_width: int,
-    desired_height: int,
-    w_px: int,
-    h_px: int,
-    n_col: int,
-    n_row: int,
-    dpi: int,
-    zoom: float,
-) -> tuple[float, float]:
-    """Compute figure size in inches for desired cell dimensions."""
-    w_cell_in = desired_width * w_px / (n_col * dpi)
-    h_cell_in = desired_height * h_px / (n_row * dpi)
-    return w_cell_in / zoom, h_cell_in / zoom

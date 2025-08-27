@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from rich.measure import Measurement
 
-from wskr.mpl.utils import compute_terminal_figure_size
+from wskr.mpl.size import TerminalMetrics, compute_terminal_figure_size
 from wskr.rich.img import RichImage
 
 if TYPE_CHECKING:
@@ -35,18 +35,6 @@ def get_terminal_size() -> tuple[float, float, int, int]:
         return (8, 16, 80, 24)
     n_row, n_col, w_px, h_px = buf
     return w_px, h_px, n_col, n_row
-
-
-def _render_to_buffer(rich_plot: RichPlot) -> BytesIO:
-    buf = BytesIO()
-    rich_plot.figure.savefig(
-        buf,
-        format="PNG",
-        dpi=rich_plot.dpi * rich_plot.zoom,
-        transparent=True,
-    )
-    buf.seek(0)
-    return buf
 
 
 class RichPlot:
@@ -114,10 +102,9 @@ class RichPlot:
 
         desired_width, desired_height = self._adapt_size(console, options)
 
-        w_cell_in, h_cell_in = compute_terminal_figure_size(
-            desired_width, desired_height, w_px, h_px, n_col, n_row, self.dpi, self.zoom
-        )
-        self.figure.set_size_inches(w_cell_in / self.zoom, h_cell_in / self.zoom)
+        metrics = TerminalMetrics(w_px, h_px, n_col, n_row, self.dpi, self.zoom)
+        w_in, h_in = compute_terminal_figure_size(desired_width, desired_height, metrics)
+        self.figure.set_size_inches(w_in, h_in)
 
         img = RichImage(
             image_path=self._render_to_buffer(), desired_width=desired_width, desired_height=desired_height

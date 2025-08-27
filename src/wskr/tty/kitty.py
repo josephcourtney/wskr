@@ -1,11 +1,11 @@
 import logging
-import re
 import shutil
 import subprocess  # noqa: S404
 import sys
 import time
 
 from wskr.config import CACHE_TTL_S, DEFAULT_TTY_ROWS, IMAGE_CHUNK_SIZE
+from wskr.tty.kitty_parser import KittyChunkParser
 from wskr.ttyools import query_tty
 
 from .base import ImageTransport
@@ -93,41 +93,20 @@ class KittyTransport(ImageTransport):
         except subprocess.CalledProcessError:
             logger.exception("Error sending image via kitty icat")
 
-    @staticmethod
-    def _send_chunk(img_num: int, chunk: bytes, *, final: bool = False) -> None:
-        m_flag = "0" if final else "1"
-        logger.debug(
-            "KittyTransport._send_chunk: img=%d, bytes=%d, final=%s",
-            img_num,
-            len(chunk),
-            final,
-        )
-        header = f"\x1b_Ga=t,q=0,f=32,i={img_num},m={m_flag};"
-        sys.stdout.buffer.write(header.encode("ascii") + chunk + b"\x1b\\")
-        sys.stdout.flush()
-
     def init_image(self, png_bytes: bytes) -> int:
         img_num = self._next_img
         self._next_img += 1
 
         for i in range(0, len(png_bytes), IMAGE_CHUNK_SIZE):
-            self._send_chunk(img_num, png_bytes[i : i + IMAGE_CHUNK_SIZE])
-        self._send_chunk(img_num, b"", final=True)
+            KittyChunkParser.send_chunk(img_num, png_bytes[i : i + IMAGE_CHUNK_SIZE])
+        KittyChunkParser.send_chunk(img_num, b"", final=True)
 
         resp = query_tty(
             f"\x1b_Ga=t,q=0,f=32,i={img_num},m=0;\x1b\\".encode(),
             more=lambda b: not b.endswith(b"\x1b\\"),
             timeout=1.0,
         )
-        if not resp:
-            msg = "No response from kitty on image init"
-            raise RuntimeError(msg)
-        text = resp.decode("ascii")
-        m = re.match(r"\x1b_Gi=(\d+),i=(\d+);OK\x1b\\", text)
-        if not m or int(m.group(2)) != img_num:
-            msg = f"Unexpected kitty response: {text!r}"
-            raise RuntimeError(msg)
-        return int(m.group(1))
+        return KittyChunkParser.parse_init_response(img_num, resp)
 
     def close(self) -> None:
         """Clear any cached data."""

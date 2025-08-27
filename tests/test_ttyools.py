@@ -82,7 +82,7 @@ def test_query_tty_single_fd(monkeypatch, tmp_path):
         called_fd.append(fd)
         return b"resp"
 
-    monkeypatch.setattr(ttyools, "read_tty", fake_read_tty)
+    monkeypatch.setattr(ttyools.TTY_IO, "read", fake_read_tty)
 
     resp = ttyools.query_tty(b"req", more=lambda b: False, timeout=0)
     assert resp == b"resp"
