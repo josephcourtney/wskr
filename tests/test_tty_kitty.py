@@ -1,3 +1,4 @@
+import importlib
 import shutil
 import subprocess
 import sys
@@ -5,6 +6,8 @@ from io import BytesIO
 
 import pytest
 
+import wskr.config as cfg
+import wskr.tty.kitty as kitty_mod
 from wskr.tty import kitty
 from wskr.tty.kitty import KittyTransport
 
@@ -189,3 +192,25 @@ def test_init_image_bad_response(monkeypatch, dummy_png):
     kt = KittyTransport()
     with pytest.raises(RuntimeError, match="Unexpected"):
         kt.init_image(dummy_png)
+
+
+def test_get_window_size_px_cache_ttl(monkeypatch):
+    monkeypatch.setenv("WSKR_CACHE_TTL_S", "0")
+    importlib.reload(cfg)
+    importlib.reload(kitty_mod)
+
+    calls = []
+
+    def fake_run(args, capture_output=None, text=None, check=None, timeout=None, **kwargs):
+        calls.append(args)
+        return type("P", (), {"stdout": "80x120"})()
+
+    monkeypatch.setattr(kitty_mod.subprocess, "run", fake_run)
+    kt = kitty_mod.KittyTransport()
+    kt.get_window_size_px()
+    kt.get_window_size_px()
+    assert len(calls) == 2
+
+    monkeypatch.delenv("WSKR_CACHE_TTL_S", raising=False)
+    importlib.reload(cfg)
+    importlib.reload(kitty_mod)

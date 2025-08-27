@@ -31,6 +31,9 @@ from wskr.tty.kitty_remote import (
 
 logger = logging.getLogger(__name__)
 
+
+pytestmark = pytest.mark.slow
+
 # The payload demo lives under tests/payloads/payload.py
 PAYLOAD_MODULE = "tests.payloads.payload"
 
@@ -130,7 +133,7 @@ def test_full_kitty_remote_workflow(tmp_path, monkeypatch):
             return 0
 
     monkeypatch.setattr(sys.modules["subprocess"], "Popen", DummyPopen)
-    _ = kr.launch_kitty_terminal(str(dummy_bin), str(sock), "demo", os.environ)
+    _ = kr.launch_kitty_terminal(str(dummy_bin), sock, "demo", os.environ)
     assert launched["args"][0].endswith("kitty")
 
     # 3) send_startup_command writes "42"
@@ -138,7 +141,7 @@ def test_full_kitty_remote_workflow(tmp_path, monkeypatch):
         done_file.write_text("42")
 
     monkeypatch.setattr(kr, "send_kitty_command", fake_start)
-    kr.send_startup_command(str(dummy_bin), str(sock), done_file, os.environ)
+    kr.send_startup_command(str(dummy_bin), sock, done_file, os.environ)
     kr.wait_for_file_with_content(done_file, timeout=1.0)
     assert done_file.read_text().strip() == "42"
 
@@ -148,7 +151,7 @@ def test_full_kitty_remote_workflow(tmp_path, monkeypatch):
         log_file.write_text("log entry\n")
 
     monkeypatch.setattr(kr, "send_kitty_command", fake_sendcmd)
-    kr.send_payload(str(dummy_bin), str(sock), os.environ, Path("irrelevant"), done_file, log_file)
+    kr.send_payload(str(dummy_bin), sock, os.environ, Path("irrelevant"), done_file, log_file)
     kr.wait_for_file_with_content(done_file, timeout=1.0)
     assert done_file.read_text().strip() == "done"
     assert log_file.read_text().startswith("log entry")
@@ -336,16 +339,16 @@ def test_compare_screenshot():
         "KITTY_DEMO_DONE_FILE": str(done_file),
     }
 
-    proc = launch_kitty_terminal(kitty_bin, sock, cfg.title, env)  # type: ignore[possibly-unresolved-reference]
+    proc = launch_kitty_terminal(kitty_bin, Path(sock), cfg.title, env)  # type: ignore[possibly-unresolved-reference]
     wait_for_file_to_exist(sock_path)
 
-    send_startup_command(kitty_bin, sock, done_file, env)  # type: ignore[possibly-unresolved-reference]
+    send_startup_command(kitty_bin, Path(sock), done_file, env)  # type: ignore[possibly-unresolved-reference]
     wait_for_file_with_content(done_file, timeout=cfg.max_wait)
     win_id = get_window_id(done_file)
 
     configure_window(yabai_bin, win_id, width=cfg.width, height=cfg.height, x=cfg.x, y=cfg.y)  # type: ignore[possibly-unresolved-reference]
 
-    send_payload(kitty_bin, sock, env, script_path(), done_file, log_file)  # type: ignore[possibly-unresolved-reference]
+    send_payload(kitty_bin, Path(sock), env, script_path(), done_file, log_file)  # type: ignore[possibly-unresolved-reference]
     wait_for_file_with_content(done_file, timeout=cfg.max_wait)
 
     show_log(log_file)

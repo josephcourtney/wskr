@@ -9,7 +9,6 @@ from io import BytesIO
 from typing import TYPE_CHECKING
 
 import numpy as np
-from rich.console import Console, ConsoleOptions, RenderResult
 from rich.measure import Measurement
 
 from wskr.mpl.utils import compute_terminal_figure_size
@@ -17,10 +16,10 @@ from wskr.rich.img import RichImage
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
+    from rich.console import Console, ConsoleOptions, RenderResult
 
 rng = np.random.default_rng()
 
-console = Console()
 
 dpi_macbook_pro_13in_m2_2022 = 227
 dpi_external_monitors_195 = 137
