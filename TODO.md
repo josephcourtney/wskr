@@ -73,12 +73,12 @@
 
 # subprocess wrapper
 
-* [ ] Introduce a `CommandRunner` helper class with a `.run()` method
-* [ ] Add a `.check_output()` method to `CommandRunner`
-* [ ] Implement default timeouts in `CommandRunner`
-* [ ] Add retry logic to `CommandRunner`
-* [ ] Replace direct `subprocess` calls in `src/wskr/tty/kitty.py` with `CommandRunner`
-* [ ] Replace subprocess calls in `src/wskr/tty/kitty_remote.py` with `CommandRunner`
+* [x] Introduce a `CommandRunner` helper class with a `.run()` method
+* [x] Add a `.check_output()` method to `CommandRunner`
+* [x] Implement default timeouts in `CommandRunner`
+* [x] Add retry logic to `CommandRunner`
+* [x] Replace direct `subprocess` calls in `src/wskr/tty/kitty.py` with `CommandRunner`
+* [x] Replace subprocess calls in `src/wskr/tty/kitty_remote.py` with `CommandRunner`
 
 # research and demos
 
