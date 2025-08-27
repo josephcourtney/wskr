@@ -67,25 +67,3 @@ class RichImage:
                 + "\x1b[39m"
             )
             yield Text.from_ansi(line)
-
-
-if __name__ == "__main__":
-    console = Console()
-    placeholder_0 = RichImage("./test.png", 7, 4)
-
-    placeholder_1 = RichImage("./test.png", 8, 5)
-
-    placeholder_2 = RichImage("./test.png", 11, 6)
-
-    table = Table(title="Star Wars Movies", show_lines=True)
-
-    table.add_column("Released", justify="right", style="cyan", no_wrap=True)
-    table.add_column("Title", justify="center", style="magenta")
-    table.add_column("Box Office", justify="left", style="green")
-
-    table.add_row("Dec 20, 2019", "Star Wars: The Rise of Skywalker", "$952,110,690")
-    table.add_row(placeholder_0, placeholder_1, placeholder_2)
-    table.add_row("Dec 15, 2017", "Star Wars Ep. VIII: The Last Jedi", "$1,332,539,889")
-    table.add_row("Dec 16, 2016", "Rogue One: A Star Wars Story", "$1,332,439,889")
-
-    console.print(table)
