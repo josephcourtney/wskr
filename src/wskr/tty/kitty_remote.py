@@ -48,7 +48,8 @@ def run(
 ) -> subprocess.CompletedProcess[Any] | bytes:
     logger.debug("Running: %s", " ".join(cmd))
     if capture_output and not check:
-        return runner.check_output(cmd, **kwargs)
+        kwargs.setdefault("text", False)
+        return cast("bytes", runner.check_output(cmd, **kwargs))
     return runner.run(cmd, capture_output=capture_output, check=check, **kwargs)
 
 

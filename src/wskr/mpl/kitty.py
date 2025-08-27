@@ -1,17 +1,11 @@
 import sys
 
-import matplotlib.pyplot as plt
 from matplotlib import _api, interactive  # noqa: PLC2701
 from matplotlib.backend_bases import _Backend  # noqa: PLC2701
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from wskr.mpl.base import BaseFigureManager, TerminalBackend
-from wskr.mpl.utils import detect_dark_mode
 from wskr.tty.kitty import KittyTransport
-
-if detect_dark_mode():
-    plt.style.use("dark_background")
-
 
 if sys.flags.interactive:
     interactive(b=True)
