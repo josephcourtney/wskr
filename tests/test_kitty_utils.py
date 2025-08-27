@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import wskr.tty.kitty_utils as ku  # type: ignore[import-not-found]
+import wskr.kitty.utils as ku
 
 
 def test_query_kitty_color(monkeypatch):
