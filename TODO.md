@@ -1,4 +1,4 @@
-- [ ] Implement a `python -m wskr.demo` CLI entry point to demonstrate all wskr features
-- [ ] add a fallback to <https://github.com/albertosottile/darkdetect> for detecting dark/light mode if the terminal does not specifically implement dark/light mode reporting
-- [ ] use the query_kitty_color function to make it possible for plotting libraries to harmonize colors with current theme
-- Implement `load_entry_points()` support for third-party transports
+- [x] Implement a `python -m wskr.demo` CLI entry point to demonstrate all wskr features
+- [x] add a fallback to <https://github.com/albertosottile/darkdetect> for detecting dark/light mode if the terminal does not specifically implement dark/light mode reporting
+- [x] use the query_kitty_color function to make it possible for plotting libraries to harmonize colors with current theme
+- [x] Implement `load_entry_points()` support for third-party transports

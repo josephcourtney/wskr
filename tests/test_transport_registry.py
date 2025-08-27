@@ -1,8 +1,10 @@
+import importlib.metadata
+
 import pytest
 
 from wskr.config import configure
 from wskr.tty.base import ImageTransport
-from wskr.tty.registry import get_image_transport, register_image_transport
+from wskr.tty.registry import get_image_transport, load_entry_points, register_image_transport
 from wskr.tty.transport import NoOpTransport
 
 
@@ -45,3 +47,29 @@ def test_register_image_transport_invalid_class():
         register_image_transport("foo", NotATransport)  # type: ignore[arg-type]
     with pytest.raises(TypeError, match="must subclass ImageTransport"):
         register_image_transport("bar", object)  # type: ignore[arg-type]
+
+
+def test_load_entry_points(monkeypatch):
+    class DummyEP:
+        name = "thirdparty"
+
+        def load(self):
+            class DummyTransport(ImageTransport):
+                def get_window_size_px(self):
+                    return (1, 1)
+
+                def send_image(self, png_bytes: bytes) -> None:
+                    return
+
+                def init_image(self, png_bytes: bytes) -> int:
+                    return 1
+
+            return DummyTransport
+
+    monkeypatch.setattr(
+        importlib.metadata,
+        "entry_points",
+        lambda group=None: [DummyEP()] if group == "wskr.image_transports" else [],
+    )
+    load_entry_points()
+    assert isinstance(get_image_transport("thirdparty"), ImageTransport)

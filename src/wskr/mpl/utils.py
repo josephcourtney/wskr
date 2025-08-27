@@ -15,6 +15,11 @@ from typing import TYPE_CHECKING, Protocol
 from wskr.config import OSC_TIMEOUT_S
 from wskr.ttyools import query_tty
 
+try:
+    import darkdetect  # type: ignore[import-not-found]
+except Exception:  # noqa: BLE001  pragma: no cover - optional dependency
+    darkdetect = None  # type: ignore[assignment]
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -73,9 +78,24 @@ class OscQueryStrategy:
         return lum < _LUMINANCE_THRESHOLD
 
 
+class DarkDetectStrategy:
+    """Detect dark mode using the optional ``darkdetect`` library."""
+
+    def detect(self) -> bool:  # noqa: PLR6301 - protocol implementation
+        if darkdetect is None:
+            msg = "darkdetect not available"
+            raise RuntimeError(msg)
+        mode = darkdetect.theme()
+        if mode is None:
+            msg = "darkdetect could not determine theme"
+            raise RuntimeError(msg)
+        return mode.lower() == "dark"
+
+
 DEFAULT_STRATEGIES: list[DarkModeStrategy] = [
     EnvColorStrategy(),
     OscQueryStrategy(),
+    DarkDetectStrategy(),
 ]
 
 
@@ -100,6 +120,7 @@ def detect_dark_mode(
 
 
 __all__ = [
+    "DarkDetectStrategy",
     "DarkModeStrategy",
     "EnvColorStrategy",
     "OscQueryStrategy",
