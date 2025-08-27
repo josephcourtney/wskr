@@ -4,7 +4,7 @@ import subprocess  # noqa: S404
 import sys
 import time
 
-from wskr.config import CACHE_TTL_S, DEFAULT_TTY_ROWS, IMAGE_CHUNK_SIZE
+from wskr.config import CACHE_TTL_S, DEFAULT_TTY_ROWS, IMAGE_CHUNK_SIZE, TIMEOUT_S
 from wskr.tty.command import CommandRunner
 from wskr.tty.kitty_parser import KittyChunkParser
 from wskr.ttyools import query_tty
@@ -25,7 +25,7 @@ class KittyTransport(ImageTransport):
         self._next_img = 1
         self._cached_size: tuple[int, int] | None = None
         self._cache_time = 0.0
-        self._runner = CommandRunner()
+        self._runner = CommandRunner(timeout=TIMEOUT_S)
 
     def invalidate_cache(self) -> None:
         """Drop any cached window-size information."""
@@ -104,7 +104,7 @@ class KittyTransport(ImageTransport):
         resp = query_tty(
             f"\x1b_Ga=t,q=0,f=32,i={img_num},m=0;\x1b\\".encode(),
             more=lambda b: not b.endswith(b"\x1b\\"),
-            timeout=1.0,
+            timeout=TIMEOUT_S,
         )
         return KittyChunkParser.parse_init_response(img_num, resp)
 

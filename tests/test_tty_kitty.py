@@ -195,6 +195,20 @@ def test_init_image_bad_response(monkeypatch, dummy_png):
         kt.init_image(dummy_png)
 
 
+def test_init_image_uses_timeout(monkeypatch, dummy_png):
+    sent = {}
+    monkeypatch.setattr(KittyChunkParser, "send_chunk", lambda *a, **k: None)
+
+    def fake_query(cmd, more, timeout):
+        sent["timeout"] = timeout
+        return b"\x1b_Gi=5,i=1;OK\x1b\\"
+
+    monkeypatch.setattr("wskr.tty.kitty.query_tty", fake_query)
+    kt = KittyTransport()
+    kt.init_image(dummy_png)
+    assert sent["timeout"] == cfg.TIMEOUT_S
+
+
 def test_get_window_size_px_cache_ttl(monkeypatch):
     monkeypatch.setenv("WSKR_CACHE_TTL_S", "0")
     importlib.reload(cfg)
