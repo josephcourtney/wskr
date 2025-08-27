@@ -13,8 +13,8 @@ import numpy as np
 import pytest
 from PIL import Image, ImageChops
 
-import wskr.tty.kitty_remote as kr
-from wskr.tty.kitty_remote import (
+import wskr.kitty.remote as kr
+from wskr.kitty.remote import (
     WindowConfig,
     close_kitty_window,
     configure_window,

@@ -8,10 +8,10 @@ from time import sleep
 import pytest
 
 import wskr.config as cfg
-import wskr.tty.kitty as kitty_mod
+import wskr.kitty.transport as kitty_mod
 from wskr.errors import CommandRunnerError, TransportRuntimeError, TransportUnavailableError
-from wskr.tty import kitty
-from wskr.tty.kitty import KittyTransport
+from wskr.kitty import transport as kitty
+from wskr.kitty.transport import KittyTransport
 from wskr.tty.kitty_parser import KittyChunkParser
 
 
@@ -200,7 +200,7 @@ def test_send_image_logs_error(monkeypatch, caplog):
 def test_init_image_success(monkeypatch, dummy_png):
     sent = []
     monkeypatch.setattr(KittyChunkParser, "send_chunk", lambda n, c, final=False: sent.append((n, c, final)))
-    monkeypatch.setattr("wskr.tty.kitty.query_tty", lambda *a, **k: b"\x1b_Gi=5,i=1;OK\x1b\\")
+    monkeypatch.setattr("wskr.kitty.transport.query_tty", lambda *a, **k: b"\x1b_Gi=5,i=1;OK\x1b\\")
     kt = KittyTransport()
     img_id = kt.init_image(dummy_png)
     assert img_id == 5
@@ -209,7 +209,7 @@ def test_init_image_success(monkeypatch, dummy_png):
 
 def test_init_image_no_response(monkeypatch, dummy_png):
     monkeypatch.setattr(KittyChunkParser, "send_chunk", lambda *a, **k: None)
-    monkeypatch.setattr("wskr.tty.kitty.query_tty", lambda *a, **k: b"")
+    monkeypatch.setattr("wskr.kitty.transport.query_tty", lambda *a, **k: b"")
     kt = KittyTransport()
     with pytest.raises(TransportRuntimeError, match="No response"):
         kt.init_image(dummy_png)
@@ -217,7 +217,7 @@ def test_init_image_no_response(monkeypatch, dummy_png):
 
 def test_init_image_bad_response(monkeypatch, dummy_png):
     monkeypatch.setattr(KittyChunkParser, "send_chunk", lambda *a, **k: None)
-    monkeypatch.setattr("wskr.tty.kitty.query_tty", lambda *a, **k: b"\x1b_Gi=7,i=2;FAIL\x1b\\")
+    monkeypatch.setattr("wskr.kitty.transport.query_tty", lambda *a, **k: b"\x1b_Gi=7,i=2;FAIL\x1b\\")
     kt = KittyTransport()
     with pytest.raises(TransportRuntimeError, match="Unexpected"):
         kt.init_image(dummy_png)
@@ -231,7 +231,7 @@ def test_init_image_uses_timeout(monkeypatch, dummy_png):
         sent["timeout"] = timeout
         return b"\x1b_Gi=5,i=1;OK\x1b\\"
 
-    monkeypatch.setattr("wskr.tty.kitty.query_tty", fake_query)
+    monkeypatch.setattr("wskr.kitty.transport.query_tty", fake_query)
     kt = KittyTransport()
     kt.init_image(dummy_png)
     assert sent["timeout"] == cfg.TIMEOUT_S
