@@ -1,3 +1,13 @@
+## [0.0.9] - 2025-08-27
+
+### Added
+- add dark-mode detection strategies and `wskr.init` hook
+- expose central configuration with environment and runtime overrides
+
+### Changed
+- source kitty timeouts from configuration
+- remove dark-mode styling from backend modules
+
 ## [0.0.8] - 2025-08-27
 
 ### Added

@@ -6,22 +6,17 @@ from io import BytesIO
 from typing import Any
 
 import matplotlib as mpl
-import matplotlib.pyplot as plt
 from matplotlib import _api, interactive, is_interactive  # noqa: PLC2701
 from matplotlib._pylab_helpers import Gcf  # noqa: PLC2701
 from matplotlib.backend_bases import FigureManagerBase, _Backend  # noqa: PLC2701
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from wskr.mpl.size import autosize_figure
-from wskr.mpl.utils import detect_dark_mode
 from wskr.tty.base import ImageTransport
 from wskr.tty.registry import get_image_transport
 
 if sys.flags.interactive:
     interactive(b=True)
-
-if detect_dark_mode():
-    plt.style.use("dark_background")
 
 
 def render_figure_to_terminal(canvas: FigureCanvasAgg, transport: ImageTransport) -> None:
