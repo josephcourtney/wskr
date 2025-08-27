@@ -54,8 +54,7 @@ def test_query_tty(monkeypatch):
     monkeypatch.setattr(os, "write", lambda fd, data: writes.append((fd, data)))
     monkeypatch.setattr(termios, "tcdrain", lambda fd: None)
     monkeypatch.setattr(os, "close", lambda fd: None)
-    monkeypatch.setattr(ttyools, "tty_attributes", lambda fd, echo=False: contextlib.nullcontext())
-    monkeypatch.setattr(ttyools, "read_tty", lambda timeout=None, more=None: b"resp")
+    monkeypatch.setattr(ttyools, "read_tty", lambda *, fd=None, timeout=None, more=None: b"resp")
     resp = ttyools.query_tty(b"req", more=lambda b: True)
     assert resp == b"resp"
     assert writes == [(55, b"req")]

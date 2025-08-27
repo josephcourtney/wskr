@@ -6,10 +6,9 @@ from contextlib import ExitStack, contextmanager, suppress
 from select import select
 from threading import RLock
 from time import monotonic
-from typing import Any, ParamSpec, TypeVar
 
-P = ParamSpec("P")
-T = TypeVar("T")
+# Predicate used to determine whether more bytes should be read
+MorePredicate = Callable[[bytes], bool]
 
 
 # Reentrant lock for synchronizing access to the TTY
@@ -76,14 +75,16 @@ def read_tty(
     timeout: float | None = None,
     min_bytes: int = 0,
     *,
-    more: Callable[[Any], bool] = lambda _: True,
+    more: MorePredicate = lambda _b: True,
     echo: bool = False,
-) -> bytes | None:
+    fd: int | None = None,
+) -> bytes:
     """Read input directly from the TTY with optional blocking."""
     input_data = bytearray()
 
-    fd = _get_tty_fd()
-    input_data = bytearray()
+    owns_fd = fd is None
+    if fd is None:
+        fd = _get_tty_fd()
     stack = ExitStack()
     try:
         # If tty_attributes is a real contextmanager, we enter it;
@@ -91,7 +92,6 @@ def read_tty(
         with suppress(TypeError):
             stack.enter_context(tty_attributes(fd, min_bytes=min_bytes, echo=echo))
 
-        # Now do the actual reads exactly as before:
         r, w, x = [fd], [], []
         if timeout is None:
             while select(r, w, x, 0)[0]:
@@ -100,20 +100,24 @@ def read_tty(
             start = monotonic()
             if min_bytes > 0:
                 input_data.extend(os.read(fd, min_bytes))
-            while (timeout < 0 or monotonic() - start < timeout) and more(input_data):
+            while (timeout < 0 or monotonic() - start < timeout) and more(bytes(input_data)):
                 if select(r, w, x, timeout - (monotonic() - start))[0]:
                     input_data.extend(os.read(fd, 1))
     finally:
         # whether or not tty_attributes succeeded, always close & cleanup
-        os.close(fd)
+        if owns_fd:
+            os.close(fd)
         stack.close()
     return bytes(input_data)
 
 
-def query_tty(request: bytes, more: Callable[[Any], bool], timeout: float | None = None) -> bytes | None:
+def query_tty(request: bytes, more: MorePredicate, timeout: float | None = None) -> bytes:
     """Send a request to the terminal and read the response."""
-    with tty_attributes(_get_tty_fd(), echo=False):
-        os.write(_get_tty_fd(), request)
+    fd = _get_tty_fd()
+    try:
+        os.write(fd, request)
         with suppress(termios.error):
-            termios.tcdrain(_get_tty_fd())
-        return read_tty(timeout=timeout, more=more)
+            termios.tcdrain(fd)
+        return read_tty(timeout=timeout, more=more, fd=fd)
+    finally:
+        os.close(fd)
