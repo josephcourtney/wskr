@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from types import TracebackType
 
 
 class ImageTransport(ABC):
@@ -21,3 +22,20 @@ class ImageTransport(ABC):
         Subsequent renders use that ID.
         """
         ...
+
+    def close(self) -> None:  # noqa: B027
+        """Release any acquired resources."""
+
+    def __enter__(self) -> "ImageTransport":
+        """Return ``self`` for context manager usage."""
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> bool:
+        """Run :meth:`close` when leaving a context manager block."""
+        self.close()
+        return False

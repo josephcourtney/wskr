@@ -10,7 +10,7 @@
 * [ ] Encapsulate figure autosizing policy — Move pixel→inches logic used by backends and `RichPlot` into a single module (e.g., `src/wskr/mpl/size.py`) to remove duplication and ensure consistent sizing.
 * [ ] Add parameter object for sizing — Define `TerminalMetrics(w_px,h_px,n_col,n_row,dpi,zoom)` and pass around instead of long parameter lists (`compute_terminal_figure_size` & friends).
 * [ ] Dependency inversion for transports — Allow `WskrFigureManager` to accept a factory `Callable[[], ImageTransport]` (defaulting to registry) for better testability.
-* [ ] Cache invalidation for Kitty window size — Add TTL for `KittyTransport._cached_size` and an explicit `invalidate_cache()`; expose `WSKR_CACHE_TTL_S` env to tune.
+* [x] Cache invalidation for Kitty window size — Add TTL for `KittyTransport._cached_size` and an explicit `invalidate_cache()`; expose `WSKR_CACHE_TTL_S` env to tune.
 * [ ] Strengthen Kitty protocol parsing — Extract the `_send_chunk`/response parse in `src/wskr/tty/kitty.py` into a small parser class with tests for OK/error/partial responses.
 * [ ] Fault-injection tests for Kitty chunking — Add tests simulating partial writes/slow TTY to validate `_send_chunk` framing and flush behavior (leverage a fake `stdout.buffer`).
 * [ ] Add pseudo-TTY tests for OSC 11 — Use `pty` in tests to simulate ANSI responses for `is_dark_mode_osc()`; verify happy-path and malformed responses.
@@ -18,19 +18,19 @@
 * [ ] Improve structured logging — Standardize logger names and messages; include key fields (transport, timeout, bytes, img\_id) for Kitty operations; add `logger.debug` on decisions (fallbacks, gates).
 * [ ] Strengthen error messages (style preference) — Assign exception messages to variables before raising (personal style) across the codebase for consistency.
 * [x] Use type aliases & annotations — Add precise types for callables: e.g., `type MorePredicate = Callable[[bytes], bool]` in `ttyools.py`; annotate public APIs throughout.
-* [ ] Path handling with `pathlib` — Replace raw string paths with `Path` in `RichImage`, payload scripts, and kitty\_remote helper paths; ensure encoding explicitness when reading files.
-* [ ] Add `__slots__` to high-churn classes — For `RichImage` and lightweight transport helpers to reduce memory overhead during repeated renders.
-* [ ] Avoid global Console — In `src/wskr/rich/img.py`/`plt.py`, avoid module-level `Console()`; take console from Rich call context only to reduce hidden globals.
-* [ ] Document backend selection — README: document Matplotlib backend entry points and how to choose (`MPLBACKEND=wskr_kitty`) plus feature gates; clarify test environment hints.
+* [x] Path handling with `pathlib` — Replace raw string paths with `Path` in `RichImage`, payload scripts, and kitty\_remote helper paths; ensure encoding explicitness when reading files.
+* [x] Add `__slots__` to high-churn classes — For `RichImage` and lightweight transport helpers to reduce memory overhead during repeated renders.
+* [x] Avoid global Console — In `src/wskr/rich/img.py`/`plt.py`, avoid module-level `Console()`; take console from Rich call context only to reduce hidden globals.
+* [x] Document backend selection — README: document Matplotlib backend entry points and how to choose (`MPLBACKEND=wskr_kitty`) plus feature gates; clarify test environment hints.
 * [x] Harden `tty_attributes` usage — Ensure the fd is captured once, use it consistently, and avoid multiple `os.open()` calls; add tests that assert a single open/close per operation.
 * [ ] Unify PNG rendering path — Deduplicate `_render_to_buffer` in `plt.py` (two versions exist) to a single function; add test that asserts identical bytes for both call sites.
-* [ ] Graceful teardown hooks — Provide `close()`/context manager for transports that may hold resources later; no-op for current transports; add to interface for forward compatibility.
-* [ ] Replace magic numbers — Extract `_IMAGE_CHUNK_SIZE = 4096`, rows=24 heuristic, etc., into `wskr.config` with sensible defaults and docstrings.
-* [ ] Enum over strings — Introduce `Enum` for transport names (KITTY/NOOP/…) to reduce typos; keep registry mapping but validate against enum.
-* [ ] Improve RichImage fallback — When `init_image` fails (returns -1), automatically fall back to single `send_image` drawing path; emit one warning not per row.
+* [x] Graceful teardown hooks — Provide `close()`/context manager for transports that may hold resources later; no-op for current transports; add to interface for forward compatibility.
+* [x] Replace magic numbers — Extract `_IMAGE_CHUNK_SIZE = 4096`, rows=24 heuristic, etc., into `wskr.config` with sensible defaults and docstrings.
+* [x] Enum over strings — Introduce `Enum` for transport names (KITTY/NOOP/…) to reduce typos; keep registry mapping but validate against enum.
+* [x] Improve RichImage fallback — When `init_image` fails (returns -1), automatically fall back to single `send_image` drawing path; emit one warning not per row.
 * [ ] Add pure-Python Kitty option (investigate) — Spike a socket/OSC-to-stdin approach (no `+kitten icat` dependency); guard behind `WSKR_TRANSPORT=kitty_py` feature flag.
 * [ ] CLI demo tool — `python -m wskr.demo` to render a sample plot with explicit flags for width/height/zoom/transport to aid user troubleshooting.
-* [ ] CI: add a “slow” mark — Separate fault-injection and pseudo-PTY tests behind `-m slow` and run them in nightly pipeline to keep PR checks fast.
+* [x] CI: add a “slow” mark — Separate fault-injection and pseudo-PTY tests behind `-m slow` and run them in nightly pipeline to keep PR checks fast.
 * [ ] Decouple dark-mode detection from backends - Move calls to `detect_dark_mode()` out of the Matplotlib backend modules into user-configurable startup code to separate styling concerns from rendering logic.
 * [ ] Abstract subprocess invocation - Encapsulate all `subprocess.run` and `shutil.which` calls in a helper class with built-in timeouts and retry logic to make command execution testable and robust against hangs.
 * [ ] Add pseudo-TTY integration tests for OSC queries - Write end-to-end tests using Python’s `pty` module to simulate OSC 11 responses and verify `is_dark_mode_osc`, covering real terminal I/O rather than purely mocked behavior.
