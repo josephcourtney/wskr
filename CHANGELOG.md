@@ -3,6 +3,11 @@
 ### Changed
 - split kitty-dependent functionality into dedicated subpackage
 
+## [0.0.13] - 2025-08-27
+
+### Fixed
+- ensure NoOp transport registers even after registry reset
+
 ## [0.0.11] - 2025-08-27
 
 ### Added
