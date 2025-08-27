@@ -468,7 +468,7 @@ wheels = [
 [[package]]
 name = "jkit"
 version = "0.0.13"
-source = { git = "ssh://git@github.com-josephcourtney/josephcourtney/jkit.git#937297a2568984a35a74cf598cc42f2936b0ff78" }
+source = { git = "ssh://git@github.com/josephcourtney/jkit.git#937297a2568984a35a74cf598cc42f2936b0ff78" }
 dependencies = [
     { name = "matplotlib" },
     { name = "numpy" },
@@ -1367,7 +1367,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "jkit", git = "ssh://git@github.com-josephcourtney/josephcourtney/jkit.git" },
+    { name = "jkit", git = "ssh://git@github.com/josephcourtney/jkit.git" },
     { name = "matplotlib", specifier = ">=3.10.1" },
     { name = "numpy", specifier = ">=2.2.5" },
     { name = "pytest-timeout", specifier = ">=2.4.0" },

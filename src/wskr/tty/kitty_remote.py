@@ -59,7 +59,7 @@ def _abort(msg: str) -> None:
 def wait_for_file_with_content(path: Path, timeout: float = 10.0, poll: float = 0.3) -> None:
     deadline = time.time() + timeout
     while time.time() < deadline:
-        if path.exists() and path.read_text().strip():
+        if path.exists() and path.read_text(encoding="utf-8").strip():
             return
         time.sleep(poll)
     msg = f"Timeout waiting for signal in {path}"
@@ -179,7 +179,7 @@ def send_kitty_command(kitty_bin: str, sock: str, command: str, env: dict) -> No
 
 def get_window_id(done_file: Path) -> int:
     try:
-        return int(done_file.read_text().strip())
+        return int(done_file.read_text(encoding="utf-8").strip())
     except Exception as e:
         _abort(f"Failed to parse window id: {e}")
 
