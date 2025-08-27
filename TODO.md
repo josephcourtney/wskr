@@ -1,21 +1,21 @@
 # dark mode
 
-* [ ] Configure the default chain order to be Env → OSC
-* [ ] Add a Chain-of-Responsibility in `mpl/utils.py` to try strategies in sequence
-* [ ] Move all `detect_dark_mode()` calls out of the Matplotlib backend modules (`base.py`, `kitty.py`, `sixel.py`, `iterm2.py`)
-* [ ] Move all `plt.style.use("dark_background")` calls out of the backend modules
-* [ ] Introduce a new opt-in startup hook (`wskr.init(style="auto-dark")`) to drive dark-mode styling
-* [ ] Refactor `src/wskr/mpl/utils.py` to support pluggable dark-mode strategies
-* [ ] Implement an `EnvColorStrategy` class for dark-mode detection via environment variables
-* [ ] Implement an `OscQueryStrategy` class for dark-mode detection via OSC 11 queries
+* [x] Configure the default chain order to be Env → OSC
+* [x] Add a Chain-of-Responsibility in `mpl/utils.py` to try strategies in sequence
+* [x] Move all `detect_dark_mode()` calls out of the Matplotlib backend modules (`base.py`, `kitty.py`, `sixel.py`, `iterm2.py`)
+* [x] Move all `plt.style.use("dark_background")` calls out of the backend modules
+* [x] Introduce a new opt-in startup hook (`wskr.init(style="auto-dark")`) to drive dark-mode styling
+* [x] Refactor `src/wskr/mpl/utils.py` to support pluggable dark-mode strategies
+* [x] Implement an `EnvColorStrategy` class for dark-mode detection via environment variables
+* [x] Implement an `OscQueryStrategy` class for dark-mode detection via OSC 11 queries
 
 # configuration
 
-* [ ] Expose a configurable timeout for OSC queries (instead of hard-coded)
-* [ ] Create a new `wskr.config` module to centralize configuration
-* [ ] Support both environment variables and keyword args in `wskr.config`, with defined precedence
-* [ ] Expose knobs via config for timeouts, cache TTLs, fallback behavior, dark-mode policy, etc.
-* [ ] Remove any remaining hard-coded `timeout=1.0` in Kitty transport and source timeouts from `WSKR_TIMEOUT_S` in config
+* [x] Expose a configurable timeout for OSC queries (instead of hard-coded)
+* [x] Create a new `wskr.config` module to centralize configuration
+* [x] Support both environment variables and keyword args in `wskr.config`, with defined precedence
+* [x] Expose knobs via config for timeouts, cache TTLs, fallback behavior, dark-mode policy, etc.
+* [x] Remove any remaining hard-coded `timeout=1.0` in Kitty transport and source timeouts from `WSKR_TIMEOUT_S` in config
 
 # testing
 
