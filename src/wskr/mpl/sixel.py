@@ -17,7 +17,7 @@ if os.getenv("WSKR_ENABLE_SIXEL", "false").lower() != "true":
     msg = "Sixel backend is not yet implemented. Set WSKR_ENABLE_SIXEL=true to bypass."
     raise ImportError(msg)
 
-# TODO: import or implement a SixelTransport subclass
+# TODO: import or implement a SixelTransport subclass  # noqa: FIX002, TD002, TD003
 # from wskr.tty.sixel import SixelTransport
 
 if detect_dark_mode():

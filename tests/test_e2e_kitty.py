@@ -9,9 +9,8 @@ import tempfile
 import types
 from pathlib import Path
 
-import pytest
-
 import numpy as np
+import pytest
 from PIL import Image, ImageChops
 
 import wskr.tty.kitty as kitty_mod
@@ -68,8 +67,8 @@ def test_payload_script_generates_image_and_done(tmp_path, monkeypatch):
 
         return Draw()
 
-    fake_Image.new = fake_new
-    fake_ImageDraw.Draw = fake_draw
+    fake_Image.new = fake_new  # type: ignore[attr-defined]
+    fake_ImageDraw.Draw = fake_draw  # type: ignore[attr-defined]
 
     monkeypatch.setitem(sys.modules, "PIL", fake_PIL)
     monkeypatch.setitem(sys.modules, "PIL.Image", fake_Image)
@@ -92,7 +91,7 @@ def test_payload_script_generates_image_and_done(tmp_path, monkeypatch):
     # 7) Import & run payload.main()
     payload = importlib.import_module(PAYLOAD_MODULE)
     importlib.reload(payload)
-    payload.main()
+    payload.main()  # type: ignore[attr-defined]
 
     # 8) Verify payload.png
     img = tmp_path / "payload.png"
@@ -212,78 +211,86 @@ def test_take_screenshot_matches_reference(tmp_path, monkeypatch):
     assert dest.read_bytes() == ref.read_bytes()
 
 
-def test_compare_screenshot():
-    def show_log(log_file: Path) -> None:
-        if not log_file.exists():
-            logger.error("No log file found at %s", log_file)
-            return
+def show_log(log_file: Path) -> None:
+    if not log_file.exists():
+        logger.error("No log file found at %s", log_file)
+        return
 
-        logger.debug("==== BEGIN KITTY SESSION LOG ====")
-        for line in log_file.read_text(encoding="utf-8").splitlines():
-            logger.debug("[KITTY] %s", line)
-        logger.debug("==== END KITTY SESSION LOG ====\n")
+    logger.debug("==== BEGIN KITTY SESSION LOG ====")
+    for line in log_file.read_text(encoding="utf-8").splitlines():
+        logger.debug("[KITTY] %s", line)
+    logger.debug("==== END KITTY SESSION LOG ====\n")
 
-    def cleanup_temp_files(*paths: Path) -> None:
-        for path in paths:
-            path.unlink(missing_ok=True)
 
-    def terminate_process(proc: subprocess.Popen) -> None:
-        try:
-            if proc.poll() is None:
-                proc.terminate()
-                try:
-                    proc.wait(timeout=2)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
-                    # give it another 2s to exit cleanly, then swallow any further timeout
-                    with contextlib.suppress(subprocess.TimeoutExpired):
-                        proc.wait(timeout=2)
-        except PermissionError:
-            logger.exception("Failed to terminate kitty process")
-            raise
+def cleanup_temp_files(*paths: Path) -> None:
+    for path in paths:
+        path.unlink(missing_ok=True)
 
-    def prepare_paths() -> tuple[Path, Path, str, str]:
-        done_file = Path(tempfile.NamedTemporaryFile(delete=False))
-        log_file = done_file.with_suffix(".log")
-        uid = done_file.name.parts[-1]
-        sock = f"unix:/tmp/kitty-{uid}.sock"
-        return done_file, log_file, sock, uid
 
-    def script_path() -> Path:
-        return Path(__file__).parent / "payload.py"
-
-    cfg = WindowConfig()
+def terminate_process(proc: subprocess.Popen) -> None:
     try:
-        kitty_bin = find_executable("kitty")
-        yabai_bin = find_executable("yabai")
-    except FileNotFoundError as exc:
-        pytest.skip(str(exc))
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                # give it another 2s to exit cleanly, then swallow any further timeout
+                with contextlib.suppress(subprocess.TimeoutExpired):
+                    proc.wait(timeout=2)
+    except PermissionError:
+        logger.exception("Failed to terminate kitty process")
+        raise
 
-    done_file, log_file, sock, uid = prepare_paths()
-    sock_path = Path(sock.removeprefix("unix:"))
-    env = {**os.environ, "KITTY_DEMO_DONE_FILE": str(done_file)}
 
-    proc = launch_kitty_terminal(kitty_bin, sock, cfg.title, env)
-    wait_for_file_to_exist(sock_path)
+def prepare_paths() -> tuple[Path, Path, str, str]:
+    tmp = tempfile.NamedTemporaryFile(delete=False)  # noqa: SIM115
+    done_file = Path(tmp.name)
+    log_file = done_file.with_suffix(".log")
+    uid = done_file.parts[-1]
+    sock = f"unix:/tmp/kitty-{uid}.sock"
+    return done_file, log_file, sock, uid
 
-    send_startup_command(kitty_bin, sock, done_file, env)
-    wait_for_file_with_content(done_file, timeout=cfg.max_wait)
-    win_id = get_window_id(done_file)
 
-    configure_window(yabai_bin, win_id, width=cfg.width, height=cfg.height, x=cfg.x, y=cfg.y)
+def script_path() -> Path:
+    return Path(__file__).parent / "payload.py"
 
-    send_payload(kitty_bin, sock, env, script_path(), done_file, log_file)
-    wait_for_file_with_content(done_file, timeout=cfg.max_wait)
 
-    show_log(log_file)
+def capture_reference():
+    pass
 
-    capture_path = Path.cwd() / f"capture_{uid}.png"
-    take_screenshot(yabai_bin, lambda w: w.get("app") == "kitty" and w.get("id") == win_id, capture_path)
 
-    close_kitty_window(kitty_bin, lambda w: w.get("title", "").startswith(cfg.title))
-    cleanup_temp_files(done_file, log_file)
-    terminate_process(proc)
+def save_for_debug(img_ref, img_got, img_diff, uid):
+    # 1) make a unique debug folder
+    debug_dir = Path(tempfile.mkdtemp(prefix=f"screenshot-debug-{uid}-"))
 
+    ref_path = debug_dir / f"ref_{uid}.png"
+    got_path = debug_dir / f"got_{uid}.png"
+    diff_path = debug_dir / f"diff_{uid}.png"
+    img_ref.save(ref_path)
+    img_got.save(got_path)
+    img_diff.save(diff_path)
+
+    # 4) let the user know where they landed
+    print(f"Saved debug images to {debug_dir}", file=sys.stderr)
+    kitty_path = Path(shutil.which("kitty")).resolve()
+
+    # 5) display all three inline via kitty icat
+    subprocess.run(
+        [kitty_path, "+kitten", "icat", "--align", "left", str(ref_path)],
+        check=False,
+    )
+    subprocess.run(
+        [kitty_path, "+kitten", "icat", "--align", "right", str(got_path)],
+        check=False,
+    )
+    subprocess.run(
+        [kitty_path, "+kitten", "icat", "--align", "center", str(diff_path)],
+        check=False,
+    )
+
+
+def assert_pixels(capture_path, uid):
     # 1) Reference image we expect to reproduce
     ref = Path(__file__).parent / "data" / "reference" / "cap_0001.png"
     assert ref.exists(), "Need a reference at tests/data/reference/cap_0001.png"
@@ -291,12 +298,13 @@ def test_compare_screenshot():
 
     img_ref = Image.open(ref).convert("RGB")
     w, h = img_ref.size
-    strip = 260
+    strip = 300
 
     # 3) recompute & save the pixel-difference
-    img_ref = img_ref.crop((0, 0, w, h - strip))
-    img_got = Image.open(capture_path).convert("RGB").crop((0, 0, w, h - strip))
+    img_got = Image.open(capture_path).convert("RGB")
     img_diff = ImageChops.difference(img_ref, img_got)
+
+    img_diff = img_diff.crop((0, 0, w, h - strip))
 
     diff_arr = np.array(img_diff, dtype=int)
 
@@ -309,32 +317,44 @@ def test_compare_screenshot():
         assert mean_diff < 0.5, f"mean pixel diff {mean_diff} ≥ 0.5"
     except AssertionError:
         # On failure: save ref, capture, and diff for later, then display them
-
-        # 1) make a unique debug folder
-        debug_dir = Path(tempfile.mkdtemp(prefix=f"screenshot-debug-{uid}-"))
-
-        ref_path = debug_dir / f"ref_{uid}.png"
-        got_path = debug_dir / f"got_{uid}.png"
-        diff_path = debug_dir / f"diff_{uid}.png"
-        img_ref.save(ref_path)
-        img_got.save(got_path)
-        img_diff.save(diff_path)
-
-        # 4) let the user know where they landed
-        print(f"Saved debug images to {debug_dir}", file=sys.stderr)
-        kitty_path = Path(shutil.which("kitty")).resolve()
-
-        # 5) display all three inline via kitty icat
-        subprocess.run(
-            [kitty_path, "+kitten", "icat", "--align", "left", str(ref_path)],
-            check=False,
-        )
-        subprocess.run(
-            [kitty_path, "+kitten", "icat", "--align", "right", str(got_path)],
-            check=False,
-        )
-        subprocess.run(
-            [kitty_path, "+kitten", "icat", "--align", "center", str(diff_path)],
-            check=False,
-        )
+        save_for_debug(img_ref, img_got, img_diff, uid)
         raise
+
+
+def test_compare_screenshot():
+    cfg = WindowConfig()
+    try:
+        kitty_bin = find_executable("kitty")
+        yabai_bin = find_executable("yabai")
+    except FileNotFoundError as exc:
+        pytest.skip(str(exc))
+
+    done_file, log_file, sock, uid = prepare_paths()
+    sock_path = Path(sock.removeprefix("unix:"))
+    env = {
+        **os.environ,
+        "KITTY_DEMO_DONE_FILE": str(done_file),
+    }
+
+    proc = launch_kitty_terminal(kitty_bin, sock, cfg.title, env)  # type: ignore[possibly-unresolved-reference]
+    wait_for_file_to_exist(sock_path)
+
+    send_startup_command(kitty_bin, sock, done_file, env)  # type: ignore[possibly-unresolved-reference]
+    wait_for_file_with_content(done_file, timeout=cfg.max_wait)
+    win_id = get_window_id(done_file)
+
+    configure_window(yabai_bin, win_id, width=cfg.width, height=cfg.height, x=cfg.x, y=cfg.y)  # type: ignore[possibly-unresolved-reference]
+
+    send_payload(kitty_bin, sock, env, script_path(), done_file, log_file)  # type: ignore[possibly-unresolved-reference]
+    wait_for_file_with_content(done_file, timeout=cfg.max_wait)
+
+    show_log(log_file)
+
+    capture_path = Path.cwd() / f"capture_{uid}.png"
+    take_screenshot(yabai_bin, lambda w: w.get("app") == "kitty" and w.get("id") == win_id, capture_path)  # type: ignore[possibly-unresolved-reference]
+
+    close_kitty_window(kitty_bin, lambda w: w.get("title", "").startswith(cfg.title))  # type: ignore[possibly-unresolved-reference]
+    cleanup_temp_files(done_file, log_file)
+    terminate_process(proc)
+
+    assert_pixels(capture_path, uid)

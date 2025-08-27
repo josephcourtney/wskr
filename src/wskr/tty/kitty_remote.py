@@ -6,9 +6,10 @@ import shutil
 import subprocess  # noqa: S404
 import sys
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, NoReturn, cast
 
 logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -34,7 +35,11 @@ def find_executable(name: str) -> str:
 
 
 def run(
-    cmd: list[str], *, capture_output: bool = False, check: bool = False, **kwargs
+    cmd: list[str],
+    *,
+    capture_output: bool = False,
+    check: bool = False,
+    **kwargs: Any,
 ) -> subprocess.CompletedProcess | bytes:
     logger.debug("Running: %s", " ".join(cmd))
     if capture_output and not check:
@@ -43,16 +48,21 @@ def run(
 
 
 def try_json_output(cmd: list[str]) -> list[dict] | None:
+    """Run *cmd* and JSON-decode its stdout, returning ``None`` on any failure."""
     try:
-        return json.loads(run(cmd, capture_output=True))
-    except Exception as e:
+        raw = run(cmd, capture_output=True)
+        payload = raw if isinstance(raw, (bytes, bytearray)) else raw.stdout
+        return cast("list[dict]", json.loads(payload))
+    except (json.JSONDecodeError, subprocess.CalledProcessError) as e:
         logger.debug("JSON parsing failed: %s", e)
         return None
 
 
-def _abort(msg: str) -> None:
+def _abort(msg: str) -> NoReturn:
     logger.error(msg)
     sys.exit(1)
+    msg = "sys.exit did not fire"
+    raise RuntimeError(msg)
 
 
 # === FILE WAITING ===
@@ -114,22 +124,26 @@ def take_screenshot(yabai_bin: str, predicate: Callable[[dict], bool], dest: Pat
         logger.error("No matching window for screenshot.")
         return False
 
-    result = run(
-        [
-            "screencapture",
-            "-o",
-            "-x",
-            "-l",
-            str(win_id),
-            str(dest),
-        ],
-        check=True,
+    time.sleep(1)
+    result = cast(
+        "subprocess.CompletedProcess",
+        run(
+            [
+                "screencapture",
+                "-o",
+                "-x",
+                "-l",
+                str(win_id),
+                str(dest),
+            ],
+            check=True,
+        ),
     )
     if result.returncode == 0 and dest.exists():
         logger.info("Screenshot saved to %s", dest)
         return True
 
-    logger.error("Screenshot failed: %s", result.stderr.decode())
+    logger.error("Screenshot failed: %s", (result.stderr or b"").decode())
     return False
 
 
@@ -146,8 +160,13 @@ def close_kitty_window(kitty_bin: str, predicate: Callable[[dict], bool]) -> Non
 # === KITTY INTERACTIONS ===
 
 
-def launch_kitty_terminal(kitty_bin: str, sock: str, title: str, env: dict) -> subprocess.Popen:
-    return subprocess.Popen(
+def launch_kitty_terminal(
+    kitty_bin: str,
+    sock: str,
+    title: str,
+    env: Mapping[str, str],
+) -> subprocess.Popen:
+    result = subprocess.Popen(
         [
             kitty_bin,
             "-1",
@@ -160,9 +179,11 @@ def launch_kitty_terminal(kitty_bin: str, sock: str, title: str, env: dict) -> s
         ],
         env=env,
     )
+    time.sleep(1)
+    return result
 
 
-def send_kitty_command(kitty_bin: str, sock: str, command: str, env: dict) -> None:
+def send_kitty_command(kitty_bin: str, sock: str, command: str, env: Mapping[str, str]) -> None:
     subprocess.Popen(
         [
             kitty_bin,
@@ -170,18 +191,21 @@ def send_kitty_command(kitty_bin: str, sock: str, command: str, env: dict) -> No
             "--to",
             sock,
             "send-text",
-            command,
-            "\n",
+            f"{command}\n",
         ],
         env=env,
     )
+    time.sleep(1)
 
 
 def get_window_id(done_file: Path) -> int:
     try:
         return int(done_file.read_text(encoding="utf-8").strip())
-    except Exception as e:
+    except (OSError, ValueError) as e:
         _abort(f"Failed to parse window id: {e}")
+    _abort("Failed to parse window id")
+    msg = "_abort failed"
+    raise RuntimeError(msg)
 
 
 def show_log(log_file: Path) -> None:
@@ -200,7 +224,7 @@ def cleanup_temp_files(*paths: Path) -> None:
         path.unlink(missing_ok=True)
 
 
-def terminate_process(proc: subprocess.Popen) -> None:
+def terminate_process(proc: subprocess.Popen) -> None:  # accept stub objects in tests
     try:
         if proc.poll() is None:
             proc.terminate()
@@ -216,11 +240,18 @@ def terminate_process(proc: subprocess.Popen) -> None:
         logger.exception("Failed to terminate kitty process")
 
 
-def send_startup_command(kitty_bin: str, sock: str, done_file: Path, env: dict) -> None:
+def send_startup_command(kitty_bin: str, sock: str, done_file: Path, env: Mapping[str, str]) -> None:
     cmd = f"yabai -m query --windows --window | jq -r .id > '{done_file}'; clear; stty size;"
     send_kitty_command(kitty_bin, sock, cmd, env)
 
 
-def send_payload(kitty_bin: str, sock: str, env: dict, script: Path, done_file: Path, log_file: Path) -> None:
+def send_payload(
+    kitty_bin: str,
+    sock: str,
+    env: Mapping[str, str],
+    script: Path,
+    done_file: Path,
+    log_file: Path,
+) -> None:
     cmd = f"clear; python '{script}' 2>&1 | tee '{log_file}'; echo 'done' > '{done_file}'"
     send_kitty_command(kitty_bin, sock, cmd, env)

@@ -96,7 +96,7 @@ def test_wait_for_file_with_content_timeout(tmp_path):
     p = tmp_path / "nope"
     # timeout=0 forces immediate TimeoutError
     with pytest.raises(TimeoutError):
-        wait_for_file_with_content(p, timeout=0)
+        wait_for_file_with_content(p, timeout=0.0)
 
 
 def test_wait_for_file_to_exist_success(tmp_path):
@@ -108,7 +108,7 @@ def test_wait_for_file_to_exist_success(tmp_path):
 def test_wait_for_file_to_exist_abort(tmp_path):
     p = tmp_path / "missing"
     with pytest.raises(SystemExit):
-        wait_for_file_to_exist(p, timeout=0)
+        wait_for_file_to_exist(p, timeout=0.0)
 
 
 def test_query_windows(monkeypatch):
@@ -295,7 +295,7 @@ def test_terminate_process_normal():
         def kill(self):
             actions.append("kill")
 
-    terminate_process(P())
+    terminate_process(P())  # type:ignore[invalid-argument-type]
     assert actions == ["poll", "terminate", "wait(2)"]
 
 
@@ -311,12 +311,12 @@ def test_terminate_process_timeout(monkeypatch):
 
         def wait(self, timeout=None):
             actions.append(f"wait({timeout})")
-            raise subprocess.TimeoutExpired(cmd="x", timeout=timeout)
+            raise subprocess.TimeoutExpired(cmd="x", timeout=float(timeout))
 
         def kill(self):
             actions.append("kill")
 
-    terminate_process(P2())
+    terminate_process(P2())  # type:ignore[invalid-argument-type]
     assert actions == ["poll", "terminate", "wait(2)", "kill", "wait(2)"]
 
 
@@ -338,7 +338,7 @@ def test_terminate_process_permission_error(caplog):
             pass
 
     # should catch and log, not re-raise
-    terminate_process(P3())
+    terminate_process(P3())  # type:ignore[invalid-argument-type]
     assert "Failed to terminate kitty process" in caplog.text
 
 

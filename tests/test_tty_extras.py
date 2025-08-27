@@ -2,8 +2,6 @@ import contextlib
 import os
 import termios
 
-import pytest
-
 from wskr import ttyools
 
 
@@ -30,9 +28,7 @@ def test_read_tty_variants(monkeypatch):
 
     # timeout None branch
     reads = [b"a", b"b", b""]
-    monkeypatch.setattr(
-        os, "read", lambda fd, n: reads.pop(0) if reads else b""
-    )
+    monkeypatch.setattr(os, "read", lambda fd, n: reads.pop(0) if reads else b"")
     monkeypatch.setattr(
         ttyools,
         "select",
@@ -42,9 +38,7 @@ def test_read_tty_variants(monkeypatch):
 
     # timeout with min_bytes branch
     reads2 = [b"X", b"Y"]
-    monkeypatch.setattr(
-        os, "read", lambda fd, n: b"Z" if n > 1 else (reads2.pop(0) if reads2 else b"")
-    )
+    monkeypatch.setattr(os, "read", lambda fd, n: b"Z" if n > 1 else (reads2.pop(0) if reads2 else b""))
     monkeypatch.setattr(
         ttyools,
         "select",

@@ -3,6 +3,17 @@ from types import MethodType
 import numpy as np
 
 
+def _add_share_group(share_dic: dict[int, int], leader: int, followers: list[int], n: int) -> None:
+    for f in followers:
+        if not 0 <= f < n:
+            msg = f"subplot index {f} out of range"
+            raise ValueError(msg)
+        if f == leader or f in share_dic:
+            msg = "duplicate subplot index in share groups"
+            raise ValueError(msg)
+        share_dic[f] = leader
+
+
 def create_share_dict(share_param, ranges):
     """Build a mapping describing which subplots share axes.
 
@@ -30,32 +41,24 @@ def create_share_dict(share_param, ranges):
     >>> create_share_dict({0: [1, 2]}, range(3))
     {1: 0, 2: 0}
     """
-
     share_dic: dict[int, int] = {}
     n = len(ranges)
     if not share_param:
         return share_dic
 
-    def add_group(leader: int, followers: list[int]) -> None:
-        for f in followers:
-            if not 0 <= f < n:
-                raise ValueError(f"subplot index {f} out of range")
-            if f == leader or f in share_dic:
-                raise ValueError("duplicate subplot index in share groups")
-            share_dic[f] = leader
-
     if share_param is True:
-        add_group(0, list(range(1, n)))
+        _add_share_group(share_dic, 0, list(range(1, n)), n)
     elif isinstance(share_param, dict):
         for leader, group in share_param.items():
-            add_group(int(leader), list(group))
+            _add_share_group(share_dic, int(leader), list(group), n)
     else:
         try:
             for group in share_param:
                 leader, *followers = group
-                add_group(int(leader), list(followers))
+                _add_share_group(share_dic, int(leader), list(followers), n)
         except TypeError as e:  # pragma: no cover - invalid iteration type
-            raise TypeError("share_param must be True, a dict, or an iterable of groups") from e
+            msg = "share_param must be True, a dict, or an iterable of groups"
+            raise TypeError(msg) from e
     return share_dic
 
 

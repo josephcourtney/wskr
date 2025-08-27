@@ -39,6 +39,6 @@ def test_register_image_transport_invalid_class():
         pass
 
     with pytest.raises(TypeError, match="must subclass ImageTransport"):
-        register_image_transport("foo", NotATransport)
+        register_image_transport("foo", NotATransport)  # type: ignore[arg-type]
     with pytest.raises(TypeError, match="must subclass ImageTransport"):
-        register_image_transport("bar", object)
+        register_image_transport("bar", object)  # type: ignore[arg-type]

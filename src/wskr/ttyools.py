@@ -1,11 +1,12 @@
 import os
 import sys
 import termios
+from collections.abc import Callable, Generator
 from contextlib import ExitStack, contextmanager, suppress
 from select import select
 from threading import RLock
 from time import monotonic
-from typing import ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -17,11 +18,15 @@ _tty_lock = RLock()
 
 # Open TTY file descriptor safely
 def _get_tty_fd() -> int:
-    return os.open(os.ttyname(sys.__stdout__.fileno()), os.O_RDWR)
+    stdout_fn = sys.__stdout__
+    if stdout_fn is None:
+        msg = "failed to get stdout file descriptor"
+        raise RuntimeError(msg)
+    return os.open(os.ttyname(stdout_fn.fileno()), os.O_RDWR)
 
 
 @contextmanager
-def tty_attributes(fd: int, min_bytes: int = 0, *, echo: bool = False) -> None:
+def tty_attributes(fd: int, min_bytes: int = 0, *, echo: bool = False) -> Generator:
     """Context manager to set and reset terminal attributes."""
     old_attr = termios.tcgetattr(fd)
     new_attr = termios.tcgetattr(fd)
@@ -68,7 +73,11 @@ def write_tty(data: bytes) -> None:
 
 @lock_tty
 def read_tty(
-    timeout: float | None = None, min_bytes: int = 0, *, more: callable = lambda _: True, echo: bool = False
+    timeout: float | None = None,
+    min_bytes: int = 0,
+    *,
+    more: Callable[[Any], bool] = lambda _: True,
+    echo: bool = False,
 ) -> bytes | None:
     """Read input directly from the TTY with optional blocking."""
     input_data = bytearray()
@@ -101,7 +110,7 @@ def read_tty(
     return bytes(input_data)
 
 
-def query_tty(request: bytes, more: callable, timeout: float | None = None) -> bytes | None:
+def query_tty(request: bytes, more: Callable[[Any], bool], timeout: float | None = None) -> bytes | None:
     """Send a request to the terminal and read the response."""
     with tty_attributes(_get_tty_fd(), echo=False):
         os.write(_get_tty_fd(), request)

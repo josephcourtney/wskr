@@ -76,6 +76,7 @@ def test_tput_lines_failure(monkeypatch):
     monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
 
     def fake_run(cmd, capture_output=None, text=None, check=None, timeout=None, **kwargs):
+        # sourcery skip: no-conditionals-in-tests
         if "+kitten" in cmd:
             return type("P", (), {"stdout": "10x20"})()
         raise subprocess.CalledProcessError(1, cmd)
@@ -164,7 +165,9 @@ def test_send_image_logs_error(monkeypatch, caplog):
 
 def test_init_image_success(monkeypatch, dummy_png):
     sent = []
-    monkeypatch.setattr(KittyTransport, "_send_chunk", lambda self, n, c, final=False: sent.append((n, c, final)))
+    monkeypatch.setattr(
+        KittyTransport, "_send_chunk", lambda self, n, c, final=False: sent.append((n, c, final))
+    )
     monkeypatch.setattr("wskr.tty.kitty.query_tty", lambda *a, **k: b"\x1b_Gi=5,i=1;OK\x1b\\")
     kt = KittyTransport()
     img_id = kt.init_image(dummy_png)
