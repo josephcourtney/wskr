@@ -173,6 +173,10 @@ plt.show()
 pytest
 ```
 
+## The Future
+
+- Possible pure-Python Kitty image protocol implementation (socket or OSC-in-stdin) to replace external CLI
+
 ## License
 
 GPL-3.0-only
