@@ -17,7 +17,7 @@ class ImageTransport(ABC):
 
     @abstractmethod
     def init_image(self, png_bytes: bytes) -> int:
-        """Upload a PNG once and return its kitty-assigned image ID.
+        """Upload a PNG once and return its assigned image ID.
 
         Subsequent renders use that ID.
         """

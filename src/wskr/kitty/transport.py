@@ -5,9 +5,9 @@ import time
 
 from wskr.config import CACHE_TTL_S, DEFAULT_TTY_ROWS, IMAGE_CHUNK_SIZE, TIMEOUT_S
 from wskr.errors import CommandRunnerError, TransportUnavailableError
+from wskr.kitty.parser import KittyChunkParser
 from wskr.tty.base import ImageTransport
 from wskr.tty.command import CommandRunner
-from wskr.tty.kitty_parser import KittyChunkParser
 from wskr.tty.registry import TransportName, register_image_transport
 from wskr.ttyools import query_tty
 
@@ -124,7 +124,31 @@ class KittyTransport(ImageTransport):
         self.invalidate_cache()
 
 
+class KittyPyTransport(ImageTransport):
+    """Experimental pure-Python Kitty transport."""
+
+    __slots__ = ("_next_img",)
+
+    def __init__(self) -> None:
+        self._next_img = 1
+
+    def get_window_size_px(self) -> tuple[int, int]:  # noqa: PLR6301
+        return (800, 600)
+
+    def send_image(self, png_bytes: bytes) -> None:
+        self.init_image(png_bytes)
+
+    def init_image(self, png_bytes: bytes) -> int:
+        img_num = self._next_img
+        self._next_img += 1
+        for i in range(0, len(png_bytes), IMAGE_CHUNK_SIZE):
+            KittyChunkParser.send_chunk(img_num, png_bytes[i : i + IMAGE_CHUNK_SIZE])
+        KittyChunkParser.send_chunk(img_num, b"", final=True)
+        return img_num
+
+
 register_image_transport(TransportName.KITTY, KittyTransport)
+register_image_transport(TransportName.KITTY_PY, KittyPyTransport)
 
 
 __all__ = ["KittyTransport"]
