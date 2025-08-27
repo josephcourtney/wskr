@@ -38,6 +38,18 @@ plt.title("Hello, terminal!")
 plt.show()   # renders inline via Kitty protocol
 ```
 
+### Backend selection
+
+You can also choose a backend via the ``MPLBACKEND`` environment variable. For
+example, to force the Kitty transport:
+
+```bash
+MPLBACKEND=wskr_kitty python my_plot.py
+```
+
+Backends are feature gated; set ``WSKR_ENABLE_SIXEL=1`` or ``WSKR_ENABLE_ITERM2=1``
+to activate optional transports.
+
 ## Using with Rich
 
 import matplotlib.pyplot as plt

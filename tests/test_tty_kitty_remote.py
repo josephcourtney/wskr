@@ -211,7 +211,7 @@ class DummyPopen:
 
 def test_launch_kitty_terminal(monkeypatch):
     monkeypatch.setattr(subprocess, "Popen", DummyPopen)
-    proc = launch_kitty_terminal("kbin", "sock", "ttl", {"A": "B"})
+    proc = launch_kitty_terminal("kbin", Path("sock"), "ttl", {"A": "B"})
     assert isinstance(proc, DummyPopen)
     assert proc.args == [
         "kbin",
@@ -228,7 +228,7 @@ def test_launch_kitty_terminal(monkeypatch):
 
 def test_send_kitty_command(monkeypatch):
     monkeypatch.setattr(subprocess, "Popen", DummyPopen)
-    send_kitty_command("kb", "sock", "echo hi", {"X": "Y"})
+    send_kitty_command("kb", Path("sock"), "echo hi", {"X": "Y"})
     # last call used our DummyPopen
     # unfortunately we can't inspect calls list, but no exception means correct signature
 
@@ -349,7 +349,7 @@ def test_send_startup_command(monkeypatch):
         lambda kb, sock, cmd, env: calls.append((kb, sock, cmd, env)),
     )
     done_f = Path("donefile")
-    send_startup_command("kb", "sock", done_f, {"Z": "1"})
+    send_startup_command("kb", Path("sock"), done_f, {"Z": "1"})
     _kb, _sock, cmd, env = calls[0]
     assert "yabai -m query --windows --window" in cmd
     assert str(done_f) in cmd
@@ -365,7 +365,7 @@ def test_send_payload(monkeypatch):
     script = Path("script.py")
     done_f = Path("done")
     log_f = Path("log")
-    send_payload("kb", "sock", {"K": "V"}, script, done_f, log_f)
+    send_payload("kb", Path("sock"), {"K": "V"}, script, done_f, log_f)
     _, _, cmd, env = calls[0]
     assert f"python '{script}'" in cmd
     assert str(log_f) in cmd

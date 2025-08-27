@@ -162,7 +162,7 @@ def close_kitty_window(kitty_bin: str, predicate: Callable[[dict], bool]) -> Non
 
 def launch_kitty_terminal(
     kitty_bin: str,
-    sock: str,
+    sock: Path,
     title: str,
     env: Mapping[str, str],
 ) -> subprocess.Popen:
@@ -175,7 +175,7 @@ def launch_kitty_terminal(
             "--override",
             "allow_remote_control=yes",
             "--listen-on",
-            sock,
+            str(sock),
         ],
         env=env,
     )
@@ -183,13 +183,13 @@ def launch_kitty_terminal(
     return result
 
 
-def send_kitty_command(kitty_bin: str, sock: str, command: str, env: Mapping[str, str]) -> None:
+def send_kitty_command(kitty_bin: str, sock: Path, command: str, env: Mapping[str, str]) -> None:
     subprocess.Popen(
         [
             kitty_bin,
             "@",
             "--to",
-            sock,
+            str(sock),
             "send-text",
             f"{command}\n",
         ],
@@ -240,14 +240,14 @@ def terminate_process(proc: subprocess.Popen) -> None:  # accept stub objects in
         logger.exception("Failed to terminate kitty process")
 
 
-def send_startup_command(kitty_bin: str, sock: str, done_file: Path, env: Mapping[str, str]) -> None:
+def send_startup_command(kitty_bin: str, sock: Path, done_file: Path, env: Mapping[str, str]) -> None:
     cmd = f"yabai -m query --windows --window | jq -r .id > '{done_file}'; clear; stty size;"
     send_kitty_command(kitty_bin, sock, cmd, env)
 
 
 def send_payload(
     kitty_bin: str,
-    sock: str,
+    sock: Path,
     env: Mapping[str, str],
     script: Path,
     done_file: Path,
