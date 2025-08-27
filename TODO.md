@@ -19,12 +19,12 @@
 
 # testing
 
-* [ ] Add a test that renders via both old call sites and asserts the two byte strings are identical
-* [ ] Cover real terminal I/O (not just mocks) in those dark-mode integration tests
-* [ ] Write pseudo-TTY integration tests using Python’s `pty` module to simulate OSC 11 for `is_dark_mode_osc`
-* [ ] Add unit tests for that parser covering OK, error, and partial responses
-* [ ] Write fault-injection tests simulating partial writes and slow TTY drains to validate `_send_chunk` framing
-* [ ] Use a fake `stdout.buffer` in those fault-injection tests for isolation
+* [x] Add a test that renders via both old call sites and asserts the two byte strings are identical
+* [x] Cover real terminal I/O (not just mocks) in those dark-mode integration tests
+* [x] Write pseudo-TTY integration tests using Python’s `pty` module to simulate OSC 11 for `is_dark_mode_osc`
+* [x] Add unit tests for that parser covering OK, error, and partial responses
+* [x] Write fault-injection tests simulating partial writes and slow TTY drains to validate `_send_chunk` framing
+* [x] Use a fake `stdout.buffer` in those fault-injection tests for isolation
 
 # transport
 
