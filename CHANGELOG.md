@@ -1,3 +1,14 @@
+## [0.0.7] - 2025-08-27
+
+### Added
+- add terminal sizing helpers and `TerminalMetrics` data class
+- add `TtyIO` interface and kitty chunk parser
+
+### Changed
+- centralize pixel-to-inch conversion in `mpl.size`
+- deduplicate render buffer logic in rich plot module
+- route kitty chunk handling through dedicated parser
+
 ## [0.0.6] - 2025-08-27
 
 ### Added

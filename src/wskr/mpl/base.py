@@ -12,7 +12,8 @@ from matplotlib._pylab_helpers import Gcf  # noqa: PLC2701
 from matplotlib.backend_bases import FigureManagerBase, _Backend  # noqa: PLC2701
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
-from wskr.mpl.utils import autosize_figure, detect_dark_mode
+from wskr.mpl.size import autosize_figure
+from wskr.mpl.utils import detect_dark_mode
 from wskr.tty.base import ImageTransport
 from wskr.tty.registry import get_image_transport
 
