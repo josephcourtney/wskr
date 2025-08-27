@@ -1,7 +1,8 @@
 import os
 import sys
+from contextlib import contextmanager
 from io import BytesIO
-from typing import Any
+from typing import Any, Iterator
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -55,18 +56,37 @@ class WskrFigureManager(FigureManagerBase):
 
 class WskrFigureCanvas(FigureCanvasAgg):
     manager_class: Any = _api.classproperty(lambda _: WskrFigureManager)
+    
+    @contextmanager
+    def _guard_draw(self) -> Iterator[bool]:
+        """Context manager preventing re-entrant ``draw`` calls.
 
-    def draw(self) -> None:
-        # Prevent recursive draws triggered by Matplotlib's stale callbacks
+        Matplotlib can trigger recursive ``draw`` invocations via stale
+        callbacks.  Guarding with a context manager keeps the logic
+        contained and ensures the flag is always reset even if ``draw``
+        raises an exception.
+        """
         if getattr(self, "_in_draw", False):
+            yield False
             return
         self._in_draw = True
         try:
+            yield True
+        finally:
+            self._in_draw = False
+
+    def draw(self) -> None:
+        """Render the figure and display it if interactive.
+
+        ``_guard_draw`` ensures we do not recurse if ``draw`` is invoked
+        again while already active.
+        """
+        with self._guard_draw() as do_draw:
+            if not do_draw:
+                return
             super().draw()
             if is_interactive() and self.figure.get_axes():
                 self.manager.show()
-        finally:
-            self._in_draw = False
 
     draw_idle = draw
 
