@@ -3,12 +3,14 @@ import sys
 
 import pytest
 
+from wskr.errors import FeatureUnavailableError
+
 
 def test_sixel_import_raises(monkeypatch):
     monkeypatch.delenv("WSKR_ENABLE_SIXEL", raising=False)
     sys.modules.pop("wskr.mpl.sixel", None)
     with pytest.raises(
-        ImportError,
+        FeatureUnavailableError,
         match=r"Sixel backend is not yet implemented\. Set WSKR_ENABLE_SIXEL=true to bypass\.",
     ):
         import wskr.mpl.sixel  # noqa: PLC0415

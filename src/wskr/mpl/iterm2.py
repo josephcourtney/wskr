@@ -4,6 +4,7 @@ from matplotlib import _api, interactive  # noqa: PLC2701
 from matplotlib.backend_bases import _Backend  # noqa: PLC2701
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
+from wskr.errors import FeatureUnavailableError
 from wskr.mpl.base import BaseFigureManager, TerminalBackend
 
 # TODO: import or implement a ITerm2Transport subclass  # noqa: FIX002, TD002, TD003
@@ -12,7 +13,7 @@ from wskr.mpl.base import BaseFigureManager, TerminalBackend
 
 if os.getenv("WSKR_ENABLE_ITERM2", "false").lower() != "true":
     msg = "iTerm2 backend is not yet implemented. Set WSKR_ENABLE_ITERM2=true to bypass."
-    raise ImportError(msg)
+    raise FeatureUnavailableError(msg)
 
 interactive(True)  # noqa: FBT003
 

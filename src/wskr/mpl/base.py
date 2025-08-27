@@ -1,6 +1,6 @@
 import os
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from io import BytesIO
 from typing import Any
@@ -42,10 +42,11 @@ class WskrFigureManager(FigureManagerBase):
         self,
         canvas: FigureCanvasAgg,
         num: int = 1,
-        transport: ImageTransport | None = None,
+        transport_factory: Callable[[], ImageTransport] | None = None,
     ) -> None:
         super().__init__(canvas, num)
-        self.transport = transport or get_image_transport()
+        factory = transport_factory or get_image_transport
+        self.transport = factory()
 
     def show(self, *_args: Any, **_kwargs: Any) -> None:
         render_figure_to_terminal(self.canvas, self.transport)

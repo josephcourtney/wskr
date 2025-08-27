@@ -1,5 +1,6 @@
 import pytest
 
+from wskr.config import configure
 from wskr.tty.base import ImageTransport
 from wskr.tty.registry import get_image_transport, register_image_transport
 from wskr.tty.transport import NoOpTransport
@@ -17,12 +18,14 @@ class FakeTransport(ImageTransport):
 
 
 def test_can_register_and_instantiate_transport():
+    configure(FALLBACK="error")
     register_image_transport("fake", FakeTransport)
     transport = get_image_transport("fake")
     assert isinstance(transport, FakeTransport)
 
 
 def test_fallback_to_noop_transport():
+    configure(FALLBACK="noop")
     transport = get_image_transport("nonexistent")
     assert transport.get_window_size_px() == (800, 600)
 
