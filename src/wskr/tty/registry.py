@@ -56,15 +56,15 @@ def _load_entry_points() -> None:
     _ENTRYPOINTS_LOADED = True
     try:
         eps = importlib.metadata.entry_points(group="wskr.image_transports")
-    except Exception as e:  # noqa: BLE001  pragma: no cover - defensive
-        logger.debug("entry point loading failed: %s", e)
+    except Exception:  # noqa: BLE001  pragma: no cover - defensive
+        logger.debug("entry point discovery failed", exc_info=True)
         return
     for ep in eps:
         try:
             cls = ep.load()
             register_image_transport(ep.name, cls)
-        except Exception as e:  # noqa: BLE001  pragma: no cover - defensive
-            logger.warning("Failed to load transport %s: %s", ep.name, e)
+        except Exception:  # noqa: BLE001  pragma: no cover - defensive
+            logger.warning("Failed to load transport %s", ep.name, exc_info=True)
 
 
 def get_image_transport(name: str | TransportName | None = None) -> ImageTransport:
@@ -76,6 +76,7 @@ def get_image_transport(name: str | TransportName | None = None) -> ImageTranspo
     _load_entry_points()
     key = name.value if isinstance(name, TransportName) else name
     key = key or os.getenv("WSKR_TRANSPORT", TransportName.NOOP.value)
+    logger.debug("get_image_transport: requested=%r", key)
 
     try:
         entry = _IMAGE_TRANSPORTS[key]
@@ -91,6 +92,7 @@ def get_image_transport(name: str | TransportName | None = None) -> ImageTranspo
                 err = TransportInitError(f"Transport {key!r} failed to initialise: {e}")
 
     policy = config.FALLBACK.lower()
+    logger.debug("get_image_transport: policy=%s", policy)
     if policy == "noop":
         logger.warning("%s; falling back to NoOpTransport", err)
         return _IMAGE_TRANSPORTS[TransportName.NOOP.value].cls()
