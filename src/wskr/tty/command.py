@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import logging
 import subprocess  # noqa: S404
 import time
 from typing import TYPE_CHECKING, Any
 
+from wskr.errors import CommandRunnerError
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+
+logger = logging.getLogger(__name__)
 
 
 class CommandRunner:
@@ -18,6 +24,11 @@ class CommandRunner:
         self._timeout = timeout
         self._retries = retries
         self._retry_delay = retry_delay
+
+    @property
+    def timeout(self) -> float:
+        """Default timeout in seconds."""
+        return self._timeout
 
     def run(
         self,
@@ -35,24 +46,30 @@ class CommandRunner:
         """
         effective_timeout = timeout if timeout is not None else self._timeout
         attempts = (retries if retries is not None else self._retries) + 1
-        last_exc: Exception | None = None
         for attempt in range(attempts):
             try:
+                logger.debug(
+                    "CommandRunner.run: cmd=%s attempt=%d/%d timeout=%s",
+                    cmd,
+                    attempt + 1,
+                    attempts,
+                    effective_timeout,
+                )
                 return subprocess.run(  # noqa: S603,PLW1510
                     cmd,
                     timeout=effective_timeout,
                     **kwargs,
                 )
             except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
-                last_exc = e
+                logger.debug("CommandRunner.run failed: %s", e, exc_info=True)
                 if attempt == attempts - 1:
-                    raise
+                    msg = f"command {cmd!r} failed"
+                    raise CommandRunnerError(msg) from e
                 if self._retry_delay:
                     time.sleep(self._retry_delay)
-        if last_exc is None:  # pragma: no cover
-            msg = "unreachable"
-            raise RuntimeError(msg)
-        raise last_exc
+
+        msg = "unreachable"
+        raise CommandRunnerError(msg)
 
     def check_output(
         self,

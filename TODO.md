@@ -44,19 +44,19 @@
 
 # logging
 
-* [ ] Add `logger.debug` calls at each fallback or gate decision point
-* [ ] Include `exc_info=True` in relevant log calls for backends
-* [ ] Standardize logger names and messaging conventions across the repo
-* [ ] In Kitty operations logs, include key fields: transport, timeout, bytes sent, image ID, etc.
+* [x] Add `logger.debug` calls at each fallback or gate decision point
+* [x] Include `exc_info=True` in relevant log calls for backends
+* [x] Standardize logger names and messaging conventions across the repo
+* [x] In Kitty operations logs, include key fields: transport, timeout, bytes sent, image ID, etc.
 
 # error messages
 
-* [ ] Audit exception messages across the codebase and assign each to a local variable before raising
+* [x] Audit exception messages across the codebase and assign each to a local variable before raising
 * [x] Define a `TransportInitError` exception
 * [x] Define a `TransportUnavailableError` exception
-* [ ] Define a `TransportRuntimeError` exception
-* [ ] Surface structured errors (custom exception types) from `CommandRunner`
-* [ ] Wrap entry-point loading in `try/except` and emit clear diagnostics on failure
+* [x] Define a `TransportRuntimeError` exception
+* [x] Surface structured errors (custom exception types) from `CommandRunner`
+* [x] Wrap entry-point loading in `try/except` and emit clear diagnostics on failure
 
 # code reorganization
 
