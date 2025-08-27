@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NoReturn, cast
 
+from wskr.tty.command import CommandRunner
+
 logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -34,17 +36,20 @@ def find_executable(name: str) -> str:
     return path
 
 
+runner = CommandRunner()
+
+
 def run(
     cmd: list[str],
     *,
     capture_output: bool = False,
     check: bool = False,
     **kwargs: Any,
-) -> subprocess.CompletedProcess | bytes:
+) -> subprocess.CompletedProcess[Any] | bytes:
     logger.debug("Running: %s", " ".join(cmd))
     if capture_output and not check:
-        return subprocess.check_output(cmd, **kwargs)
-    return subprocess.run(cmd, capture_output=capture_output, check=check, **kwargs)
+        return runner.check_output(cmd, **kwargs)
+    return runner.run(cmd, capture_output=capture_output, check=check, **kwargs)
 
 
 def try_json_output(cmd: list[str]) -> list[dict] | None:

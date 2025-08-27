@@ -1,3 +1,11 @@
+## [0.0.8] - 2025-08-27
+
+### Added
+- add `CommandRunner` helper for subprocess execution
+
+### Changed
+- replace direct subprocess calls in kitty transports with `CommandRunner`
+
 ## [0.0.7] - 2025-08-27
 
 ### Added
