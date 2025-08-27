@@ -30,6 +30,17 @@ _IMAGE_TRANSPORTS: dict[str, _TransportEntry] = {}
 _ENTRYPOINTS_LOADED = False
 
 
+def _ensure_builtin_transports() -> None:
+    """Register transports that ship with wskr itself."""
+    if TransportName.NOOP.value not in _IMAGE_TRANSPORTS:
+        try:  # pragma: no cover - defensive guard
+            from wskr.tty.transport import NoOpTransport  # noqa: PLC0415
+
+            register_image_transport(TransportName.NOOP, NoOpTransport)
+        except Exception:  # noqa: BLE001 pragma: no cover - tiny module
+            logger.debug("Failed to auto-register NoOpTransport", exc_info=True)
+
+
 def register_image_transport(
     name: str | TransportName,
     cls: type[ImageTransport],
@@ -78,6 +89,7 @@ def get_image_transport(name: str | TransportName | None = None) -> ImageTranspo
     Raises :class:`TransportUnavailableError` for unknown or disabled
     transports and :class:`TransportInitError` if initialisation fails.
     """
+    _ensure_builtin_transports()
     _load_entry_points()
     key = name.value if isinstance(name, TransportName) else name
     key = key or os.getenv("WSKR_TRANSPORT", TransportName.NOOP.value)
