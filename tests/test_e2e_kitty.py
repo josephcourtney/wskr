@@ -9,6 +9,8 @@ import tempfile
 import types
 from pathlib import Path
 
+import pytest
+
 import numpy as np
 from PIL import Image, ImageChops
 
@@ -251,8 +253,11 @@ def test_compare_screenshot():
         return Path(__file__).parent / "payload.py"
 
     cfg = WindowConfig()
-    kitty_bin = find_executable("kitty")
-    yabai_bin = find_executable("yabai")
+    try:
+        kitty_bin = find_executable("kitty")
+        yabai_bin = find_executable("yabai")
+    except FileNotFoundError as exc:
+        pytest.skip(str(exc))
 
     done_file, log_file, sock, uid = prepare_paths()
     sock_path = Path(sock.removeprefix("unix:"))

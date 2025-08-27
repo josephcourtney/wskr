@@ -116,3 +116,73 @@ def test_send_image_uses_timeout(monkeypatch):
     kt = KittyTransport()
     kt.send_image(b"foo")
     assert seen.get("t") == 1.0
+
+
+def test_get_window_size_px_fallback(monkeypatch):
+    def bad_run(*a, **k):
+        raise subprocess.CalledProcessError(1, a[0])
+
+    monkeypatch.setattr(subprocess, "run", bad_run)
+    kt = KittyTransport()
+    assert kt.get_window_size_px() == (800, 600)
+
+
+def test_get_window_size_px_bad_output(monkeypatch):
+    def fake_run(*a, **k):
+        return type("P", (), {"stdout": "oops"})()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    kt = KittyTransport()
+    assert kt.get_window_size_px() == (800, 600)
+
+
+def test_tput_lines_not_found(monkeypatch):
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    assert KittyTransport._tput_lines() == 24
+
+
+def test_tput_lines_parse_error(monkeypatch):
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+
+    def fake_run(*a, **k):
+        return type("P", (), {"stdout": "bad"})()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert KittyTransport._tput_lines() == 24
+
+
+def test_send_image_logs_error(monkeypatch, caplog):
+    def bad_run(*a, **k):
+        raise subprocess.CalledProcessError(1, a[0])
+
+    monkeypatch.setattr(subprocess, "run", bad_run)
+    kt = KittyTransport()
+    with caplog.at_level("ERROR"):
+        kt.send_image(b"foo")
+    assert any("Error sending image" in r.message for r in caplog.records)
+
+
+def test_init_image_success(monkeypatch, dummy_png):
+    sent = []
+    monkeypatch.setattr(KittyTransport, "_send_chunk", lambda self, n, c, final=False: sent.append((n, c, final)))
+    monkeypatch.setattr("wskr.tty.kitty.query_tty", lambda *a, **k: b"\x1b_Gi=5,i=1;OK\x1b\\")
+    kt = KittyTransport()
+    img_id = kt.init_image(dummy_png)
+    assert img_id == 5
+    assert sent[-1][2] is True
+
+
+def test_init_image_no_response(monkeypatch, dummy_png):
+    monkeypatch.setattr(KittyTransport, "_send_chunk", lambda *a, **k: None)
+    monkeypatch.setattr("wskr.tty.kitty.query_tty", lambda *a, **k: b"")
+    kt = KittyTransport()
+    with pytest.raises(RuntimeError, match="No response"):
+        kt.init_image(dummy_png)
+
+
+def test_init_image_bad_response(monkeypatch, dummy_png):
+    monkeypatch.setattr(KittyTransport, "_send_chunk", lambda *a, **k: None)
+    monkeypatch.setattr("wskr.tty.kitty.query_tty", lambda *a, **k: b"\x1b_Gi=7,i=2;FAIL\x1b\\")
+    kt = KittyTransport()
+    with pytest.raises(RuntimeError, match="Unexpected"):
+        kt.init_image(dummy_png)
