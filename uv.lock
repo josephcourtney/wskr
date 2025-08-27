@@ -1308,7 +1308,7 @@ wheels = [
 
 [[package]]
 name = "wskr"
-version = "0.0.6"
+version = "0.0.10"
 source = { editable = "." }
 dependencies = [
     { name = "matplotlib" },
