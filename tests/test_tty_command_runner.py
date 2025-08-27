@@ -2,6 +2,7 @@ import subprocess
 
 import pytest
 
+from wskr.errors import CommandRunnerError
 from wskr.tty.command import CommandRunner
 
 
@@ -50,5 +51,5 @@ def test_run_retry_exhausted(monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", bad_run)
     runner = CommandRunner(retries=1)
-    with pytest.raises(subprocess.CalledProcessError):
+    with pytest.raises(CommandRunnerError):
         runner.run(["echo"])

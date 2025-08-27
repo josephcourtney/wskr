@@ -17,3 +17,11 @@ class TransportUnavailableError(TransportError):
 
 class TransportInitError(TransportError):
     """Raised when a transport fails to initialise."""
+
+
+class TransportRuntimeError(TransportError):
+    """Raised when a transport operation fails at runtime."""
+
+
+class CommandRunnerError(RuntimeError):
+    """Raised when ``CommandRunner`` fails to execute a command."""
