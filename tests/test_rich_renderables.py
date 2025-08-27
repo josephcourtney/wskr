@@ -1,7 +1,7 @@
 import io
 from typing import Any
 
-from jkit.plot import make_plot_grid
+import matplotlib.pyplot as plt
 from rich.console import Console
 from rich.text import Text
 
@@ -52,8 +52,9 @@ def test_rich_plot_output_shape(monkeypatch, dummy_transport):
     monkeypatch.setattr("wskr.rich.plt.get_terminal_size", lambda: (10, 20, 100, 40))
     monkeypatch.setattr("wskr.rich.img.get_image_transport", lambda: dummy_transport)
 
-    fig, ax = make_plot_grid(1, 1)
-    ax[0].plot([0, 1], [1, 2])
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot([0, 1], [1, 2])
     rp = RichPlot(fig, desired_width=20, desired_height=5)
 
     console = Console(record=True)
@@ -68,7 +69,8 @@ def test_rich_plot_can_be_measured(monkeypatch, dummy_transport):
     monkeypatch.setattr("wskr.rich.plt.get_terminal_size", lambda: (8, 16, 100, 40))
     monkeypatch.setattr("wskr.rich.img.get_image_transport", dummy_transport)
 
-    fig, _ = make_plot_grid(1, 1)
+    fig = plt.figure()
+    _ax = fig.add_subplot(111)
     rp = RichPlot(fig, desired_width=40, desired_height=20)
 
     console = Console()
