@@ -60,16 +60,16 @@
 
 # code reorganization
 
-* [ ] Extract all pixel→inch conversion logic into `src/wskr/mpl/size.py`
-* [ ] Update backends and `RichPlot` to use the centralized autosizing module
-* [ ] Share or centralize any buffer-sizing code between terminal backends and Rich integration
-* [ ] Extract the `_send_chunk`/response parsing logic in `src/wskr/tty/kitty.py` into its own parser class
-* [ ] Define a `TtyIO` interface to encapsulate `query_tty()`
-* [ ] Move `read_tty()` behind the `TtyIO` interface
-* [ ] Move `write_tty()` behind the `TtyIO` interface
-* [ ] Create a `TerminalMetrics` parameter object (`w_px, h_px, n_col, n_row, dpi, zoom`)
-* [ ] Update `compute_terminal_figure_size()` (and related functions) to accept `TerminalMetrics` instead of long arg lists
-* [ ] Deduplicate the two versions of `_render_to_buffer` in `plt.py` into a single implementation
+* [x] Extract all pixel→inch conversion logic into `src/wskr/mpl/size.py`
+* [x] Update backends and `RichPlot` to use the centralized autosizing module
+* [x] Share or centralize any buffer-sizing code between terminal backends and Rich integration
+* [x] Extract the `_send_chunk`/response parsing logic in `src/wskr/tty/kitty.py` into its own parser class
+* [x] Define a `TtyIO` interface to encapsulate `query_tty()`
+* [x] Move `read_tty()` behind the `TtyIO` interface
+* [x] Move `write_tty()` behind the `TtyIO` interface
+* [x] Create a `TerminalMetrics` parameter object (`w_px, h_px, n_col, n_row, dpi, zoom`)
+* [x] Update `compute_terminal_figure_size()` (and related functions) to accept `TerminalMetrics` instead of long arg lists
+* [x] Deduplicate the two versions of `_render_to_buffer` in `plt.py` into a single implementation
 
 # subprocess wrapper
 

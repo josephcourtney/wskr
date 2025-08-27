@@ -10,6 +10,11 @@ import wskr.config as cfg
 import wskr.tty.kitty as kitty_mod
 from wskr.tty import kitty
 from wskr.tty.kitty import KittyTransport
+from wskr.tty.kitty_parser import KittyChunkParser
+
+
+def test_parse_init_response_success():
+    assert KittyChunkParser.parse_init_response(1, b"\x1b_Gi=5,i=1;OK\x1b\\") == 5
 
 
 def test_kitty_transport_init_fails(monkeypatch):
@@ -33,7 +38,7 @@ def test_send_chunk_chunked_mode(monkeypatch):
     fake_stdout = FakeStdout()
     monkeypatch.setattr(sys, "stdout", fake_stdout)
 
-    KittyTransport._send_chunk(1, b"abc", final=True)
+    KittyChunkParser.send_chunk(1, b"abc", final=True)
 
     output = fake_stdout.buffer.getvalue()
     assert output.startswith(b"\x1b_G")
@@ -49,7 +54,7 @@ def test_send_chunk_writes(monkeypatch):
             self.buffer.seek(0)
 
     monkeypatch.setattr(sys, "stdout", FakeStdout())
-    KittyTransport._send_chunk(1, b"abc", final=True)
+    KittyChunkParser.send_chunk(1, b"abc", final=True)
 
 
 class DummyProc:
@@ -168,9 +173,7 @@ def test_send_image_logs_error(monkeypatch, caplog):
 
 def test_init_image_success(monkeypatch, dummy_png):
     sent = []
-    monkeypatch.setattr(
-        KittyTransport, "_send_chunk", lambda self, n, c, final=False: sent.append((n, c, final))
-    )
+    monkeypatch.setattr(KittyChunkParser, "send_chunk", lambda n, c, final=False: sent.append((n, c, final)))
     monkeypatch.setattr("wskr.tty.kitty.query_tty", lambda *a, **k: b"\x1b_Gi=5,i=1;OK\x1b\\")
     kt = KittyTransport()
     img_id = kt.init_image(dummy_png)
@@ -179,7 +182,7 @@ def test_init_image_success(monkeypatch, dummy_png):
 
 
 def test_init_image_no_response(monkeypatch, dummy_png):
-    monkeypatch.setattr(KittyTransport, "_send_chunk", lambda *a, **k: None)
+    monkeypatch.setattr(KittyChunkParser, "send_chunk", lambda *a, **k: None)
     monkeypatch.setattr("wskr.tty.kitty.query_tty", lambda *a, **k: b"")
     kt = KittyTransport()
     with pytest.raises(RuntimeError, match="No response"):
@@ -187,7 +190,7 @@ def test_init_image_no_response(monkeypatch, dummy_png):
 
 
 def test_init_image_bad_response(monkeypatch, dummy_png):
-    monkeypatch.setattr(KittyTransport, "_send_chunk", lambda *a, **k: None)
+    monkeypatch.setattr(KittyChunkParser, "send_chunk", lambda *a, **k: None)
     monkeypatch.setattr("wskr.tty.kitty.query_tty", lambda *a, **k: b"\x1b_Gi=7,i=2;FAIL\x1b\\")
     kt = KittyTransport()
     with pytest.raises(RuntimeError, match="Unexpected"):
