@@ -5,6 +5,7 @@ import sys
 import time
 
 from wskr.config import CACHE_TTL_S, DEFAULT_TTY_ROWS, IMAGE_CHUNK_SIZE
+from wskr.tty.command import CommandRunner
 from wskr.tty.kitty_parser import KittyChunkParser
 from wskr.ttyools import query_tty
 
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class KittyTransport(ImageTransport):
-    __slots__ = ("_cache_time", "_cached_size", "_kitty", "_next_img")
+    __slots__ = ("_cache_time", "_cached_size", "_kitty", "_next_img", "_runner")
 
     def __init__(self) -> None:
         self._kitty = shutil.which("kitty")
@@ -24,6 +25,7 @@ class KittyTransport(ImageTransport):
         self._next_img = 1
         self._cached_size: tuple[int, int] | None = None
         self._cache_time = 0.0
+        self._runner = CommandRunner()
 
     def invalidate_cache(self) -> None:
         """Drop any cached window-size information."""
@@ -39,12 +41,11 @@ class KittyTransport(ImageTransport):
         if self._cached_size is not None and (time.time() - self._cache_time) < CACHE_TTL_S:
             return self._cached_size
         try:
-            proc = subprocess.run(  # noqa: S603
+            proc = self._runner.run(
                 [self._kitty, "+kitten", "icat", "--print-window-size"],
                 capture_output=True,
                 text=True,
                 check=True,
-                timeout=1.0,
             )
             w_px, h_px = map(int, proc.stdout.strip().split("x"))
         except (subprocess.CalledProcessError, ValueError) as e:
@@ -65,7 +66,7 @@ class KittyTransport(ImageTransport):
         if not tput:
             return 24
         try:
-            proc = subprocess.run(  # noqa: S603
+            proc = CommandRunner().run(
                 [tput, "lines"],
                 capture_output=True,
                 text=True,
@@ -83,12 +84,11 @@ class KittyTransport(ImageTransport):
 
     def send_image(self, png_bytes: bytes) -> None:
         try:
-            subprocess.run(  # noqa: S603
+            self._runner.run(
                 [self._kitty, "+kitten", "icat", "--align", "center"],
                 input=png_bytes,
                 stdout=sys.stderr,
                 check=True,
-                timeout=1.0,
             )
         except subprocess.CalledProcessError:
             logger.exception("Error sending image via kitty icat")

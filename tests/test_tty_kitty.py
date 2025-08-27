@@ -66,11 +66,11 @@ def test_get_window_size_px_caches_and_computes(monkeypatch):
     monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
     calls = []
 
-    def fake_run(args, capture_output=None, text=None, check=None, timeout=None, **kwargs):
+    def fake_run(self, args, capture_output=None, text=None, check=None, timeout=None, **kwargs):
         calls.append(args)
         return type("P", (), {"stdout": "80x120"})()
 
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(kitty_mod.CommandRunner, "run", fake_run)
 
     kt = KittyTransport()
     first = kt.get_window_size_px()
@@ -83,13 +83,13 @@ def test_get_window_size_px_caches_and_computes(monkeypatch):
 def test_tput_lines_failure(monkeypatch):
     monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
 
-    def fake_run(cmd, capture_output=None, text=None, check=None, timeout=None, **kwargs):
+    def fake_run(self, cmd, capture_output=None, text=None, check=None, timeout=None, **kwargs):
         # sourcery skip: no-conditionals-in-tests
         if "+kitten" in cmd:
             return type("P", (), {"stdout": "10x20"})()
         raise subprocess.CalledProcessError(1, cmd)
 
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(kitty_mod.CommandRunner, "run", fake_run)
     kt2 = KittyTransport()
     size = kt2.get_window_size_px()
     assert size == (10, 20 - (3 * 20) // 24)
@@ -105,7 +105,6 @@ def test_get_window_size_px_uses_timeout(monkeypatch):
     def fake_run(args, capture_output, text, check, timeout):
         # we expect our 1.0s timeout
         assert timeout == 1.0
-        # return something parseable
         return type("P", (), {"stdout": "100x200"})()
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -118,7 +117,6 @@ def test_send_image_uses_timeout(monkeypatch):
     seen = {}
 
     def fake_run(cmd, input=None, stdout=None, check=None, timeout=None, **kwargs):  # noqa: A002
-        # ensure timeout was passed
         seen["t"] = timeout
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -128,19 +126,19 @@ def test_send_image_uses_timeout(monkeypatch):
 
 
 def test_get_window_size_px_fallback(monkeypatch):
-    def bad_run(*a, **k):
+    def bad_run(self, *a, **k):
         raise subprocess.CalledProcessError(1, a[0])
 
-    monkeypatch.setattr(subprocess, "run", bad_run)
+    monkeypatch.setattr(kitty_mod.CommandRunner, "run", bad_run)
     kt = KittyTransport()
     assert kt.get_window_size_px() == (800, 600)
 
 
 def test_get_window_size_px_bad_output(monkeypatch):
-    def fake_run(*a, **k):
+    def fake_run(self, *a, **k):
         return type("P", (), {"stdout": "oops"})()
 
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(kitty_mod.CommandRunner, "run", fake_run)
     kt = KittyTransport()
     assert kt.get_window_size_px() == (800, 600)
 
@@ -153,18 +151,18 @@ def test_tput_lines_not_found(monkeypatch):
 def test_tput_lines_parse_error(monkeypatch):
     monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
 
-    def fake_run(*a, **k):
+    def fake_run(self, *a, **k):
         return type("P", (), {"stdout": "bad"})()
 
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(kitty_mod.CommandRunner, "run", fake_run)
     assert KittyTransport._tput_lines() == 24
 
 
 def test_send_image_logs_error(monkeypatch, caplog):
-    def bad_run(*a, **k):
+    def bad_run(self, *a, **k):
         raise subprocess.CalledProcessError(1, a[0])
 
-    monkeypatch.setattr(subprocess, "run", bad_run)
+    monkeypatch.setattr(kitty_mod.CommandRunner, "run", bad_run)
     kt = KittyTransport()
     with caplog.at_level("ERROR"):
         kt.send_image(b"foo")
@@ -204,11 +202,11 @@ def test_get_window_size_px_cache_ttl(monkeypatch):
 
     calls = []
 
-    def fake_run(args, capture_output=None, text=None, check=None, timeout=None, **kwargs):
+    def fake_run(self, args, capture_output=None, text=None, check=None, timeout=None, **kwargs):
         calls.append(args)
         return type("P", (), {"stdout": "80x120"})()
 
-    monkeypatch.setattr(kitty_mod.subprocess, "run", fake_run)
+    monkeypatch.setattr(kitty_mod.CommandRunner, "run", fake_run)
     kt = kitty_mod.KittyTransport()
     kt.get_window_size_px()
     kt.get_window_size_px()
