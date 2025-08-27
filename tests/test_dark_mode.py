@@ -1,3 +1,10 @@
+import os
+import pty
+import threading
+
+import pytest
+
+from wskr import ttyools
 from wskr.mpl import utils
 
 
@@ -28,6 +35,18 @@ def test_osc_strategy_uses_config_timeout(monkeypatch):
     assert seen["timeout"] == 0.5
 
 
+def test_osc_strategy_parser_error(monkeypatch):
+    monkeypatch.setattr(utils, "query_tty", lambda *_a, **_k: b"oops")
+    with pytest.raises(ValueError, match="Unexpected"):
+        utils.OscQueryStrategy().detect()
+
+
+def test_osc_strategy_parser_partial(monkeypatch):
+    monkeypatch.setattr(utils, "query_tty", lambda *_a, **_k: b"\x1b]11;rgb:0000/0000\x07")
+    with pytest.raises(ValueError, match="Unexpected"):
+        utils.OscQueryStrategy().detect()
+
+
 def test_detect_dark_mode_chain(monkeypatch):
     monkeypatch.setenv("COLORFGBG", "15;0")
     called: dict[str, bool] = {}
@@ -47,6 +66,25 @@ def test_detect_dark_mode_chain(monkeypatch):
         lambda *_a, **_k: b"\x1b]11;rgb:0000/0000/0000\x07",
     )
     assert utils.detect_dark_mode() is True
+
+
+def test_osc_strategy_real_tty(monkeypatch):
+    master_fd, slave_fd = pty.openpty()
+    monkeypatch.setattr(ttyools, "_get_tty_fd", lambda: os.dup(slave_fd))
+
+    def responder():
+        data = os.read(master_fd, 100)
+        assert data == utils._OSC_BG_QUERY
+        os.write(master_fd, b"\x1b]11;rgb:0000/0000/0000\x07")
+
+    t = threading.Thread(target=responder)
+    t.start()
+    try:
+        assert utils.OscQueryStrategy(timeout=0.1).detect() is True
+    finally:
+        t.join()
+        os.close(master_fd)
+        os.close(slave_fd)
 
 
 def test_detect_dark_mode_override(monkeypatch):

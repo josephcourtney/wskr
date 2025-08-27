@@ -3,6 +3,7 @@ import shutil
 import subprocess
 import sys
 from io import BytesIO
+from time import sleep
 
 import pytest
 
@@ -56,6 +57,30 @@ def test_send_chunk_writes(monkeypatch):
 
     monkeypatch.setattr(sys, "stdout", FakeStdout())
     KittyChunkParser.send_chunk(1, b"abc", final=True)
+
+
+def test_send_chunk_fault_injection(monkeypatch):
+    class SlowBuffer(BytesIO):
+        def write(self, data):
+            for b in data:
+                super().write(bytes([b]))
+                sleep(0)
+            return len(data)
+
+    class FakeStdout:
+        def __init__(self):
+            self.buffer = SlowBuffer()
+            self.flush_count = 0
+
+        def flush(self):
+            self.flush_count += 1
+
+    fake_stdout = FakeStdout()
+    monkeypatch.setattr(sys, "stdout", fake_stdout)
+    KittyChunkParser.send_chunk(1, b"abc", final=True)
+    expected = b"\x1b_Ga=t,q=0,f=32,i=1,m=0;abc\x1b\\"
+    assert fake_stdout.buffer.getvalue() == expected
+    assert fake_stdout.flush_count == 1
 
 
 class DummyProc:
