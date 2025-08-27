@@ -8,7 +8,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from wskr.mpl.base import BaseFigureManager, TerminalBackend
 from wskr.mpl.utils import detect_dark_mode
 
-# TODO: import or implement a ITerm2Transport subclass
+# TODO: import or implement a ITerm2Transport subclass  # noqa: FIX002, TD002, TD003
 # from wskr.tty.iterm2 import ITerm2Transport
 
 

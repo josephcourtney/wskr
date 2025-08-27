@@ -1,8 +1,9 @@
 import os
 import sys
+from collections.abc import Iterator
 from contextlib import contextmanager
 from io import BytesIO
-from typing import Any, Iterator
+from typing import Any
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -56,7 +57,7 @@ class WskrFigureManager(FigureManagerBase):
 
 class WskrFigureCanvas(FigureCanvasAgg):
     manager_class: Any = _api.classproperty(lambda _: WskrFigureManager)
-    
+
     @contextmanager
     def _guard_draw(self) -> Iterator[bool]:
         """Context manager preventing re-entrant ``draw`` calls.

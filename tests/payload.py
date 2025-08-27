@@ -22,9 +22,7 @@ def main():
     else:
         print("[DEBUG] ✔ Image sent successfully.", file=sys.stderr)
 
-    # Signal to launcher that we're done
-    done_file = os.environ.get("KITTY_DEMO_DONE_FILE")
-    if done_file:
+    if done_file := os.environ.get("KITTY_DEMO_DONE_FILE"):
         Path(done_file).write_text("done", encoding="utf-8")
 
 

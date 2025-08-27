@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.backend_bases import FigureManagerBase
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from wskr.mpl.base import WskrFigureCanvas, WskrFigureManager
@@ -45,8 +46,6 @@ def test_draw_reentrancy_is_guarded(monkeypatch):
     fig.add_subplot(1, 1, 1)
     monkeypatch.setattr("wskr.mpl.base.is_interactive", lambda: True)
 
-    from matplotlib.backend_bases import FigureManagerBase
-
     class DummyManager(FigureManagerBase):
         def __init__(self, canvas):
             super().__init__(canvas, 1)
@@ -54,6 +53,7 @@ def test_draw_reentrancy_is_guarded(monkeypatch):
 
         def show(self):
             self.calls += 1
+            # sourcery skip: no-conditionals-in-tests
             if self.calls == 1:
                 canvas.draw()
 

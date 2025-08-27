@@ -33,7 +33,8 @@ def test_manager_init_and_show_roundtrip(dummy_transport):
     # Calling show() should render & hand bytes over to our DummyTransport
     manager.show()
     assert transport.last_image is not None
-    assert transport.last_image.startswith(b"\x89PNG\r\n\x1a\n")  # PNG magic
+    # PNG magic
+    assert transport.last_image.startswith(b"\x89PNG\r\n\x1a\n")
 
 
 class DummyTransport(ImageTransport):
@@ -68,7 +69,7 @@ def test_render_with_invalid_scale_defaults_to_1(monkeypatch):
 
     # Should use the unscaled 20x40
     assert observed["dims"] == (20, 40)
-    assert transport.last_image.startswith(b"\x89PNG")
+    assert transport.last_image.startswith(b"\x89PNG")  # type: ignore[possibly-unbound-attribute]
 
 
 def test_terminalbackend_draw_if_interactive_and_show(monkeypatch):

@@ -1,11 +1,9 @@
-import pytest
-import pytest
-
 import matplotlib.pyplot as plt
+import pytest
 
 from wskr.plot import (
-    create_share_dict,
     check_for_overlaps,
+    create_share_dict,
     initialize_subplots,
 )
 
@@ -26,7 +24,7 @@ def test_create_share_dict_mapping():
 
 
 def test_create_share_dict_invalid_overlap():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="duplicate subplot index in share groups"):
         create_share_dict([[0, 1], [2, 1]], range(3))
 
 
@@ -39,7 +37,7 @@ def test_check_for_overlaps_detects_and_passes():
     ranges = [(0, 0, 0, 0), (1, 1, 1, 1)]
     occ = check_for_overlaps(ranges, 2, 2)
     assert occ.sum() == 2
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Provided ranges cause overlapping subplots"):
         check_for_overlaps([(0, 1, 0, 1), (1, 2, 1, 2)], 3, 3)
 
 

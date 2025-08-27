@@ -84,12 +84,15 @@ def is_dark_mode_osc(timeout: float = 0.1) -> bool:
 
 def detect_dark_mode() -> bool:
     """Try env-var first, then OSC; default to False (light)."""
+    override = os.getenv("WSKR_DARK_MODE")
+    if override is not None:
+        return override.lower() in {"1", "true", "yes", "on"}
     for fn in (is_dark_mode_env, is_dark_mode_osc):
         try:
             if fn():
                 return True
         except (KeyError, RuntimeError, ValueError, OSError) as e:
-            logger.debug(f"{fn.__name__} failed: {e}")
+            logger.debug("%s failed: %s", fn.__name__, e)
     return False
 
 
