@@ -11,8 +11,8 @@ import wskr.config as cfg
 import wskr.kitty.transport as kitty_mod
 from wskr.errors import CommandRunnerError, TransportRuntimeError, TransportUnavailableError
 from wskr.kitty import transport as kitty
+from wskr.kitty.parser import KittyChunkParser
 from wskr.kitty.transport import KittyTransport
-from wskr.tty.kitty_parser import KittyChunkParser
 
 
 def test_parse_init_response_success():
