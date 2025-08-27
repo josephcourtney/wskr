@@ -1,6 +1,5 @@
 from wskr.config import IMAGE_CHUNK_SIZE
 from wskr.tty.base import ImageTransport
-from wskr.tty.kitty import KittyTransport
 from wskr.tty.kitty_parser import KittyChunkParser
 from wskr.tty.registry import TransportName, register_image_transport
 
@@ -47,6 +46,5 @@ class KittyPyTransport(ImageTransport):
         return img_num
 
 
-register_image_transport(TransportName.KITTY, KittyTransport)
 register_image_transport(TransportName.KITTY_PY, KittyPyTransport)
 register_image_transport(TransportName.NOOP, NoOpTransport)

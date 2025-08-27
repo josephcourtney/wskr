@@ -1,6 +1,6 @@
 from rich.console import Console
 
-from wskr.rich.img import RichImage
+from wskr.kitty.rich.img import RichImage
 from wskr.tty.base import ImageTransport
 
 

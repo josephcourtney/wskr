@@ -5,11 +5,11 @@ import time
 
 from wskr.config import CACHE_TTL_S, DEFAULT_TTY_ROWS, IMAGE_CHUNK_SIZE, TIMEOUT_S
 from wskr.errors import CommandRunnerError, TransportUnavailableError
+from wskr.tty.base import ImageTransport
 from wskr.tty.command import CommandRunner
 from wskr.tty.kitty_parser import KittyChunkParser
+from wskr.tty.registry import TransportName, register_image_transport
 from wskr.ttyools import query_tty
-
-from .base import ImageTransport
 
 logger = logging.getLogger(__name__)
 
@@ -122,3 +122,9 @@ class KittyTransport(ImageTransport):
     def close(self) -> None:
         """Clear any cached data."""
         self.invalidate_cache()
+
+
+register_image_transport(TransportName.KITTY, KittyTransport)
+
+
+__all__ = ["KittyTransport"]

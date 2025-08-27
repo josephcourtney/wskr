@@ -3,13 +3,13 @@ from io import BytesIO
 import matplotlib.pyplot as plt
 from rich.console import Console
 
-from wskr.rich.plt import RichPlot, get_terminal_size
+from wskr.kitty.rich.plt import RichPlot, get_terminal_size
 
 
 def test_rich_plot_can_render_to_console(monkeypatch, dummy_transport):
     # Patch get_terminal_size and get_image_transport to avoid real system I/O
-    monkeypatch.setattr("wskr.rich.plt.get_terminal_size", lambda: (10, 20, 100, 30))
-    monkeypatch.setattr("wskr.rich.img.get_image_transport", lambda: dummy_transport)
+    monkeypatch.setattr("wskr.kitty.rich.plt.get_terminal_size", lambda: (10, 20, 100, 30))
+    monkeypatch.setattr("wskr.kitty.rich.img.get_image_transport", lambda: dummy_transport)
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -36,8 +36,8 @@ def test_render_to_buffer_matches_savefig():
 
 
 def test_rich_plot_ansi_output(dummy_transport, monkeypatch):
-    monkeypatch.setattr("wskr.rich.plt.get_terminal_size", lambda: (10, 20, 80, 24))
-    monkeypatch.setattr("wskr.rich.img.get_image_transport", lambda: dummy_transport)
+    monkeypatch.setattr("wskr.kitty.rich.plt.get_terminal_size", lambda: (10, 20, 80, 24))
+    monkeypatch.setattr("wskr.kitty.rich.img.get_image_transport", lambda: dummy_transport)
 
     fig = plt.figure()
     ax = fig.add_subplot(111)

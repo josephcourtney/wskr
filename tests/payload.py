@@ -2,7 +2,7 @@ import os
 import sys
 from pathlib import Path
 
-from wskr.tty.kitty import KittyTransport
+from wskr.kitty.transport import KittyTransport
 
 
 def main():

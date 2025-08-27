@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 from rich.measure import Measurement
 
+from wskr.kitty.rich.img import RichImage
 from wskr.mpl.size import TerminalMetrics, compute_terminal_figure_size
-from wskr.rich.img import RichImage
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
