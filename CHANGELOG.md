@@ -1,3 +1,8 @@
+## [0.0.16] - 2025-08-29
+
+### Changed
+- move terminal I/O helpers to `wskr.terminal.io` and OSC query helper to `wskr.terminal.osc`
+
 ## [0.0.15] - 2025-08-28
 
 ### Removed

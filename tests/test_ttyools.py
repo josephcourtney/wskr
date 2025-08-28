@@ -3,7 +3,7 @@ import termios
 
 import pytest
 
-from wskr.terminal.core import ttyools
+from wskr.terminal import io, osc
 
 
 class DummyFD:
@@ -32,36 +32,36 @@ def fake_tty(monkeypatch, tmp_path):
     # Monkeypatch termios.tcdrain to be a no-op
     monkeypatch.setattr(termios, "tcdrain", lambda fd: None)
     # Monkeypatch tty_attributes to be a simple context
-    monkeypatch.setattr(ttyools, "tty_attributes", lambda *args, **kwargs: (yield from []))
+    monkeypatch.setattr(io, "tty_attributes", lambda *args, **kwargs: (yield from []))
     # For select, always say no data
-    monkeypatch.setattr(ttyools, "select", lambda r, w, x, t: ([], [], []))
+    monkeypatch.setattr(io, "select", lambda r, w, x, t: ([], [], []))
     return closed
 
 
 def test_write_tty_closes_fd(fake_tty):
-    ttyools.write_tty(b"hello")
+    io.write_tty(b"hello")
     assert fake_tty == [99], "write_tty should close its fd"
 
 
 def test_read_tty_closes_fd(fake_tty):
     # read_tty returns immediately (no data), but must close
-    data = ttyools.read_tty(timeout=0, min_bytes=0)
+    data = io.read_tty(timeout=0, min_bytes=0)
     assert data == b""  # no data read
     assert fake_tty == [99], "read_tty should close its fd"
 
 
 def test_read_tty_more_predicate(monkeypatch):
-    monkeypatch.setattr(ttyools, "_get_tty_fd", lambda: 42)
+    monkeypatch.setattr(io, "_get_tty_fd", lambda: 42)
     monkeypatch.setattr(os, "close", lambda fd: None)
-    monkeypatch.setattr(ttyools, "tty_attributes", lambda *a, **k: (yield from []))
-    monkeypatch.setattr(ttyools, "select", lambda r, w, x, t: ([], [], []))
+    monkeypatch.setattr(io, "tty_attributes", lambda *a, **k: (yield from []))
+    monkeypatch.setattr(io, "select", lambda r, w, x, t: ([], [], []))
     called = []
 
     def more(data: bytes) -> bool:
         called.append(data)
         return False
 
-    assert ttyools.read_tty(timeout=1, more=more) == b""
+    assert io.read_tty(timeout=1, more=more) == b""
     assert called == [b""]
 
 
@@ -82,9 +82,9 @@ def test_query_tty_single_fd(monkeypatch, tmp_path):
         called_fd.append(fd)
         return b"resp"
 
-    monkeypatch.setattr(ttyools.TTY_IO, "read", fake_read_tty)
+    monkeypatch.setattr(io.TTY_IO, "read", fake_read_tty)
 
-    resp = ttyools.query_tty(b"req", more=lambda b: False, timeout=0)
+    resp = osc.query_tty(b"req", more=lambda b: False, timeout=0)
     assert resp == b"resp"
     assert opens == [1]
     assert closes == [fake_fd]
