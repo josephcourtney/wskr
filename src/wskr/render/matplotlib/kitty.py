@@ -1,11 +1,11 @@
 import sys
 
-from matplotlib import _api, interactive
-from matplotlib.backend_bases import _Backend
+from matplotlib import _api, interactive  # noqa: PLC2701
+from matplotlib.backend_bases import _Backend  # noqa: PLC2701
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
-from wskr.kitty.transport import KittyTransport
-from wskr.mpl.base import BaseFigureManager, TerminalBackend
+from wskr.protocol.kgp.kgp import KittyTransport
+from wskr.render.matplotlib.core import BaseFigureManager, TerminalBackend
 
 if sys.flags.interactive:
     interactive(b=True)

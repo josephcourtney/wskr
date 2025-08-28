@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from wskr.ttyools import query_tty
+from wskr.terminal.core.ttyools import query_tty
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

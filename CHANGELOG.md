@@ -1,3 +1,11 @@
+## [0.0.15] - 2025-08-28
+
+### Removed
+- drop deprecated shim modules `wskr.kitty.*`, `wskr.tty.*`, `wskr.mpl.*`, and `wskr.ttyools`
+
+### Changed
+- update imports to `wskr.terminal.core`, `wskr.protocol.kgp`, and `wskr.render.*`
+
 ## [0.0.14] - 2025-08-27
 
 ### Added

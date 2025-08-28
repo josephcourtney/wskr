@@ -15,7 +15,7 @@ def test_kitty_backend_draw_if_interactive(monkeypatch):
         canvas = DummyCanvas()
 
     monkeypatch.setattr(
-        "wskr.mpl.base.Gcf.get_active",
+        "wskr.render.matplotlib.core.Gcf.get_active",
         lambda: type(
             "Manager",
             (),
@@ -36,6 +36,8 @@ def test_kitty_backend_show(monkeypatch):
     def fake_show(*args, **kwargs):
         called["ok"] = True
 
-    monkeypatch.setattr("wskr.mpl.base.Gcf.get_active", lambda: type("Manager", (), {"show": fake_show}))
+    monkeypatch.setattr(
+        "wskr.render.matplotlib.core.Gcf.get_active", lambda: type("Manager", (), {"show": fake_show})
+    )
     _BackendKittyAgg.show()
     assert called.get("ok")

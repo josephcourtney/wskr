@@ -4,8 +4,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-import wskr.kitty.transport  # noqa: F401  ensure Kitty transport registers itself
-from wskr.tty.registry import get_image_transport
+import wskr.protocol.kgp.kgp  # noqa: F401  ensure Kitty transport registers itself
+from wskr.terminal.core.registry import get_image_transport
 
 
 def draw_circle(size):
