@@ -168,6 +168,13 @@ def read_tty(
     return TTY_IO.read(timeout=timeout, min_bytes=min_bytes, more=more, echo=echo, fd=fd)
 
 
-def query_tty(request: bytes, more: MorePredicate, timeout: float | None = None) -> bytes:
-    """Send a request to the terminal and read the response."""
-    return TTY_IO.query(request, more, timeout)
+__all__ = [
+    "TTY_IO",
+    "MorePredicate",
+    "PosixTtyIO",
+    "TtyIO",
+    "lock_tty",
+    "read_tty",
+    "tty_attributes",
+    "write_tty",
+]
