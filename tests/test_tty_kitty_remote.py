@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from wskr.kitty import remote as kitty_remote
-from wskr.kitty.remote import (
+from wskr.terminal.kitty.kitty_remote import (
     WindowConfig,
     _abort,
     cleanup_temp_files,

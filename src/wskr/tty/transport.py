@@ -1,24 +1,14 @@
-from wskr.tty.base import ImageTransport
-from wskr.tty.registry import TransportName, register_image_transport
+"""Deprecated shim: use :mod:`wskr.terminal.core.transport`."""
 
-__all__ = ["NoOpTransport"]
+from __future__ import annotations
 
+import warnings as _w
 
-class NoOpTransport(ImageTransport):
-    __slots__ = ()
+from wskr.terminal.core.base import ImageTransport
+from wskr.terminal.core.transport import NoOpTransport
 
-    def get_window_size_px(self) -> tuple[int, int]:  # noqa: PLR6301
-        return (800, 600)
+_w.warn(
+    "wskr.tty.transport is deprecated; use wskr.terminal.core.transport", DeprecationWarning, stacklevel=2
+)
 
-    def send_image(self, png_bytes: bytes) -> None:  # noqa: ARG002, PLR6301
-        print("[wskr] Warning: No terminal image transport available")
-
-    def init_image(self, png_bytes: bytes) -> int:  # noqa: ARG002, PLR6301
-        print("[wskr] Warning: init_image() called on NoOpTransport")
-        return -1
-
-    def close(self) -> None:  # noqa: PLR6301
-        return None
-
-
-register_image_transport(TransportName.NOOP, NoOpTransport)
+__all__ = ["ImageTransport", "NoOpTransport"]

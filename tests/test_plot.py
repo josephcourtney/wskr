@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import pytest
 
-from wskr.plot import (
+from wskr.render.matplotlib.plot import (
     check_for_overlaps,
     create_share_dict,
     initialize_subplots,

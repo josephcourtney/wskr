@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from wskr import demo
+from wskr.core import demo
 
 
 def test_demo_runs(monkeypatch):

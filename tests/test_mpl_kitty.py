@@ -1,4 +1,4 @@
-from wskr.kitty.mpl import _BackendKittyAgg
+from wskr.render.matplotlib.kitty import _BackendKittyAgg
 
 
 def test_kitty_backend_draw_if_interactive(monkeypatch):

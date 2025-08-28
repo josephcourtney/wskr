@@ -1,3 +1,11 @@
+## [0.0.14] - 2025-08-27
+
+### Added
+- add compatibility shims for legacy imports (`wskr.config`, `wskr.errors`, `wskr.tty.*`, `wskr.mpl.*`, `wskr.kitty.*`)
+
+### Changed
+- fix top-level imports in `wskr.__init__` to use new package layout
+
 ## [0.0.12] - 2025-08-27
 
 ### Changed
