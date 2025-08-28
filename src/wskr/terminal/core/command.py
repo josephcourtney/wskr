@@ -5,7 +5,7 @@ import subprocess  # noqa: S404
 import time
 from typing import TYPE_CHECKING, Any
 
-from wskr.errors import CommandRunnerError
+from wskr.core.errors import CommandRunnerError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

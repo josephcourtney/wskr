@@ -3,12 +3,16 @@ from types import SimpleNamespace
 
 import pytest
 
-from wskr.config import configure
-from wskr.errors import TransportInitError, TransportUnavailableError
-from wskr.tty import registry
-from wskr.tty.base import ImageTransport
-from wskr.tty.registry import TransportName, get_image_transport, register_image_transport
-from wskr.tty.transport import NoOpTransport
+from wskr.core.config import configure
+from wskr.core.errors import TransportInitError, TransportUnavailableError
+from wskr.terminal.core import registry
+from wskr.terminal.core.base import ImageTransport
+from wskr.terminal.core.registry import (
+    TransportName,
+    get_image_transport,
+    register_image_transport,
+)
+from wskr.terminal.core.transport import NoOpTransport
 
 
 class BadTransport(ImageTransport):

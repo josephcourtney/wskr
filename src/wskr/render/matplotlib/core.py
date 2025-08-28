@@ -6,14 +6,14 @@ from io import BytesIO
 from typing import Any
 
 import matplotlib as mpl
-from matplotlib import _api, interactive, is_interactive
-from matplotlib._pylab_helpers import Gcf
-from matplotlib.backend_bases import FigureManagerBase, _Backend
+from matplotlib import _api, interactive, is_interactive  # noqa: PLC2701
+from matplotlib._pylab_helpers import Gcf  # noqa: PLC2701
+from matplotlib.backend_bases import FigureManagerBase, _Backend  # noqa: PLC2701
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
-from wskr.mpl.size import autosize_figure
-from wskr.tty.base import ImageTransport
-from wskr.tty.registry import get_image_transport
+from wskr.render.matplotlib.size import autosize_figure
+from wskr.terminal.core.base import ImageTransport
+from wskr.terminal.core.registry import get_image_transport
 
 if sys.flags.interactive:
     interactive(b=True)

@@ -6,9 +6,9 @@ A modular, pluggable Matplotlib “image‐in‐terminal” backend.
 
 wskr lets you render Matplotlib figures as inline images in terminals that support Kitty, iTerm2, or Sixel protocols. It cleanly separates:
 
-- **Transports** (`wskr.tty.*`): how to talk to the terminal (e.g. Kitty image protocol, Sixel, etc.).
-- **Backends** (`wskr.mpl.*`): a generic Matplotlib FigureCanvas/FigureManager that uses a Transport to size and send a PNG.
-- **Rich integration** (`wskr.rich.*`): display plots in a `rich` console using the same transport layer.
+- **Transports** (`wskr.terminal.core.*`): how to talk to the terminal (e.g. Kitty image protocol, Sixel, etc.).
+- **Backends** (`wskr.render.matplotlib.*`): a generic Matplotlib FigureCanvas/FigureManager that uses a Transport to size and send a PNG.
+- **Rich integration** (`wskr.render.rich.*`): display plots in a `rich` console using the same transport layer.
 
 ## Features
 
@@ -56,7 +56,7 @@ import matplotlib.pyplot as plt
 
 ```python
 from rich.console import Console
-from wskr.rich.plt import RichPlot
+from wskr.render.rich.plt import RichPlot
 
 console = Console()
 fig = plt.figure()
@@ -75,7 +75,7 @@ To add a new terminal protocol (e.g. `MyTerm`) for inline Matplotlib rendering:
 Create a class that inherits from `ImageTransport` and implements:
 
 ```python
-from wskr.tty.base import ImageTransport
+from wskr.terminal.core.base import ImageTransport
 
 class MyTermTransport(ImageTransport):
     def get_window_size_px(self) -> tuple[int, int]:
@@ -94,7 +94,7 @@ class MyTermTransport(ImageTransport):
 Then register it:
 
 ```python
-from wskr.tty.registry import register_image_transport
+from wskr.terminal.core.registry import register_image_transport
 register_image_transport("myterm", MyTermTransport)
 ```
 
@@ -111,7 +111,7 @@ from matplotlib.backend_bases import _Backend
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib._pylab_helpers import Gcf
 
-from wskr.mpl.base_backend import BaseFigureManager
+from wskr.render.matplotlib.core import BaseFigureManager
 from myterm_module import MyTermTransport  # your transport from Step 1
 
 plt.style.use("dark_background")

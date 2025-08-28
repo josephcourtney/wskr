@@ -1,7 +1,7 @@
 from rich.console import Console
 
-from wskr.kitty.rich.img import RichImage
-from wskr.tty.base import ImageTransport
+from wskr.render.rich.img import RichImage
+from wskr.terminal.core.base import ImageTransport
 
 
 class DummyTransport(ImageTransport):

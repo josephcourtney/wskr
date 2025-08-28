@@ -1,6 +1,6 @@
 import importlib
 
-import wskr.config as cfg
+import wskr.core.config as cfg
 
 
 def test_config_env_and_kwargs(monkeypatch):

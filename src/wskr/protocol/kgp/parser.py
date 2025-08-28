@@ -6,7 +6,7 @@ import logging
 import re
 import sys
 
-from wskr.errors import TransportRuntimeError
+from wskr.core.errors import TransportRuntimeError
 
 logger = logging.getLogger(__name__)
 
