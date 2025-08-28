@@ -1,26 +1,9 @@
-import sys
+"""Deprecated shim: use :mod:`wskr.render.matplotlib.kitty`."""
 
-from matplotlib import _api, interactive  # noqa: PLC2701
-from matplotlib.backend_bases import _Backend  # noqa: PLC2701
-from matplotlib.backends.backend_agg import FigureCanvasAgg
+from __future__ import annotations
 
-from wskr.kitty.transport import KittyTransport
-from wskr.mpl.base import BaseFigureManager, TerminalBackend
+import warnings as _w
 
-if sys.flags.interactive:
-    interactive(b=True)
+from wskr.render.matplotlib.kitty import *  # noqa: F403
 
-
-class KittyFigureManager(BaseFigureManager):
-    def __init__(self, canvas: FigureCanvasAgg, num: int = 1):
-        super().__init__(canvas, num, KittyTransport)
-
-
-class KittyFigureCanvas(FigureCanvasAgg):
-    manager_class = _api.classproperty(lambda _: KittyFigureManager)
-
-
-@_Backend.export
-class _BackendKittyAgg(TerminalBackend):
-    FigureCanvas = KittyFigureCanvas
-    FigureManager = KittyFigureManager
+_w.warn("wskr.kitty.mpl is deprecated; use wskr.render.matplotlib.kitty", DeprecationWarning, stacklevel=2)

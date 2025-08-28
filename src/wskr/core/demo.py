@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-from . import init
+from wskr import init
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

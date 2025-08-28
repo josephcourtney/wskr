@@ -1,9 +1,5 @@
-from .transport import KittyTransport
-from .utils import KITTY_COLOR_KEYS, query_colors, query_kitty_color
+from __future__ import annotations
 
-__all__ = [
-    "KITTY_COLOR_KEYS",
-    "KittyTransport",
-    "query_colors",
-    "query_kitty_color",
-]
+import warnings as _w
+
+_w.warn("wskr.kitty.* is deprecated; use wskr.protocol.* or wskr.render.*", DeprecationWarning, stacklevel=2)
