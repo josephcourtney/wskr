@@ -6,7 +6,7 @@ import threading
 import pytest
 
 from wskr.render.matplotlib import utils
-from wskr.terminal.core import ttyools
+from wskr.terminal import io
 
 
 def test_env_color_strategy(monkeypatch):
@@ -71,7 +71,7 @@ def test_detect_dark_mode_chain(monkeypatch):
 
 def test_osc_strategy_real_tty(monkeypatch):
     master_fd, slave_fd = pty.openpty()
-    monkeypatch.setattr(ttyools, "_get_tty_fd", lambda: os.dup(slave_fd))
+    monkeypatch.setattr(io, "_get_tty_fd", lambda: os.dup(slave_fd))
 
     def responder():
         data = os.read(master_fd, 100)

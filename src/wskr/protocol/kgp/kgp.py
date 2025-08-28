@@ -9,7 +9,7 @@ from wskr.protocol.kgp.parser import KittyChunkParser
 from wskr.terminal.core.base import ImageTransport
 from wskr.terminal.core.command import CommandRunner
 from wskr.terminal.core.registry import TransportName, register_image_transport
-from wskr.terminal.core.ttyools import query_tty
+from wskr.terminal.osc import query_tty
 
 logger = logging.getLogger(__name__)
 
