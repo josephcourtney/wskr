@@ -1,13 +1,13 @@
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
-from wskr.mpl.base import (
+from wskr.render.matplotlib.core import (
     WskrFigureCanvas,
     WskrFigureManager,
     _BackendTermAgg,
     render_figure_to_terminal,
 )
-from wskr.tty.base import ImageTransport
+from wskr.terminal.core.base import ImageTransport
 
 
 def test_canvas_class_exists_and_manager_property():
@@ -60,7 +60,7 @@ def test_render_with_invalid_scale_defaults_to_1(monkeypatch):
     def fake_autosize(fig, w, h):
         observed["dims"] = (w, h)
 
-    monkeypatch.setattr("wskr.mpl.base.autosize_figure", fake_autosize)
+    monkeypatch.setattr("wskr.render.matplotlib.core.autosize_figure", fake_autosize)
 
     fig = plt.figure()
     canvas = FigureCanvasAgg(fig)
@@ -81,7 +81,7 @@ def test_terminalbackend_draw_if_interactive_and_show(monkeypatch):
         def show(self, *args, **kwargs):
             called["show"] = True
 
-    monkeypatch.setattr("wskr.mpl.base.Gcf.get_active", FakeManager)
+    monkeypatch.setattr("wskr.render.matplotlib.core.Gcf.get_active", FakeManager)
 
     # When not interactive, draw_if_interactive is a no-op
     monkeypatch.setattr("matplotlib.is_interactive", lambda: False)

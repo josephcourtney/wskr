@@ -2,7 +2,7 @@ import contextlib
 import os
 import termios
 
-from wskr import ttyools
+from wskr.terminal.core import ttyools
 
 
 def test_tty_attributes_roundtrip(monkeypatch):

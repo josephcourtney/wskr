@@ -2,10 +2,14 @@ import importlib.metadata
 
 import pytest
 
-from wskr.config import configure
-from wskr.tty.base import ImageTransport
-from wskr.tty.registry import get_image_transport, load_entry_points, register_image_transport
-from wskr.tty.transport import NoOpTransport
+from wskr.core.config import configure
+from wskr.terminal.core.base import ImageTransport
+from wskr.terminal.core.registry import (
+    get_image_transport,
+    load_entry_points,
+    register_image_transport,
+)
+from wskr.terminal.core.transport import NoOpTransport
 
 
 class FakeTransport(ImageTransport):
@@ -71,7 +75,7 @@ def test_load_entry_points(monkeypatch):
         "entry_points",
         lambda group=None: [DummyEP()] if group == "wskr.image_transports" else [],
     )
-    from wskr.tty import registry as reg  # noqa: PLC0415
+    from wskr.terminal.core import registry as reg  # noqa: PLC0415
 
     reg._ENTRYPOINTS_LOADED = False  # type: ignore[attr-defined]
     reg._IMAGE_TRANSPORTS.clear()  # type: ignore[attr-defined]

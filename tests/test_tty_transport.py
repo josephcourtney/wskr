@@ -1,4 +1,4 @@
-from wskr.tty.transport import NoOpTransport
+from wskr.terminal.core.transport import NoOpTransport
 
 
 def test_noop_transport_warnings_and_return_value(capsys):

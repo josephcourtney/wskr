@@ -6,8 +6,8 @@ from rich.console import Console, ConsoleOptions, RenderResult
 from rich.measure import Measurement
 from rich.text import Text
 
-from wskr.tty.registry import get_image_transport
-from wskr.tty.transport import ImageTransport
+from wskr.terminal.core.base import ImageTransport
+from wskr.terminal.core.registry import get_image_transport
 
 # diacritics used to encode the row and column indices
 

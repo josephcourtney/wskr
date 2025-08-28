@@ -1,7 +1,11 @@
 import matplotlib.pyplot as plt
 import pytest
 
-from wskr.mpl.size import TerminalMetrics, autosize_figure, compute_terminal_figure_size
+from wskr.render.matplotlib.size import (
+    TerminalMetrics,
+    autosize_figure,
+    compute_terminal_figure_size,
+)
 
 
 def test_autosize_figure_preserves_aspect_ratio():

@@ -2,8 +2,8 @@ import subprocess
 
 import pytest
 
-from wskr.errors import CommandRunnerError
-from wskr.tty.command import CommandRunner
+from wskr.core.errors import CommandRunnerError
+from wskr.terminal.core.command import CommandRunner
 
 
 def test_run_uses_default_timeout(monkeypatch):

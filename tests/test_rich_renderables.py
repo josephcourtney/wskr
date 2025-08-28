@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 from rich.console import Console
 from rich.text import Text
 
-from wskr.kitty.rich.img import RichImage
-from wskr.kitty.rich.plt import RichPlot
+from wskr.render.rich.img import RichImage
+from wskr.render.rich.plt import RichPlot
 
 
 def assert_rendered(renderable: Any, expected: str) -> None:
@@ -49,8 +49,8 @@ def test_rich_image_measures_correctly(dummy_png, dummy_transport):
 
 
 def test_rich_plot_output_shape(monkeypatch, dummy_transport):
-    monkeypatch.setattr("wskr.kitty.rich.plt.get_terminal_size", lambda: (10, 20, 100, 40))
-    monkeypatch.setattr("wskr.kitty.rich.img.get_image_transport", lambda: dummy_transport)
+    monkeypatch.setattr("wskr.render.rich.plt.get_terminal_size", lambda: (10, 20, 100, 40))
+    monkeypatch.setattr("wskr.render.rich.img.get_image_transport", lambda: dummy_transport)
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -66,8 +66,8 @@ def test_rich_plot_output_shape(monkeypatch, dummy_transport):
 
 
 def test_rich_plot_can_be_measured(monkeypatch, dummy_transport):
-    monkeypatch.setattr("wskr.kitty.rich.plt.get_terminal_size", lambda: (8, 16, 100, 40))
-    monkeypatch.setattr("wskr.kitty.rich.img.get_image_transport", dummy_transport)
+    monkeypatch.setattr("wskr.render.rich.plt.get_terminal_size", lambda: (8, 16, 100, 40))
+    monkeypatch.setattr("wskr.render.rich.img.get_image_transport", dummy_transport)
 
     fig = plt.figure()
     _ax = fig.add_subplot(111)

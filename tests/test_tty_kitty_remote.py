@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from wskr.kitty import remote as kitty_remote
+from wskr.terminal.kitty import kitty_remote
 from wskr.terminal.kitty.kitty_remote import (
     WindowConfig,
     _abort,
@@ -67,7 +67,9 @@ def test_run_uses_run(monkeypatch):
 
 def test_try_json_output_valid(monkeypatch):
     # stub run to return JSON bytes
-    monkeypatch.setattr("wskr.kitty.remote.run", lambda cmd, capture_output, **kw: b'[{"id":1}]')
+    monkeypatch.setattr(
+        "wskr.terminal.kitty.kitty_remote.run", lambda cmd, capture_output, **kw: b'[{"id":1}]'
+    )
     result = try_json_output(["cmd"])
     assert isinstance(result, list)
     assert result[0]["id"] == 1
@@ -75,7 +77,7 @@ def test_try_json_output_valid(monkeypatch):
 
 def test_try_json_output_invalid(monkeypatch, caplog):
     # stub run to return bad JSON
-    monkeypatch.setattr("wskr.kitty.remote.run", lambda *args, **kw: b"not json")
+    monkeypatch.setattr("wskr.terminal.kitty.kitty_remote.run", lambda *args, **kw: b"not json")
     caplog.set_level("DEBUG")
     assert try_json_output(["cmd"]) is None
     assert "JSON parsing failed" in caplog.text
@@ -113,16 +115,16 @@ def test_wait_for_file_to_exist_abort(tmp_path):
 
 
 def test_query_windows(monkeypatch):
-    monkeypatch.setattr("wskr.kitty.remote.try_json_output", lambda cmd: [{"a": 1}])
+    monkeypatch.setattr("wskr.terminal.kitty.kitty_remote.try_json_output", lambda cmd: [{"a": 1}])
     assert query_windows("yabai") == [{"a": 1}]
-    monkeypatch.setattr("wskr.kitty.remote.try_json_output", lambda cmd: None)
+    monkeypatch.setattr("wskr.terminal.kitty.kitty_remote.try_json_output", lambda cmd: None)
     assert query_windows("yabai") == []
 
 
 def test_configure_window_all_options(monkeypatch):
     calls = []
     monkeypatch.setattr(
-        "wskr.kitty.remote.run",
+        "wskr.terminal.kitty.kitty_remote.run",
         lambda args, capture_output=False, **kw: calls.append(args),
     )
     configure_window("yb", 42, float_it=True, width=10, height=20, x=1, y=2, focus=True)
@@ -136,7 +138,7 @@ def test_configure_window_all_options(monkeypatch):
 
 
 def test_take_screenshot_no_match(monkeypatch, tmp_path, caplog):
-    monkeypatch.setattr("wskr.kitty.remote.query_windows", lambda x: [])
+    monkeypatch.setattr("wskr.terminal.kitty.kitty_remote.query_windows", lambda x: [])
     caplog.set_level("ERROR")
     dst = tmp_path / "out.png"
     assert take_screenshot("y", lambda w: True, dst) is False
@@ -144,7 +146,7 @@ def test_take_screenshot_no_match(monkeypatch, tmp_path, caplog):
 
 
 def test_take_screenshot_success(monkeypatch, tmp_path):
-    monkeypatch.setattr("wskr.kitty.remote.query_windows", lambda x: [{"id": 7}])
+    monkeypatch.setattr("wskr.terminal.kitty.kitty_remote.query_windows", lambda x: [{"id": 7}])
 
     # stub run to simulate success
     class Res:
@@ -157,21 +159,21 @@ def test_take_screenshot_success(monkeypatch, tmp_path):
         dst.write_text("", encoding="utf-8")
         return Res()
 
-    monkeypatch.setattr("wskr.kitty.remote.run", fake_run)
+    monkeypatch.setattr("wskr.terminal.kitty.kitty_remote.run", fake_run)
     dst = tmp_path / "img.png"
     ok = take_screenshot("y", lambda w: w["id"] == 7, dst)
     assert ok
 
 
 def test_take_screenshot_failure(monkeypatch, tmp_path, caplog):
-    monkeypatch.setattr("wskr.kitty.remote.query_windows", lambda x: [{"id": 3}])
+    monkeypatch.setattr("wskr.terminal.kitty.kitty_remote.query_windows", lambda x: [{"id": 3}])
 
     # return nonzero
     class Res:
         returncode = 1
         stderr = b"fail"
 
-    monkeypatch.setattr("wskr.kitty.remote.run", lambda cmd, check: Res())
+    monkeypatch.setattr("wskr.terminal.kitty.kitty_remote.run", lambda cmd, check: Res())
     caplog.set_level("ERROR")
     dst = tmp_path / "img2.png"
     assert take_screenshot("y", lambda w: True, dst) is False
@@ -181,10 +183,10 @@ def test_take_screenshot_failure(monkeypatch, tmp_path, caplog):
 def test_close_kitty_window(monkeypatch):
     # nested sessions → one matching
     sessions = [{"tabs": [{"windows": [{"id": 1}, {"id": 99}]}]}]
-    monkeypatch.setattr("wskr.kitty.remote.try_json_output", lambda cmd: sessions)
+    monkeypatch.setattr("wskr.terminal.kitty.kitty_remote.try_json_output", lambda cmd: sessions)
     calls = []
     monkeypatch.setattr(
-        "wskr.kitty.remote.run",
+        "wskr.terminal.kitty.kitty_remote.run",
         lambda args, check=False, **kw: calls.append(args),
     )
     close_kitty_window("kit", lambda w: w["id"] == 99)
@@ -192,14 +194,14 @@ def test_close_kitty_window(monkeypatch):
 
 
 def test_close_kitty_window_no_match(monkeypatch):
-    monkeypatch.setattr("wskr.kitty.remote.try_json_output", lambda cmd: [])
+    monkeypatch.setattr("wskr.terminal.kitty.kitty_remote.try_json_output", lambda cmd: [])
     called = False
 
     def fake_run(*args, **kw):
         nonlocal called
         called = True
 
-    monkeypatch.setattr("wskr.kitty.remote.run", fake_run)
+    monkeypatch.setattr("wskr.terminal.kitty.kitty_remote.run", fake_run)
     close_kitty_window("kit", lambda w: True)
     assert not called
 
@@ -346,7 +348,7 @@ def test_terminate_process_permission_error(caplog):
 def test_send_startup_command(monkeypatch):
     calls = []
     monkeypatch.setattr(
-        "wskr.kitty.remote.send_kitty_command",
+        "wskr.terminal.kitty.kitty_remote.send_kitty_command",
         lambda kb, sock, cmd, env: calls.append((kb, sock, cmd, env)),
     )
     done_f = Path("donefile")
@@ -360,7 +362,7 @@ def test_send_startup_command(monkeypatch):
 def test_send_payload(monkeypatch):
     calls = []
     monkeypatch.setattr(
-        "wskr.kitty.remote.send_kitty_command",
+        "wskr.terminal.kitty.kitty_remote.send_kitty_command",
         lambda kb, sock, cmd, env: calls.append((kb, sock, cmd, env)),
     )
     script = Path("script.py")
