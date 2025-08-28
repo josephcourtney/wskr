@@ -1,3 +1,5 @@
-"""Terminal-related subpackages (core, kitty, etc.)."""
+"""Terminal capabilities and helpers."""
 
-__all__: list[str] = []
+from .capabilities import TerminalCapabilities
+
+__all__ = ["TerminalCapabilities"]

@@ -1,13 +1,13 @@
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
+from wskr.protocol.base import ImageProtocol
 from wskr.render.matplotlib.core import (
     WskrFigureCanvas,
     WskrFigureManager,
     _BackendTermAgg,
     render_figure_to_terminal,
 )
-from wskr.terminal.core.base import ImageTransport
 
 
 def test_canvas_class_exists_and_manager_property():
@@ -37,7 +37,7 @@ def test_manager_init_and_show_roundtrip(dummy_transport):
     assert transport.last_image.startswith(b"\x89PNG\r\n\x1a\n")
 
 
-class DummyTransport(ImageTransport):
+class DummyTransport(ImageProtocol):
     def __init__(self):
         self.last_image = None
         self.size_calls = []

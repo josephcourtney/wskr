@@ -5,8 +5,8 @@ import termios
 
 import pytest
 
+from wskr.protocol.base import ImageProtocol
 from wskr.terminal import io
-from wskr.terminal.core.base import ImageTransport
 
 MAX_OUTPUT_LINES = 32
 MAX_TIME_PER_TEST = 5
@@ -38,7 +38,7 @@ def pytest_runtest_logreport(report: pytest.TestReport) -> None:
     report.sections = new_sections
 
 
-class DummyTransport(ImageTransport):
+class DummyTransport(ImageProtocol):
     def __init__(self, width=800, height=600):
         self.width = width
         self.height = height

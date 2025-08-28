@@ -4,8 +4,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-import wskr.protocol.kgp.kgp  # noqa: F401  ensure Kitty transport registers itself
-from wskr.terminal.core.registry import get_image_transport
+import wskr.protocol.kitty  # noqa: F401  ensure Kitty protocol registers itself
+from wskr.protocol.registry import get_image_protocol
 
 
 def draw_circle(size):
@@ -49,7 +49,7 @@ def main():
 
     # send via wskr
     png = out.read_bytes()
-    get_image_transport(args.transport).send_image(png)
+    get_image_protocol(args.transport).send_image(png)
     Path(os.environ["KITTY_DEMO_DONE_FILE"]).write_text("done", encoding="utf-8")
     input("press ENTER…")
 

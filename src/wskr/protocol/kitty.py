@@ -1,26 +1,61 @@
+from __future__ import annotations
+
 import logging
+import re
 import shutil
 import sys
 import time
 
 from wskr.core.config import CACHE_TTL_S, DEFAULT_TTY_ROWS, IMAGE_CHUNK_SIZE, TIMEOUT_S
-from wskr.core.errors import CommandRunnerError, TransportUnavailableError
-from wskr.protocol.kgp.parser import KittyChunkParser
-from wskr.terminal.core.base import ImageTransport
+from wskr.core.errors import CommandRunnerError, TransportRuntimeError, TransportUnavailableError
+from wskr.protocol.base import ImageProtocol
+from wskr.protocol.registry import register_image_protocol
 from wskr.terminal.core.command import CommandRunner
-from wskr.terminal.core.registry import TransportName, register_image_transport
 from wskr.terminal.osc import query_tty
 
 logger = logging.getLogger(__name__)
 
 
-class KittyTransport(ImageTransport):
+class KittyChunkParser:
+    """Low-level utilities for kitty chunk framing and responses."""
+
+    _RESP_RE = re.compile(r"\x1b_Gi=(\d+),i=(\d+);OK\x1b\\")
+
+    @staticmethod
+    def send_chunk(img_num: int, chunk: bytes, *, final: bool = False) -> None:
+        """Emit a kitty graphics chunk to ``stdout``."""
+        m_flag = "0" if final else "1"
+        logger.debug(
+            "KittyChunkParser.send_chunk: img=%d, bytes=%d, final=%s",
+            img_num,
+            len(chunk),
+            final,
+        )
+        header = f"\x1b_Ga=t,q=0,f=32,i={img_num},m={m_flag};"
+        sys.stdout.buffer.write(header.encode("ascii") + chunk + b"\x1b\\")
+        sys.stdout.flush()
+
+    @classmethod
+    def parse_init_response(cls, img_num: int, resp: bytes) -> int:
+        """Validate and extract the kitty image ID from ``resp``."""
+        if not resp:
+            msg = "No response from kitty on image init"
+            raise TransportRuntimeError(msg)
+        text = resp.decode("ascii")
+        m = cls._RESP_RE.match(text)
+        if not m or int(m.group(2)) != img_num:
+            msg = f"Unexpected kitty response: {text!r}"
+            raise TransportRuntimeError(msg)
+        return int(m.group(1))
+
+
+class KittyTransport(ImageProtocol):
     __slots__ = ("_cache_time", "_cached_size", "_kitty", "_next_img", "_runner")
 
     def __init__(self) -> None:
         self._kitty = shutil.which("kitty")
         if not self._kitty:
-            msg = "[wskr] Kitty transport not available: 'kitty' binary not found."
+            msg = "[wskr] Kitty protocol not available: 'kitty' binary not found."
             raise TransportUnavailableError(msg)
         logger.debug("KittyTransport.__init__: kitty=%s timeout=%s", self._kitty, TIMEOUT_S)
         self._next_img = 1
@@ -54,7 +89,6 @@ class KittyTransport(ImageTransport):
             size = (800, 600)
             logger.debug("KittyTransport.get_window_size_px: using fallback size=%r", size)
         else:
-            # terminals are typically 24 rows tall
             rows = DEFAULT_TTY_ROWS
             size = (w_px, h_px - (3 * h_px) // rows)
         self._cached_size = size
@@ -124,8 +158,8 @@ class KittyTransport(ImageTransport):
         self.invalidate_cache()
 
 
-class KittyPyTransport(ImageTransport):
-    """Experimental pure-Python Kitty transport."""
+class KittyPyTransport(ImageProtocol):
+    """Experimental pure-Python Kitty protocol (chunk-only)."""
 
     __slots__ = ("_next_img",)
 
@@ -147,8 +181,9 @@ class KittyPyTransport(ImageTransport):
         return img_num
 
 
-register_image_transport(TransportName.KITTY, KittyTransport)
-register_image_transport(TransportName.KITTY_PY, KittyPyTransport)
+# Register default protocols by name
+register_image_protocol("kitty", KittyTransport)
+register_image_protocol("kitty_py", KittyPyTransport)
 
 
-__all__ = ["KittyTransport"]
+__all__ = ["KittyChunkParser", "KittyPyTransport", "KittyTransport"]
