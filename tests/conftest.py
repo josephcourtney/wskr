@@ -5,7 +5,7 @@ import termios
 
 import pytest
 
-from wskr.terminal.core import ttyools
+from wskr.terminal import io
 from wskr.terminal.core.base import ImageTransport
 
 MAX_OUTPUT_LINES = 32
@@ -88,8 +88,8 @@ def fake_tty(monkeypatch, tmp_path):
     # 6) termios.tcdrain → no-op
     monkeypatch.setattr(termios, "tcdrain", lambda fd: None)
 
-    # 7) Replace ttyools.tty_attributes with a real no-op context manager
-    monkeypatch.setattr(ttyools, "tty_attributes", lambda *args, **kwargs: contextlib.nullcontext())
+    # 7) Replace io.tty_attributes with a real no-op context manager
+    monkeypatch.setattr(io, "tty_attributes", lambda *args, **kwargs: contextlib.nullcontext())
 
     # 8) select.select always reports no data
     monkeypatch.setattr(select, "select", lambda r, w, x, t: ([], [], []))
