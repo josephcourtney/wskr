@@ -6,8 +6,7 @@ from rich.console import Console, ConsoleOptions, RenderResult
 from rich.measure import Measurement
 from rich.text import Text
 
-from wskr.terminal.core.base import ImageTransport
-from wskr.terminal.core.registry import get_image_transport
+from wskr.protocol import ImageProtocol, get_image_protocol
 
 # diacritics used to encode the row and column indices
 
@@ -29,11 +28,11 @@ class RichImage:
         image_path: str | BytesIO,
         desired_width: int,
         desired_height: int,
-        transport: ImageTransport | None = None,
+        transport: ImageProtocol | None = None,
     ):
         self.desired_width = desired_width
         self.desired_height = desired_height
-        self.transport = transport or get_image_transport()
+        self.transport = transport or get_image_protocol()
 
         if isinstance(image_path, BytesIO):
             image_path.seek(0)

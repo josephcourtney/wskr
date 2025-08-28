@@ -69,6 +69,10 @@ def test_detect_dark_mode_chain(monkeypatch):
     assert utils.detect_dark_mode() is True
 
 
+@pytest.mark.skipif(
+    os.getenv("WSKR_RUN_TTY") != "1",
+    reason="WSKR_RUN_TTY!=1; skip PTY-dependent test in constrained env",
+)
 def test_osc_strategy_real_tty(monkeypatch):
     master_fd, slave_fd = pty.openpty()
     monkeypatch.setattr(io, "_get_tty_fd", lambda: os.dup(slave_fd))

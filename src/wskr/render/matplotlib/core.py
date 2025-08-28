@@ -11,17 +11,28 @@ from matplotlib._pylab_helpers import Gcf  # noqa: PLC2701
 from matplotlib.backend_bases import FigureManagerBase, _Backend  # noqa: PLC2701
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
+from wskr.protocol import ImageProtocol, get_image_protocol
 from wskr.render.matplotlib.size import autosize_figure
-from wskr.terminal.core.base import ImageTransport
-from wskr.terminal.core.registry import get_image_transport
+from wskr.terminal import TerminalCapabilities
 
 if sys.flags.interactive:
     interactive(b=True)
 
 
-def render_figure_to_terminal(canvas: FigureCanvasAgg, transport: ImageTransport) -> None:
-    """Resize and render a Matplotlib figure to the terminal using a given transport."""
-    width_px, height_px = transport.get_window_size_px()
+def render_figure_to_terminal(
+    canvas: FigureCanvasAgg,
+    transport: ImageProtocol,
+    caps: TerminalCapabilities | None = None,
+) -> None:
+    """Resize and render a Matplotlib figure to the terminal using a given transport.
+
+    If ``caps`` is provided, use it to determine the drawable viewport; otherwise
+    ask the transport for the window size.
+    """
+    if caps is not None:
+        width_px, height_px = caps.window_px()
+    else:
+        width_px, height_px = transport.get_window_size_px()
     try:
         scale = float(os.getenv("WSKR_SCALE", "1.0"))
     except ValueError:
@@ -42,14 +53,16 @@ class WskrFigureManager(FigureManagerBase):
         self,
         canvas: FigureCanvasAgg,
         num: int = 1,
-        transport_factory: Callable[[], ImageTransport] | None = None,
+        transport_factory: Callable[[], ImageProtocol] | None = None,
+        caps_factory: Callable[[], TerminalCapabilities] | None = None,
     ) -> None:
         super().__init__(canvas, num)
-        factory = transport_factory or get_image_transport
+        factory = transport_factory or get_image_protocol
         self.transport = factory()
+        self.caps = caps_factory() if caps_factory is not None else None
 
     def show(self, *_args: Any, **_kwargs: Any) -> None:
-        render_figure_to_terminal(self.canvas, self.transport)
+        render_figure_to_terminal(self.canvas, self.transport, self.caps)
 
 
 class WskrFigureCanvas(FigureCanvasAgg):
@@ -96,13 +109,15 @@ class BaseFigureManager(FigureManagerBase):
         self,
         canvas: FigureCanvasAgg,
         num: int,
-        transport_cls: type[ImageTransport],
+        transport_cls: type[ImageProtocol],
+        caps: TerminalCapabilities | None = None,
     ) -> None:
         super().__init__(canvas, num)
         self.transport = transport_cls()
+        self.caps = caps
 
     def show(self, *_args: Any, **_kwargs: Any) -> None:
-        render_figure_to_terminal(self.canvas, self.transport)
+        render_figure_to_terminal(self.canvas, self.transport, self.caps)
 
 
 class TerminalBackend(_Backend):

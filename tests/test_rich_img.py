@@ -1,10 +1,10 @@
 from rich.console import Console
 
+from wskr.protocol.base import ImageProtocol
 from wskr.render.rich.img import RichImage
-from wskr.terminal.core.base import ImageTransport
 
 
-class DummyTransport(ImageTransport):
+class DummyTransport(ImageProtocol):
     def __init__(self):
         self.png = None
         self.counter = 0
@@ -44,7 +44,7 @@ def test_rich_image_fallback(tmp_path):
     p = tmp_path / "image.png"
     p.write_bytes(data)
 
-    class FallbackTransport(ImageTransport):
+    class FallbackTransport(ImageProtocol):
         def __init__(self):
             self.sent = False
 

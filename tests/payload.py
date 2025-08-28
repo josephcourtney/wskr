@@ -2,7 +2,7 @@ import os
 import sys
 from pathlib import Path
 
-from wskr.protocol.kgp.kgp import KittyTransport
+from wskr.protocol.kitty import KittyTransport
 
 
 def main():

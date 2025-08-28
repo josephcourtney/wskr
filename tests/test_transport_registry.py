@@ -2,17 +2,16 @@ import importlib.metadata
 
 import pytest
 
-from wskr.core.config import configure
-from wskr.terminal.core.base import ImageTransport
-from wskr.terminal.core.registry import (
-    get_image_transport,
+from wskr.protocol.base import ImageProtocol
+from wskr.protocol.noop import NoOpProtocol
+from wskr.protocol.registry import (
+    get_image_protocol,
     load_entry_points,
-    register_image_transport,
+    register_image_protocol,
 )
-from wskr.terminal.core.transport import NoOpTransport
 
 
-class FakeTransport(ImageTransport):
+class FakeProtocol(ImageProtocol):
     def get_window_size_px(self):
         return (100, 100)
 
@@ -23,34 +22,32 @@ class FakeTransport(ImageTransport):
         return 1
 
 
-def test_can_register_and_instantiate_transport():
-    configure(FALLBACK="error")
-    register_image_transport("fake", FakeTransport)
-    transport = get_image_transport("fake")
-    assert isinstance(transport, FakeTransport)
+def test_can_register_and_instantiate_protocol():
+    register_image_protocol("fake", FakeProtocol)
+    proto = get_image_protocol("fake")
+    assert isinstance(proto, FakeProtocol)
 
 
-def test_fallback_to_noop_transport():
-    configure(FALLBACK="noop")
-    transport = get_image_transport("nonexistent")
-    assert transport.get_window_size_px() == (800, 600)
+def test_fallback_to_noop_protocol():
+    proto = get_image_protocol("nonexistent")
+    assert proto.get_window_size_px() == (800, 600)
 
 
-def test_register_image_transport_invalid_name():
+def test_register_image_protocol_invalid_name():
     with pytest.raises(ValueError, match="non-empty string"):
-        register_image_transport("", NoOpTransport)
+        register_image_protocol("", NoOpProtocol)
     with pytest.raises(ValueError, match="non-empty string"):
-        register_image_transport("   ", NoOpTransport)
+        register_image_protocol("   ", NoOpProtocol)
 
 
-def test_register_image_transport_invalid_class():
+def test_register_image_protocol_invalid_class():
     class NotATransport:
         pass
 
-    with pytest.raises(TypeError, match="must subclass ImageTransport"):
-        register_image_transport("foo", NotATransport)  # type: ignore[arg-type]
-    with pytest.raises(TypeError, match="must subclass ImageTransport"):
-        register_image_transport("bar", object)  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="must subclass ImageProtocol"):
+        register_image_protocol("foo", NotATransport)  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="must subclass ImageProtocol"):
+        register_image_protocol("bar", object)  # type: ignore[arg-type]
 
 
 def test_load_entry_points(monkeypatch):
@@ -58,7 +55,7 @@ def test_load_entry_points(monkeypatch):
         name = "thirdparty"
 
         def load(self):
-            class DummyTransport(ImageTransport):
+            class DummyProtocol(ImageProtocol):
                 def get_window_size_px(self):
                     return (1, 1)
 
@@ -68,16 +65,16 @@ def test_load_entry_points(monkeypatch):
                 def init_image(self, png_bytes: bytes) -> int:
                     return 1
 
-            return DummyTransport
+            return DummyProtocol
 
     monkeypatch.setattr(
         importlib.metadata,
         "entry_points",
-        lambda group=None: [DummyEP()] if group == "wskr.image_transports" else [],
+        lambda group=None: [DummyEP()] if group == "wskr.image_protocols" else [],
     )
-    from wskr.terminal.core import registry as reg  # noqa: PLC0415
+    from wskr.protocol import registry as reg  # noqa: PLC0415
 
     reg._ENTRYPOINTS_LOADED = False  # type: ignore[attr-defined]
-    reg._IMAGE_TRANSPORTS.clear()  # type: ignore[attr-defined]
+    reg._IMAGE_PROTOCOLS.clear()  # type: ignore[attr-defined]
     load_entry_points()
-    assert isinstance(get_image_transport("thirdparty"), ImageTransport)
+    assert isinstance(get_image_protocol("thirdparty"), ImageProtocol)

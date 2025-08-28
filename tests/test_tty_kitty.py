@@ -8,15 +8,13 @@ from time import sleep
 import pytest
 
 import wskr.core.config as cfg
-import wskr.protocol.kgp.kgp as kitty_mod
+import wskr.protocol.kitty as kitty_mod
 from wskr.core.errors import (
     CommandRunnerError,
     TransportRuntimeError,
     TransportUnavailableError,
 )
-from wskr.protocol.kgp import kgp as kitty
-from wskr.protocol.kgp.kgp import KittyTransport
-from wskr.protocol.kgp.parser import KittyChunkParser
+from wskr.protocol.kitty import KittyChunkParser, KittyTransport
 
 
 def test_parse_init_response_success():
@@ -26,7 +24,7 @@ def test_parse_init_response_success():
 def test_kitty_transport_init_fails(monkeypatch):
     monkeypatch.setattr("shutil.which", lambda _: None)
     with pytest.raises(TransportUnavailableError, match="not available"):
-        kitty.KittyTransport()
+        kitty_mod.KittyTransport()
 
 
 def test_send_chunk_chunked_mode(monkeypatch):
@@ -203,8 +201,11 @@ def test_send_image_logs_error(monkeypatch, caplog):
 
 def test_init_image_success(monkeypatch, dummy_png):
     sent = []
-    monkeypatch.setattr(KittyChunkParser, "send_chunk", lambda n, c, final=False: sent.append((n, c, final)))
-    monkeypatch.setattr("wskr.protocol.kgp.kgp.query_tty", lambda *a, **k: b"\x1b_Gi=5,i=1;OK\x1b\\")
+    monkeypatch.setattr(
+        "wskr.protocol.kitty.KittyChunkParser.send_chunk",
+        lambda n, c, final=False: sent.append((n, c, final)),
+    )
+    monkeypatch.setattr("wskr.protocol.kitty.query_tty", lambda *a, **k: b"\x1b_Gi=5,i=1;OK\x1b\\")
     kt = KittyTransport()
     img_id = kt.init_image(dummy_png)
     assert img_id == 5
@@ -212,17 +213,17 @@ def test_init_image_success(monkeypatch, dummy_png):
 
 
 def test_init_image_no_response(monkeypatch, dummy_png):
-    monkeypatch.setattr(KittyChunkParser, "send_chunk", lambda *a, **k: None)
-    monkeypatch.setattr("wskr.protocol.kgp.kgp.query_tty", lambda *a, **k: b"")
+    monkeypatch.setattr("wskr.protocol.kitty.KittyChunkParser.send_chunk", lambda *a, **k: None)
+    monkeypatch.setattr("wskr.protocol.kitty.query_tty", lambda *a, **k: b"")
     kt = KittyTransport()
     with pytest.raises(TransportRuntimeError, match="No response"):
         kt.init_image(dummy_png)
 
 
 def test_init_image_bad_response(monkeypatch, dummy_png):
-    monkeypatch.setattr(KittyChunkParser, "send_chunk", lambda *a, **k: None)
+    monkeypatch.setattr("wskr.protocol.kitty.KittyChunkParser.send_chunk", lambda *a, **k: None)
     monkeypatch.setattr(
-        "wskr.protocol.kgp.kgp.query_tty",
+        "wskr.protocol.kitty.query_tty",
         lambda *a, **k: b"\x1b_Gi=7,i=2;FAIL\x1b\\",
     )
     kt = KittyTransport()
@@ -232,13 +233,13 @@ def test_init_image_bad_response(monkeypatch, dummy_png):
 
 def test_init_image_uses_timeout(monkeypatch, dummy_png):
     sent = {}
-    monkeypatch.setattr(KittyChunkParser, "send_chunk", lambda *a, **k: None)
+    monkeypatch.setattr("wskr.protocol.kitty.KittyChunkParser.send_chunk", lambda *a, **k: None)
 
     def fake_query(cmd, more, timeout):
         sent["timeout"] = timeout
         return b"\x1b_Gi=5,i=1;OK\x1b\\"
 
-    monkeypatch.setattr("wskr.protocol.kgp.kgp.query_tty", fake_query)
+    monkeypatch.setattr("wskr.protocol.kitty.query_tty", fake_query)
     kt = KittyTransport()
     kt.init_image(dummy_png)
     assert sent["timeout"] == cfg.TIMEOUT_S

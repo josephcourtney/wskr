@@ -1,8 +1,8 @@
-from wskr.terminal.core.transport import NoOpTransport
+from wskr.protocol.noop import NoOpProtocol
 
 
-def test_noop_transport_warnings_and_return_value(capsys):
-    t = NoOpTransport()
+def test_noop_protocol_warnings_and_return_value(capsys):
+    t = NoOpProtocol()
     t.send_image(b"foo")
     result = t.init_image(b"bar")
     out, _ = capsys.readouterr()
@@ -10,6 +10,6 @@ def test_noop_transport_warnings_and_return_value(capsys):
     assert result == -1
 
 
-def test_image_transport_context_manager():
-    with NoOpTransport() as t:
+def test_image_protocol_context_manager():
+    with NoOpProtocol() as t:
         t.send_image(b"foo")

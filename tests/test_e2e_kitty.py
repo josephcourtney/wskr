@@ -81,7 +81,7 @@ def test_payload_script_generates_image_and_done(tmp_path, monkeypatch):
         def send_image(self, png):
             pass
 
-    monkeypatch.setattr("wskr.terminal.core.registry.get_image_transport", lambda name="kitty": Dummy())
+    monkeypatch.setattr("wskr.protocol.registry.get_image_protocol", lambda name="kitty": Dummy())
 
     # 5) Stub input() so it doesn't block
     monkeypatch.setattr("builtins.input", lambda prompt="": "")
@@ -326,6 +326,10 @@ def assert_pixels(capture_path, uid):
         raise
 
 
+@pytest.mark.skipif(
+    os.getenv("WSKR_RUN_E2E") != "1",
+    reason="WSKR_RUN_E2E!=1; skip kitty e2e in constrained env",
+)
 def test_compare_screenshot():
     cfg = WindowConfig()
     try:
