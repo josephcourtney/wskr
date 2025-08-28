@@ -5,8 +5,8 @@ import threading
 
 import pytest
 
-from wskr import ttyools
-from wskr.mpl import utils
+from wskr.render.matplotlib import utils
+from wskr.terminal.core import ttyools
 
 
 def test_env_color_strategy(monkeypatch):

@@ -3,13 +3,13 @@ import shutil
 import sys
 import time
 
-from wskr.config import CACHE_TTL_S, DEFAULT_TTY_ROWS, IMAGE_CHUNK_SIZE, TIMEOUT_S
-from wskr.errors import CommandRunnerError, TransportUnavailableError
-from wskr.kitty.parser import KittyChunkParser
-from wskr.tty.base import ImageTransport
-from wskr.tty.command import CommandRunner
-from wskr.tty.registry import TransportName, register_image_transport
-from wskr.ttyools import query_tty
+from wskr.core.config import CACHE_TTL_S, DEFAULT_TTY_ROWS, IMAGE_CHUNK_SIZE, TIMEOUT_S
+from wskr.core.errors import CommandRunnerError, TransportUnavailableError
+from wskr.protocol.kgp.parser import KittyChunkParser
+from wskr.terminal.core.base import ImageTransport
+from wskr.terminal.core.command import CommandRunner
+from wskr.terminal.core.registry import TransportName, register_image_transport
+from wskr.terminal.core.ttyools import query_tty
 
 logger = logging.getLogger(__name__)
 

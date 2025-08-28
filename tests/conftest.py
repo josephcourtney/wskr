@@ -5,8 +5,8 @@ import termios
 
 import pytest
 
-from wskr import ttyools
-from wskr.tty.base import ImageTransport
+from wskr.terminal.core import ttyools
+from wskr.terminal.core.base import ImageTransport
 
 MAX_OUTPUT_LINES = 32
 MAX_TIME_PER_TEST = 5

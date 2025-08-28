@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 
 import wskr
-from wskr.mpl import utils
+from wskr.render.matplotlib import utils
 
 
 def test_init_applies_dark(monkeypatch):

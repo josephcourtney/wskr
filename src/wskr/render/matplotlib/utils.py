@@ -12,8 +12,8 @@ import os
 import re
 from typing import TYPE_CHECKING, Protocol
 
-from wskr.config import OSC_TIMEOUT_S
-from wskr.ttyools import query_tty
+from wskr.core.config import OSC_TIMEOUT_S
+from wskr.terminal.core.ttyools import query_tty
 
 try:
     import darkdetect  # type: ignore[import-not-found]

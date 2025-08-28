@@ -1,7 +1,7 @@
 # =================================== project ====================================
 [project]
   name = "wskr"
-  version = "0.0.14"
+  version = "0.0.15"
   description = ""
   readme = "README.md"
   authors = [
@@ -25,10 +25,10 @@
     "scipy>=1.15.2",
 ]
   [project.entry-points."matplotlib.backends"]
-    wskr        = "wskr.mpl.base"
-    wskr_kitty  = "wskr.mpl.kitty"
-    wskr_sixel  = "wskr.mpl.sixel"
-    wskr_iterm2 = "wskr.mpl.iterm2"
+    wskr        = "wskr.render.matplotlib.core"
+    wskr_kitty  = "wskr.render.matplotlib.kitty"
+    wskr_sixel  = "wskr.render.matplotlib.sixel"
+    wskr_iterm2 = "wskr.render.matplotlib.iterm2"
 
 [dependency-groups]
   dev = [

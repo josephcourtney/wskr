@@ -1,5 +1,5 @@
-from wskr.tty.base import ImageTransport
-from wskr.tty.registry import TransportName, register_image_transport
+from wskr.terminal.core.base import ImageTransport
+from wskr.terminal.core.registry import TransportName, register_image_transport
 
 __all__ = ["NoOpTransport"]
 

@@ -3,7 +3,7 @@ import termios
 
 import pytest
 
-from wskr import ttyools
+from wskr.terminal.core import ttyools
 
 
 class DummyFD:

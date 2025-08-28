@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from wskr.core import config
-from wskr.errors import TransportInitError, TransportUnavailableError
-from wskr.tty.base import ImageTransport
-from wskr.tty.base import ImageTransport as _Base
+from wskr.core.errors import TransportInitError, TransportUnavailableError
+from wskr.terminal.core.base import ImageTransport
+from wskr.terminal.core.base import ImageTransport as _Base
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ def _ensure_builtin_transports() -> None:
     """Register transports that ship with wskr itself."""
     if TransportName.NOOP.value not in _IMAGE_TRANSPORTS:
         try:  # pragma: no cover - defensive guard
-            from wskr.tty.transport import NoOpTransport  # noqa: PLC0415
+            from wskr.terminal.core.transport import NoOpTransport  # noqa: PLC0415
 
             register_image_transport(TransportName.NOOP, NoOpTransport)
         except Exception:  # noqa: BLE001 pragma: no cover - tiny module

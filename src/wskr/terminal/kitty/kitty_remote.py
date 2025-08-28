@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NoReturn, cast
 
-from wskr.tty.command import CommandRunner
+from wskr.terminal.core.command import CommandRunner
 
 logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
