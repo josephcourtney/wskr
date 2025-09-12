@@ -5,6 +5,62 @@ import termios
 from wskr.terminal import io, osc
 
 
+def test_write_tty_closes_fd(fake_tty):
+    # ensure write_tty opens and closes the TTY fd
+    io.write_tty(b"hello")
+    assert fake_tty == [99]
+
+
+def test_read_tty_closes_fd(fake_tty):
+    # read_tty should return immediately (no data) and still close fd
+    data = io.read_tty(timeout=0, min_bytes=0)
+    assert data == b""
+    assert fake_tty == [99]
+
+
+def test_read_tty_more_predicate(monkeypatch):
+    # verify the `more` predicate is invoked at least once
+    monkeypatch.setattr(io, "_get_tty_fd", lambda: 42)
+    monkeypatch.setattr(os, "close", lambda fd: None)
+    monkeypatch.setattr(io, "tty_attributes", lambda *a, **k: contextlib.nullcontext())
+    monkeypatch.setattr(io, "select", lambda r, w, x, t: ([], [], []))
+    called: list[bytes] = []
+
+    def more(data: bytes) -> bool:
+        called.append(data)
+        return False
+
+    assert io.read_tty(timeout=1, more=more) == b""
+    assert called == [b""]
+
+
+def test_query_tty_single_fd(monkeypatch, tmp_path):
+    # validate open/close lifecycle and the fd passed to TTY_IO.read
+    fake_fd = 77
+    opens: list[int] = []
+    closes: list[int] = []
+
+    monkeypatch.setattr(os, "ttyname", lambda fd: str(tmp_path / "tty"))
+    monkeypatch.setattr(os, "open", lambda *a, **k: (opens.append(1), fake_fd)[1])
+    monkeypatch.setattr(os, "close", closes.append)
+    monkeypatch.setattr(os, "write", lambda fd, data: len(data))
+    monkeypatch.setattr(termios, "tcdrain", lambda fd: None)
+
+    called_fd: list[int | None] = []
+
+    def fake_read_tty(*, fd: int | None, **kwargs: object) -> bytes:
+        called_fd.append(fd)
+        return b"resp"
+
+    monkeypatch.setattr(io.TTY_IO, "read", fake_read_tty)
+
+    resp = osc.query_tty(b"req", more=lambda b: False, timeout=0)
+    assert resp == b"resp"
+    assert opens == [1]
+    assert closes == [fake_fd]
+    assert called_fd == [fake_fd]
+
+
 def test_tty_attributes_roundtrip(monkeypatch):
     fake_attr = [0, 0, 0, 0, 0, 0, [0] * 32]
     calls = []

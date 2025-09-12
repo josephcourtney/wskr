@@ -153,37 +153,34 @@ def test_send_image_uses_timeout(monkeypatch):
     assert seen.get("t") == 1.0
 
 
-def test_get_window_size_px_fallback(monkeypatch):
-    def bad_run(self, *a, **k):
-        msg = "boom"
-        raise CommandRunnerError(msg)
+@pytest.mark.parametrize("mode", ["error", "badout"])
+def test_get_window_size_px_defaults(monkeypatch, mode):
+    if mode == "error":
 
-    monkeypatch.setattr(kitty_mod.CommandRunner, "run", bad_run)
+        def bad_run(self, *a, **k):
+            msg = "boom"
+            raise CommandRunnerError(msg)
+
+        monkeypatch.setattr(kitty_mod.CommandRunner, "run", bad_run)
+    else:
+        monkeypatch.setattr(
+            kitty_mod.CommandRunner,
+            "run",
+            lambda self, *a, **k: type("P", (), {"stdout": "oops"})(),
+        )
     kt = KittyTransport()
     assert kt.get_window_size_px() == (800, 600)
 
 
-def test_get_window_size_px_bad_output(monkeypatch):
-    def fake_run(self, *a, **k):
-        return type("P", (), {"stdout": "oops"})()
-
-    monkeypatch.setattr(kitty_mod.CommandRunner, "run", fake_run)
-    kt = KittyTransport()
-    assert kt.get_window_size_px() == (800, 600)
-
-
-def test_tput_lines_not_found(monkeypatch):
-    monkeypatch.setattr(shutil, "which", lambda name: None)
-    assert KittyTransport._tput_lines() == 24
-
-
-def test_tput_lines_parse_error(monkeypatch):
-    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
-
-    def fake_run(self, *a, **k):
-        return type("P", (), {"stdout": "bad"})()
-
-    monkeypatch.setattr(kitty_mod.CommandRunner, "run", fake_run)
+@pytest.mark.parametrize(("which_ok", "stdout"), [(False, None), (True, "bad")])
+def test_tput_lines_defaults(monkeypatch, which_ok, stdout):
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}" if which_ok else None)
+    if stdout is not None:
+        monkeypatch.setattr(
+            kitty_mod.CommandRunner,
+            "run",
+            lambda self, *a, **k: type("P", (), {"stdout": stdout})(),
+        )
     assert KittyTransport._tput_lines() == 24
 
 
@@ -212,22 +209,18 @@ def test_init_image_success(monkeypatch, dummy_png):
     assert sent[-1][2] is True
 
 
-def test_init_image_no_response(monkeypatch, dummy_png):
+@pytest.mark.parametrize(
+    ("resp", "pattern"),
+    [
+        (b"", "No response"),
+        (b"\x1b_Gi=7,i=2;FAIL\x1b\\", "Unexpected"),
+    ],
+)
+def test_init_image_error_variants(monkeypatch, dummy_png, resp, pattern):
     monkeypatch.setattr("wskr.protocol.kitty.KittyChunkParser.send_chunk", lambda *a, **k: None)
-    monkeypatch.setattr("wskr.protocol.kitty.query_tty", lambda *a, **k: b"")
+    monkeypatch.setattr("wskr.protocol.kitty.query_tty", lambda *a, **k: resp)
     kt = KittyTransport()
-    with pytest.raises(TransportRuntimeError, match="No response"):
-        kt.init_image(dummy_png)
-
-
-def test_init_image_bad_response(monkeypatch, dummy_png):
-    monkeypatch.setattr("wskr.protocol.kitty.KittyChunkParser.send_chunk", lambda *a, **k: None)
-    monkeypatch.setattr(
-        "wskr.protocol.kitty.query_tty",
-        lambda *a, **k: b"\x1b_Gi=7,i=2;FAIL\x1b\\",
-    )
-    kt = KittyTransport()
-    with pytest.raises(TransportRuntimeError, match="Unexpected"):
+    with pytest.raises(TransportRuntimeError, match=pattern):
         kt.init_image(dummy_png)
 
 

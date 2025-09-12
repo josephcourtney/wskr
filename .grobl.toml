@@ -1,4 +1,13 @@
 exclude_tree = [
+  ".ruff_cache",
+  ".envrc",
+  "tests",
+  "best practices - automated testing.md",
+  ".grobl.toml",
+  "CHANGELOG.md",
+  "ruff.default.toml",
+
+  ".mplconfig",
   ".git",
   ".hg",
   ".svn",

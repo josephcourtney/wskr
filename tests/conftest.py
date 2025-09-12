@@ -1,6 +1,7 @@
 import contextlib
 import os
 import select
+import subprocess
 import termios
 
 import pytest
@@ -96,3 +97,26 @@ def fake_tty(monkeypatch, tmp_path):
 
     # Finally, return our closed-list so tests can assert on it
     return closed
+
+
+@pytest.fixture
+def popen_recorder(monkeypatch):
+    """Patch subprocess.Popen to record calls and expose the last instance.
+
+    Returns a dict with keys:
+    - calls: list of (args, env) tuples
+    - last: the last Dummy instance created
+    """
+    calls: list[tuple[list[str], dict | None]] = []
+
+    class Dummy:
+        def __init__(self, args, env=None, **kw):
+            self.args = args
+            self.env = env
+            calls.append((args, env))
+
+        def poll(self):
+            return 0
+
+    monkeypatch.setattr(subprocess, "Popen", Dummy)
+    return {"calls": calls, "last": None}
