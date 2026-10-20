@@ -5,11 +5,11 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING, Protocol
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
 from wskr.terminal.color import parse_osc_color
 from wskr.terminal.query import query_osc
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _OSC_BG_QUERY = b"\033]11;?\007"
 _ENV_BG_THRESHOLD = 8
