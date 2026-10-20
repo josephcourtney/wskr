@@ -5,6 +5,8 @@ Notable **completed** user-visible changes are recorded here, following [Keep a 
 ## [Unreleased]
 
 ### Changed
+- replace brittle full-terminal Kitty screenshot comparison with logo-content checks robust to terminal background, placement and scale
+- add positive and negative regression tests for screenshot image detection and retain meaningful capture diagnostics
 - harden optional GUI window-manager probing and separate live Kitty image-submission smoke from screenshot comparison
 - repair the remaining baseline-script lint issue and preserve test helper JSON failure behavior
 - improve Phase 0 diagnostic scripts, Ruff compatibility checks, and GUI screenshot-test timeout/window discovery

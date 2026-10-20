@@ -102,3 +102,27 @@ The next log documents a fresh pull of `f056470` on macOS ARM64. The working tre
 After these results, the branch fixes the long string, test formatting/unused imports, and optional-command failure handling. The GUI screenshot case now preflights **Yabai service accessibility** *before launching Kitty*; if the service is unavailable, the screenshot test explicitly skips rather than claiming a graphics failure. A separate **real Kitty launch and image-submission smoke** test runs without Yabai and records a distinct observable result. A skip is **not** a visual pass.
 
 **Next:** after protecting any new local `just fix` changes, pull the latest feature branch and rerun `just check` and `just test-kitty`. Capture test pass/fail/skip counts and the remote Kitty smoke result. Full `just check` has not yet reached ty/pytest in either local log.
+
+## G. Third local run — 2026-10-20, commit bf11996
+
+The most recent local log documents a clean checked-out feature branch at `bf11996` after earlier local autofixes were stashed.
+
+| Command | Outcome | Observation |
+| --- | --- | --- |
+| `uv sync` | **PASS** | 57 packages resolved, 43 checked |
+| `just check` | **FAIL** | Syntax passed; Ruff format check found three files: wheel smoke, real Kitty test, remote helper test; lint/type/full pytest were not reached |
+| `just test-kitty` | **4 PASSED, 1 FAILED** | Independent Kitty launch/payload test passed; real screenshot was captured successfully, but full-window pixel comparison failed (`max RGB diff=255`) |
+| Real Kitty image inspection | **NOT VERIFIED** | Capture was saved, but no direct inspection of that *new* image was provided |
+
+The screenshot failure is **not equivalent to missing graphics**: the assertion compared the *entire screenshot* to a historical 800×600 reference including the shell prompt, background and UI, with an unrealistic maximum channel difference of two levels. On failure, the legacy test also attempted to print three PNGs via `kitty icat` into pytest's redirected output, resulting in EOF messages unrelated to the capture's validity.
+
+### Follow-up committed after this log
+
+- Added `tests/kitty_visual.py`: content-based detection of the uploaded blue/yellow Python logo using the test asset's representative colors, connected regions and geometric ordering.
+- Added `tests/test_kitty_visual.py`: committed reference screenshot as positive control, light/dark and scaled synthesized captures, missing-image and incorrect-color-order negative cases.
+- Replaced the real screenshot case's full-window comparison with image-content verification. It retains the captured PNG and reports detected bounds and colored-region sizes; it does **not** claim pixel-perfect visuals or Matplotlib styling accuracy.
+- Removed the broken inline `icat` debugging calls, corrected reported local formatting/autofix cases in the surrounding scripts/tests.
+
+The detector was exercised with synthetic light/dark, rescaled, translated and missing-logo captures in the editing environment. **This is not a rerun against the user's latest actual Kitty capture**, which remains on the local macOS machine.
+
+**Outstanding:** rerun `just check` and `just test-kitty` at the new branch tip; inspect the captured PNG if the logo-content test still fails. Run normal Matplotlib pyplot/Rich demos before declaring the full Phase 0 acceptance gate met.
