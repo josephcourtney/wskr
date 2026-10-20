@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NoReturn, cast
 
+from wskr.core.errors import CommandRunnerError
 from wskr.terminal.core.command import CommandRunner
 
 logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
@@ -59,8 +60,8 @@ def try_json_output(cmd: list[str]) -> list[dict] | None:
         raw = run(cmd, capture_output=True)
         payload = raw if isinstance(raw, (bytes, bytearray)) else raw.stdout
         return cast("list[dict]", json.loads(payload))
-    except (json.JSONDecodeError, subprocess.CalledProcessError) as e:
-        logger.debug("JSON parsing failed: %s", e)
+    except (json.JSONDecodeError, subprocess.CalledProcessError, CommandRunnerError, OSError) as e:
+        logger.debug("Terminal helper JSON query failed: %s", e)
         return None
 
 

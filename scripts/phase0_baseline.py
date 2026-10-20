@@ -15,7 +15,7 @@ import platform
 import shutil
 import sys
 
-import matplotlib
+import matplotlib as mpl
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
@@ -34,11 +34,11 @@ EXPECTED_BACKENDS = {
 def baseline() -> dict[str, object]:
     """Capture reproducible runtime facts without contacting a terminal."""
     # Avoid triggering a graphics backend through pyplot.
-    matplotlib.use("Agg", force=True)
+    mpl.use("Agg", force=True)
     result: dict[str, object] = {
         "schema": "wskr-phase0-baseline-v1",
         "python": platform.python_version(),
-        "matplotlib": matplotlib.__version__,
+        "matplotlib": mpl.__version__,
         "stdout_is_tty": os.isatty(sys.stdout.fileno()),
         "kitty_executable": bool(shutil.which("kitty")),
         "tty_graphics_verified": False,

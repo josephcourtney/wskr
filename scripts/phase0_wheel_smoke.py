@@ -10,8 +10,8 @@ No live Kitty output is attempted; actual terminal graphics remain a separate te
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import shutil
+from pathlib import Path
 import subprocess  # ruff: ignore[suspicious-subprocess-import] - isolated wheel-install subprocess
 import sys
 import tempfile
@@ -19,7 +19,12 @@ import tempfile
 
 def run(cmd: list[str], *, env: dict[str, str] | None = None) -> None:
     completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed argv, no shell
-        cmd, check=False, env=env, text=True, capture_output=True, timeout=180
+        cmd,
+        check=False,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=180,
     )
     if completed.returncode != 0:
         raise RuntimeError(
@@ -56,7 +61,11 @@ def main() -> int:
         env["MPLCONFIGDIR"] = str(Path(temp) / "mplconfig")
         script = """
 import importlib, importlib.metadata, io, json, matplotlib
-eps = {ep.name:ep.value for ep in importlib.metadata.entry_points(group='matplotlib.backend') if ep.name.startswith('wskr')}
+eps = {
+    ep.name: ep.value
+    for ep in importlib.metadata.entry_points(group='matplotlib.backend')
+    if ep.name.startswith('wskr')
+}
 assert eps.get('wskr_kitty') == 'wskr.render.matplotlib.kitty', eps
 importlib.import_module('wskr.render.matplotlib.kitty')
 from matplotlib.figure import Figure
@@ -70,8 +79,13 @@ assert p.getvalue().startswith(b'\\x89PNG\\r\\n\\x1a\\n')
 print(json.dumps({'installed_version':importlib.metadata.version('wskr'),'backend_entries':eps,'png_export':'ok','kitty_import':'ok'}))
 """
         completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed argv, no shell
-            [interpreter, "-c", script], cwd=temp, env=env,
-            capture_output=True, text=True, check=False, timeout=120,
+            [interpreter, "-c", script],
+            cwd=temp,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=120,
         )
         if completed.returncode:
             msg = f"Installed-wheel smoke failed: {completed.stderr}"

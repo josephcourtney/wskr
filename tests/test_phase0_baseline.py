@@ -79,7 +79,8 @@ def test_baseline_renderer_resizes_an_explicit_figure():
     target = FakeTransport()
     render_figure_to_terminal(canvas, target)
     assert tuple(fig.get_size_inches()) != (7.0, 3.0)
-    assert target.png is not None and target.png.startswith(b"\x89PNG")
+    assert target.png is not None
+    assert target.png.startswith(b"\x89PNG")
 
 
 def test_baseline_theme_chain_continues_after_light(monkeypatch):

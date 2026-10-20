@@ -16,16 +16,15 @@ import pytest
 from PIL import Image, ImageChops
 
 import wskr.terminal.kitty.kitty_remote as kr
+from wskr.core.errors import CommandRunnerError
 from wskr.terminal.kitty.kitty_remote import (
     WindowConfig,
     close_kitty_window,
     configure_window,
     find_executable,
-    get_window_id,
     launch_kitty_terminal,
     query_windows,
     send_payload,
-    send_startup_command,
     take_screenshot,
     wait_for_file_to_exist,
     wait_for_file_with_content,
@@ -341,6 +340,13 @@ def test_compare_screenshot():
         yabai_bin = find_executable("yabai")
     except FileNotFoundError as exc:
         pytest.skip(str(exc))
+
+    # Yabai is optional test infrastructure. Its binary can be installed even
+    # when its daemon/socket is not reachable, which is not a Kitty failure.
+    try:
+        kr.run([yabai_bin, "-m", "query", "--windows"], capture_output=True, check=True, timeout=3.0)
+    except CommandRunnerError as exc:
+        pytest.skip(f"Yabai window service unavailable; start yabai to run screenshot tests: {exc}")
 
     done_file, log_file, sock, uid = prepare_paths()
     sock_path = Path(sock.removeprefix("unix:"))
