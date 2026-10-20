@@ -111,5 +111,5 @@ def test_darkdetect_strategy(monkeypatch):
     monkeypatch.delenv("COLORFGBG", raising=False)
     monkeypatch.setattr(utils, "query_tty", lambda *_a, **_k: b"")
     assert utils.detect_dark_mode(strategies=[utils.DarkDetectStrategy()]) is True
-    DummyDD.theme = staticmethod(lambda: "Light")  # type: ignore[assignment]
+    monkeypatch.setattr(DummyDD, "theme", staticmethod(lambda: "Light"))
     assert utils.detect_dark_mode(strategies=[utils.DarkDetectStrategy()]) is False

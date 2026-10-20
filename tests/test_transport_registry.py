@@ -1,4 +1,5 @@
 import importlib.metadata
+from typing import cast
 
 import pytest
 
@@ -45,9 +46,9 @@ def test_register_image_protocol_invalid_class():
         pass
 
     with pytest.raises(TypeError, match="must subclass ImageProtocol"):
-        register_image_protocol("foo", NotATransport)  # type: ignore[arg-type]
+        register_image_protocol("foo", cast("type[ImageProtocol]", NotATransport))
     with pytest.raises(TypeError, match="must subclass ImageProtocol"):
-        register_image_protocol("bar", object)  # type: ignore[arg-type]
+        register_image_protocol("bar", cast("type[ImageProtocol]", object))
 
 
 def test_load_entry_points(monkeypatch):

@@ -70,8 +70,8 @@ def test_payload_script_generates_image_and_done(tmp_path, monkeypatch):
 
         return Draw()
 
-    fake_Image.new = fake_new  # type: ignore[attr-defined]
-    fake_ImageDraw.Draw = fake_draw  # type: ignore[attr-defined]
+    monkeypatch.setattr(fake_Image, "new", fake_new, raising=False)
+    monkeypatch.setattr(fake_ImageDraw, "Draw", fake_draw, raising=False)
 
     monkeypatch.setitem(sys.modules, "PIL", fake_PIL)
     monkeypatch.setitem(sys.modules, "PIL.Image", fake_Image)

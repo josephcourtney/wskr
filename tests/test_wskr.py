@@ -2,4 +2,4 @@ import wskr
 
 
 def test_import():
-    assert wskr
+    assert hasattr(wskr, "init")

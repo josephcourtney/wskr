@@ -22,7 +22,7 @@ def test_sixel_import_raises(monkeypatch):
     # sourcery skip: no-conditionals-in-tests
     if orig is not None:
         os.environ["WSKR_ENABLE_SIXEL"] = orig
-    assert wskr.render.matplotlib.sixel
+    assert hasattr(wskr.render.matplotlib.sixel, "_BackendSixelAgg")
 
 
 def test_sixel_backend_show_raises(monkeypatch):

@@ -13,6 +13,7 @@ import pytest
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
+from wskr.protocol.base import ImageProtocol
 from wskr.protocol.noop import NoOpProtocol
 from wskr.protocol.registry import get_image_protocol
 
@@ -64,14 +65,18 @@ def test_baseline_renderer_resizes_an_explicit_figure():
     """Capture known pre-migration behavior; replace with target contract at P3."""
     from wskr.render.matplotlib.core import render_figure_to_terminal
 
-    class FakeTransport:
+    class FakeTransport(ImageProtocol):
         png: bytes | None = None
 
         def get_window_size_px(self):
             return (240, 120)
 
-        def send_image(self, png_bytes):
+        def send_image(self, png_bytes: bytes) -> None:
             self.png = png_bytes
+
+        def init_image(self, png_bytes: bytes) -> int:
+            self.png = png_bytes
+            return 1
 
     fig = Figure(figsize=(7, 3), dpi=100)
     canvas = FigureCanvasAgg(fig)

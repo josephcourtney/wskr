@@ -69,7 +69,8 @@ def test_render_with_invalid_scale_defaults_to_1(monkeypatch):
 
     # Should use the unscaled 20x40
     assert observed["dims"] == (20, 40)
-    assert transport.last_image.startswith(b"\x89PNG")  # type: ignore[possibly-unbound-attribute]
+    assert transport.last_image is not None
+    assert transport.last_image.startswith(b"\x89PNG")
 
 
 def test_terminalbackend_draw_if_interactive_and_show(monkeypatch):

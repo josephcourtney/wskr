@@ -25,9 +25,13 @@ def test_custom_canvas_calls_manager_draw(monkeypatch):
     fig = plt.figure()
     canvas = WskrFigureCanvas(fig)
 
-    dummy_manager = type("MockManager", (), {"show": lambda self: setattr(self, "called", True)})
-    dummy_manager_instance = dummy_manager()
-    canvas.manager = dummy_manager_instance
+    class MockManager(FigureManagerBase):
+        called = False
+
+        def show(self) -> None:
+            self.called = True
+
+    dummy_manager_instance = MockManager(canvas, 1)
 
     # Simulate interactive mode and an axis
     fig.add_subplot(1, 1, 1)
@@ -35,7 +39,7 @@ def test_custom_canvas_calls_manager_draw(monkeypatch):
 
     canvas.draw()
 
-    assert getattr(canvas.manager, "called", False)
+    assert dummy_manager_instance.called
 
 
 def test_draw_reentrancy_is_guarded(monkeypatch):

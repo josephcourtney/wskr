@@ -306,7 +306,7 @@ def test_terminate_process_actions(mode, expected_actions):
             def kill(self):
                 actions.append("kill")
 
-        terminate_process(P())  # type:ignore[invalid-argument-type]
+        terminate_process(P())
     else:
 
         class P2:
@@ -318,12 +318,13 @@ def test_terminate_process_actions(mode, expected_actions):
 
             def wait(self, timeout=None):
                 actions.append(f"wait({timeout})")
+                assert timeout is not None
                 raise subprocess.TimeoutExpired(cmd="x", timeout=float(timeout))
 
             def kill(self):
                 actions.append("kill")
 
-        terminate_process(P2())  # type:ignore[invalid-argument-type]
+        terminate_process(P2())
 
     assert actions == expected_actions
 
@@ -345,7 +346,7 @@ def test_terminate_process_permission_error(caplog):
         def kill(self):
             pass
 
-    terminate_process(P3())  # type:ignore[invalid-argument-type]
+    terminate_process(P3())
     assert "Failed to terminate kitty process" in caplog.text
 
 

@@ -23,7 +23,7 @@ def test_iterm2_import_raises(monkeypatch):
     if orig_wskr_enable_iterm2 is not None:
         os.environ["WSKR_ENABLE_ITERM2"] = orig_wskr_enable_iterm2
 
-    assert wskr.render.matplotlib.iterm2
+    assert hasattr(wskr.render.matplotlib.iterm2, "_BackendIterm2Agg")
 
 
 def test_iterm2_backend_show_raises(monkeypatch):
