@@ -10,7 +10,6 @@ No live Kitty output is attempted; actual terminal graphics remain a separate te
 from __future__ import annotations
 
 import glob
-import json
 import os
 from pathlib import Path
 import shutil

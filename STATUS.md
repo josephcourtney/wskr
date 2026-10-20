@@ -1,28 +1,27 @@
 # wskr — Current Status
 
-This file is a short handoff snapshot. Architecture lives in [DESIGN.md](DESIGN.md); milestones in [PLAN.md](PLAN.md); immediate tasks in [TODO.md](TODO.md).
+Short-horizon handoff; architecture: [DESIGN.md](DESIGN.md); order: [PLAN.md](PLAN.md); tasks: [TODO.md](TODO.md).
 
 ## Current focus
 
-**Phase 0 — baseline characterization.** The terminal-native Matplotlib/Rich target is specified, but the repository's existing implementation has **not** been migrated to it. This status is based on source inspection, not a fresh successful local test run.
+**Phase 0 source audit and baseline scaffolding are implemented on `feature/phase0-baseline-20261019`; runtime acceptance is blocked.** This status is source-backed, not a successful local test report. See [phase0 evidence](docs/phase0-evidence.md).
 
-## Implemented in the current tree
+## Completed on this branch
 
-- Matplotlib Agg-based backend registration (`wskr`, `wskr_kitty`), and a Kitty adapter that invokes the external `kitty +kitten icat` command.
-- `ImageProtocol` registry and an experimental `KittyPyTransport`.
-- Rich `RichImage`/`RichPlot` renderables and terminal-size/OSC dark-mode helpers.
-- Unit, PTY and opt-in Kitty integration test sources (their current pass state has not been established here).
+- Fast-forward merged policy-aligned documentation to `main` (`526d71d`).
+- Replaced borrowed Cwide `justfile` recipes with wskr-specific nonmutating checks, build, baseline, wheel-smoke and opt-in terminal tests.
+- Removed stale Cwide Ruff overrides; suspended strict pytest resource-category enforcement pending test classification.
+- Added baseline API/headless export regression tests and diagnostic/wheel-install smoke scripts.
+- Inventoried backend names, public API, transport selection, configuration, known limitations and validation gates.
 
-## Known gaps and risks
+## Known gaps
 
-- The target direct Kitty PNG transport is **not ready**: experimental chunks use an incompatible format/encoding. ID/placement management is incomplete.
-- Terminal sizing uses fixed prompt-row and pixel fallback assumptions; default Matplotlib appearance is not derived from live terminal colors/font metrics.
-- Matplotlib import changes global `text.usetex`; draw/show behavior and explicit-size preservation require characterization.
-- The current dark-mode fallback can ignore a valid light result; terminal queries may fail when no TTY is safely available.
-- Sixel and iTerm2 backend modules are unimplemented stubs, despite registered names.
-- The borrowed `justfile` and portions of `pyproject.toml` still reference unrelated Cwide modules, tooling or tests; local validation recipes need repair before being trusted.
-- Real Kitty visual compatibility and headless/redirected safety remain unverified.
+- Current main Kitty display needs `kitty +kitten icat`. Experimental direct PNG framing is incorrect; Rich and live placement need verification.
+- Figures are resized during display even when explicitly sized; `show` destroys figure managers.
+- Import changes global `text.usetex`; dark-mode chain mishandles successful light detection; unsafe TTY fallback may emit raw escapes to stdout.
+- Sixel/iTerm2 are stubs. Safe TTY/refresh, font/palette defaults and managed redraw remain future-phase work.
+- Full `just check`, installed-wheel and real Kitty tests **have not run**: the execution environment lacks repository cloning access, `just` and a live Kitty terminal.
 
-## Next handoff
+## Handoff
 
-Perform [PLAN Phase 0](PLAN.md#phase-0--characterize-and-constrain-the-baseline), follow the unfinished [TODO](TODO.md), then implement safe terminal/profile handling before protocol replacement. No code changes were made as part of this documentation reconciliation.
+Run the commands in [phase0 evidence](docs/phase0-evidence.md) on a local checkout; record outcomes before closing PLAN Phase 0. Then begin Phase 1 safely. No graphics source module was modified on this branch.

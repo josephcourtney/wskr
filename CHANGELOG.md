@@ -5,6 +5,9 @@ Notable **completed** user-visible changes are recorded here, following [Keep a 
 ## [Unreleased]
 
 ### Changed
+- add reproducible baseline diagnostics, installed-wheel smoke test and behavior-characterization tests
+- replace copied development recipes with wskr-specific `uv`/Ruff/`ty`/pytest/Kitty commands
+- remove unrelated Cwide Ruff overrides and temporarily disable strict test-category enforcement during baseline establishment
 - clarify supported Kitty and Rich workflows and distinguish currently experimental or unavailable transports in the README
 - organize the target design, implementation plan, short-horizon status, immediate tasks, and architectural decision rationale according to POLICY.md
 

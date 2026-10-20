@@ -17,7 +17,7 @@ syntax:
 
 # Static lint without mutating source.
 lint:
-  uv run ruff check src tests scripts
+  uv run ruff check --no-fix src tests scripts
 
 # Check, rather than overwrite, source formatting.
 format:

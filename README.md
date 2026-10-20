@@ -24,7 +24,7 @@ From a checkout:
 uv sync
 ```
 
-Run the installed development environment with `uv run` (or activate its environment). The repository contains some borrowed tool configuration unrelated to wskr; see [STATUS.md](STATUS.md) before relying on `just check`.
+Run the installed development environment with `uv run` (or activate its environment). The `justfile` provides wskr-specific checks and smoke tests. Runtime success still requires validation in your environment; consult [STATUS.md](STATUS.md).
 
 ## Basic Matplotlib usage
 
@@ -86,7 +86,7 @@ A transport is not considered supported merely because it is registered. The fut
 
 ## Testing and maturity
 
-Test files exist under `tests/`, including unit and PTY cases and opt-in Kitty screenshot work. A complete successful test run **has not been established for the current repository state** in this documentation-only update. Core local checks should use the wskr-specific `uv` environment; the existing `justfile` currently contains unrelated Cwide settings.
+Test files exist under `tests/`, including unit and PTY cases and opt-in Kitty screenshot work. A full successful test run **has not been established for the current repository state**; Phase 0 adds diagnostic checks and installed-wheel probes but they still require execution in a local environment. Core local checks should use the wskr-specific `uv` environment; the existing `justfile` currently contains unrelated Cwide settings.
 
 Development should not be declared complete based on unit or simulated terminal tests alone. Real Kitty appearance, image placement, cleanup and resize/theme behavior have distinct acceptance criteria in [PLAN.md](PLAN.md).
 

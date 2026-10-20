@@ -9,7 +9,6 @@ from __future__ import annotations
 from importlib import import_module, metadata
 from io import BytesIO
 
-import matplotlib
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
@@ -30,7 +29,7 @@ def test_registered_backend_names_point_to_existing_modules():
         import_module(entries[name])
 
 
-def test_backend_imports_without_initializing_kitty(monkeypatch):
+def test_backend_imports_without_initializing_kitty():
     # Importing the class must be possible even without a terminal executable.
     import wskr.render.matplotlib.kitty as backend
 
@@ -80,9 +79,11 @@ def test_baseline_renderer_resizes_an_explicit_figure():
     assert target.png is not None and target.png.startswith(b"\x89PNG")
 
 
-def test_baseline_theme_chain_continues_after_light():
+def test_baseline_theme_chain_continues_after_light(monkeypatch):
     """Capture known pre-migration defect; replace with P1 design assertion."""
     from wskr.render.matplotlib.utils import detect_dark_mode
+
+    monkeypatch.delenv("WSKR_DARK_MODE", raising=False)
 
     class Light:
         def detect(self) -> bool:
