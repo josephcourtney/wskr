@@ -1,26 +1,26 @@
 # wskr — Current Status
 
-Short handoff. See [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), and [Phase 0 evidence](docs/phase0-evidence.md).
+Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 0 evidence](docs/phase0-evidence.md).
 
 ## Current focus
 
-**Phase 0 baseline characterization is complete; Phase 1 (safe terminal discovery and styling) is next.** This is not a claim that the target backend design has been implemented.
+**Phase 1 implementation is in progress on `feature/phase1-terminal-profile-20261020`; local verification is pending.** Phase 0 is merged into main.
 
-## Verified baseline — October 20, 2026
+## Implemented on the feature branch
 
-- Local `just check` passed syntax, formatting, Ruff, `ty`, and pytest after a one-line Ruff import-order autofix; **142 passed, 3 opt-in skips**, with **145 nonfatal test-size warnings**.
-- Local `just test-kitty`: **5 passed**, including a live Kitty image-submission/screenshot-content test.
-- Earlier `uv sync`, baseline diagnostics, wheel/sdist build, isolated wheel smoke, and 34 TTY tests passed.
-- The same import-order correction has been committed; the exact new remote commit was not separately retested.
+- Immutable, provenance-aware terminal geometry and optional OSC 4/10/11 color profile; unknown font/DPI/opacity remain unknown.
+- Bounded, opt-in owned-input OSC query with response matching, unrelated-byte routing, timeouts and termios restoration.
+- Pure terminal-derived figure/style defaults and initial pyplot-backend figure size; explicit sizing and nondefault rcParams take precedence.
+- Importing `wskr` no longer changes `text.usetex`. Light-mode `False` is definitive; default detection no longer interrogates shared TTY input.
+- Focused unit and PTY regression tests plus `just phase1`.
 
-## Known limitations
+## Remaining gaps
 
-- The primary Kitty backend still depends on external `kitty icat`; the experimental native path has incorrect PNG framing.
-- The backend may overwrite explicit figure size, modify rcParams at import, mishandle a valid light-theme detection, or fall back to no-op graphics.
-- Sixel/iTerm2 are stubs; the present Rich placeholder path requires protocol work.
-- **Visual inspection of ordinary Matplotlib and Rich output remains unverified**; the Kitty screenshot tests use a Python-logo payload, not those renderers. This is tracked for Phase 1/3/4.
-- Test sizes remain unclassified in pytest; classification warnings do not fail current checks.
+- **Not yet validated on macOS**: `just phase1`, `just check`, `just test-tty`, `just test-kitty`. Do not assume the new code passes.
+- Automatic live OSC colors still require a caller-owned input session; no background reading of interactive keystrokes is allowed.
+- Artist styling, runtime theme/geometry refresh and display-time explicit-size preservation are incomplete; direct Kitty protocol remains Phase 2/3 work.
+- Ordinary pyplot/Rich visual verification and pytest size classification remain outstanding.
 
 ## Handoff
 
-Begin [PLAN Phase 1](PLAN.md#phase-1--terminal-profile-safe-queries-style-defaults) with safe TTY/OSC tests and provenance-aware `TerminalProfile`. Preserve current baseline characterizations until deliberate target-behavior tests replace them.
+Run the quality gates and report any Ruff, ty, pytest or live-Kitty failures before merging or declaring the Phase 1 gate complete.

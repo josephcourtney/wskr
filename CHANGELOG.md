@@ -4,6 +4,13 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 
 ## [Unreleased]
 
+### Added
+- Introduced provenance-aware terminal measurements, guarded OSC queries, and a pure resolver for terminal-derived Matplotlib defaults.
+
+### Fixed
+- Stopped package import from disabling Matplotlib's TeX setting.
+- Made a valid light-theme detection definitive and avoided automatic queries against shared terminal input.
+
 ### Changed
 - Clarified which Kitty, Matplotlib, Rich, Sixel and iTerm2 features are supported today, with the intended architecture documented separately.
 - Replaced the copied development workflow with reproducible wskr-specific quality, package, terminal and wheel smoke checks.

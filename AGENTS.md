@@ -19,7 +19,7 @@ wskr is a terminal-native Matplotlib backend with optional Rich integration. The
 ## Tools and validation
 
 - Use `uv` for Python environment, dependencies, builds and running tools; current `pyproject.toml` targets Python >=3.13,<3.15.
-- Use the repository Ruff, `ty` and pytest/coverage configuration once commands are confirmed to point at **wskr**. Before relying on `just check` or borrowed build recipes, inspect and repair their Cwide-specific assumptions.
+- Use the wskr-specific `just check` quality gate, `just phase1` focused tests, and separate opt-in live Kitty tests. Record exactly which checks were executed.
 - Add deterministic tests for protocol parsing, TTY failure/safety, Matplotlib lifecycle and export; use PTY tests for terminal interactions and separate opt-in **real Kitty** tests for on-screen correctness.
 - Report actual executed commands and results. Do not claim checks passed when the environment cannot run them; do not confuse mocked screenshots with a live Kitty pass.
 - Keep dependency additions narrow and justified. Do not introduce GitHub Actions as a required workflow.

@@ -26,6 +26,21 @@ uv sync
 
 Run the installed development environment with `uv run` (or activate its environment). The `justfile` provides wskr-specific checks and smoke tests. Runtime success still requires validation in your environment; consult [STATUS.md](STATUS.md).
 
+## Terminal discovery (Phase 1, under validation)
+
+The development branch introduces immutable `TerminalProfile` measurements and pure default styling. Kernel geometry is read from an attached terminal without escape sequences; unknown font, physical DPI and colors remain explicitly unavailable. Live OSC color interrogation requires **exclusive ownership of terminal input** and a callback that routes any unrelated bytes back to the application. Importing `wskr` no longer changes global Matplotlib `text.usetex`.
+
+```python
+from wskr.terminal import probe_profile
+from wskr.render.matplotlib.theme import resolve_rc_defaults
+
+profile = probe_profile()  # geometry only; no terminal escape queries
+defaults = resolve_rc_defaults(profile)
+print(profile.columns.value, profile.cell_width_px.source, defaults)
+```
+
+Only backend-owned **initial** figure defaults can use measured terminal dimensions. The legacy display path still resizes figures, and unattended automatic OSC color probing is deliberately disabled until input ownership is available. This is not the final live-theme/resize design.
+
 ## Basic Matplotlib usage
 
 ```python

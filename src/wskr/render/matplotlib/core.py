@@ -144,8 +144,9 @@ class TerminalBackend(_Backend):
         """
         kwargs = dict(kwargs)
         if "figsize" not in kwargs or "facecolor" not in kwargs:
-            dpi = kwargs.get("dpi", mpl.rcParams["figure.dpi"])
-            defaults = resolve_rc_defaults(probe_profile(), dpi=float(dpi))
+            user_dpi = kwargs.get("dpi")
+            dpi = float(mpl.rcParams["figure.dpi"] if user_dpi is None else user_dpi)
+            defaults = resolve_rc_defaults(probe_profile(), dpi=dpi)
             for rc_key, argument in (("figure.figsize", "figsize"), ("figure.facecolor", "facecolor")):
                 if argument in kwargs:
                     continue
