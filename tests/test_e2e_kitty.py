@@ -3,7 +3,6 @@ import contextlib
 import importlib
 import logging
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -11,11 +10,11 @@ import time
 import types
 from pathlib import Path
 
-import numpy as np
 import pytest
-from PIL import Image, ImageChops
+from PIL import Image
 
 import wskr.terminal.kitty.kitty_remote as kr
+from tests.kitty_visual import assert_logo_visible
 from wskr.core.errors import CommandRunnerError
 from wskr.terminal.kitty.kitty_remote import (
     WindowConfig,
@@ -263,69 +262,18 @@ def script_path() -> Path:
     return Path(__file__).parent / "payload.py"
 
 
-def capture_reference():
-    pass
-
-
-def save_for_debug(img_ref, img_got, img_diff, uid):
-    # 1) make a unique debug folder
-    debug_dir = Path(tempfile.mkdtemp(prefix=f"screenshot-debug-{uid}-"))
-
-    ref_path = debug_dir / f"ref_{uid}.png"
-    got_path = debug_dir / f"got_{uid}.png"
-    diff_path = debug_dir / f"diff_{uid}.png"
-    img_ref.save(ref_path)
-    img_got.save(got_path)
-    img_diff.save(diff_path)
-
-    # 4) let the user know where they landed
-    print(f"Saved debug images to {debug_dir}", file=sys.stderr)
-    kitty_path = Path(shutil.which("kitty")).resolve()
-
-    # 5) display all three inline via kitty icat
-    subprocess.run(
-        [kitty_path, "+kitten", "icat", "--align", "left", str(ref_path)],
-        check=False,
-    )
-    subprocess.run(
-        [kitty_path, "+kitten", "icat", "--align", "right", str(got_path)],
-        check=False,
-    )
-    subprocess.run(
-        [kitty_path, "+kitten", "icat", "--align", "center", str(diff_path)],
-        check=False,
-    )
-
-
-def assert_pixels(capture_path, uid):
-    # 1) Reference image we expect to reproduce
-    ref = Path(__file__).parent / "data" / "reference" / "cap_0001.png"
-    assert ref.exists(), "Need a reference at tests/data/reference/cap_0001.png"
-    assert capture_path.exists()
-
-    img_ref = Image.open(ref).convert("RGB")
-    w, h = img_ref.size
-    strip = 300
-
-    # 3) recompute & save the pixel-difference
-    img_got = Image.open(capture_path).convert("RGB")
-    img_diff = ImageChops.difference(img_ref, img_got)
-
-    img_diff = img_diff.crop((0, 0, w, h - strip))
-
-    diff_arr = np.array(img_diff, dtype=int)
-
-    max_diff = int(diff_arr.max())
-    mean_diff = float(diff_arr.mean())
-
-    # allow up to 2-level difference per channel and low average error
-    try:
-        assert max_diff <= 2, f"max pixel diff {max_diff} > 2"
-        assert mean_diff < 0.5, f"mean pixel diff {mean_diff} ≥ 0.5"
-    except AssertionError:
-        # On failure: save ref, capture, and diff for later, then display them
-        save_for_debug(img_ref, img_got, img_diff, uid)
-        raise
+def assert_pixels(capture_path: Path) -> None:
+    """Detect the rendered logo instead of comparing terminal chrome."""
+    logo_path = Path(__file__).parent / "test.png"
+    assert capture_path.exists(), f"Screenshot missing: {capture_path}"
+    assert logo_path.exists(), f"Test image missing: {logo_path}"
+    with Image.open(capture_path) as capture, Image.open(logo_path) as logo:
+        try:
+            detected = assert_logo_visible(capture, logo)
+        except AssertionError as exc:
+            msg = f"{exc}; inspect retained screenshot at {capture_path}"
+            raise AssertionError(msg) from exc
+    logger.info("Logo bounds and matched regions: %s", detected)
 
 
 @pytest.mark.skipif(
@@ -401,8 +349,7 @@ def test_compare_screenshot():
             windows = query_windows(yabai_bin)
             for window in windows:
                 if window.get("pid") == proc.pid or (
-                    window.get("app", "").lower() == "kitty"
-                    and window.get("title", "").startswith(cfg.title)
+                    window.get("app", "").lower() == "kitty" and window.get("title", "").startswith(cfg.title)
                 ):
                     win_id = window["id"]
                     break
@@ -432,7 +379,7 @@ def test_compare_screenshot():
             capture_path,
         )
         assert captured, f"Could not capture Kitty OS window {win_id}"
-        assert_pixels(capture_path, uid)
+        assert_pixels(capture_path)
     finally:
         # A failure during startup/capture must not leak Kitty windows or
         # leave the temporary socket and marker files behind.

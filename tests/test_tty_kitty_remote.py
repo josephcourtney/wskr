@@ -129,7 +129,6 @@ def test_wait_for_file_to_exist(tmp_path, present, exc):
             wait_for_file_to_exist(p, timeout=0.0)
 
 
-
 def test_try_json_output_handles_unresponsive_service(monkeypatch):
     """An unavailable optional window manager must not mask the real test failure."""
 

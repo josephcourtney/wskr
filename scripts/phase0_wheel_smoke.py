@@ -27,10 +27,8 @@ def run(cmd: list[str], *, env: dict[str, str] | None = None) -> None:
         timeout=180,
     )
     if completed.returncode != 0:
-        raise RuntimeError(
-            f"{' '.join(cmd)} failed ({completed.returncode})\n"
-            f"{completed.stdout}\n{completed.stderr}"
-        )
+        msg = f"{' '.join(cmd)} failed ({completed.returncode})\n{completed.stdout}\n{completed.stderr}"
+        raise RuntimeError(msg)
     if completed.stdout:
         print(completed.stdout.strip())
 
