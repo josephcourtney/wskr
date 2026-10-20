@@ -126,3 +126,22 @@ The screenshot failure is **not equivalent to missing graphics**: the assertion 
 The detector was exercised with synthetic light/dark, rescaled, translated and missing-logo captures in the editing environment. **This is not a rerun against the user's latest actual Kitty capture**, which remains on the local macOS machine.
 
 **Outstanding:** rerun `just check` and `just test-kitty` at the new branch tip; inspect the captured PNG if the logo-content test still fails. Run normal Matplotlib pyplot/Rich demos before declaring the full Phase 0 acceptance gate met.
+
+## H. Fourth local run — 2026-10-20, commit 5efd931
+
+The user's latest log confirms a **clean working tree** at `5efd931` and a successful fast-forward pull.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| `uv sync` | **PASS** | 57 packages resolved; 43 checked |
+| `just check` — syntax | **PASS** | `python -m compileall` |
+| `just check` — formatting | **PASS** | Ruff reported 71 files already formatted |
+| `just check` — lint | **FAIL** | Four findings: typing-only `PIL.Image`, excessive locals, nested `with`, and unsorted baseline-test imports |
+| `just check` — type/full pytest | **NOT RUN** | Quality recipe exited after Ruff lint |
+| `just test-kitty` | **PASS** | 5 passed, 5 test-category warnings; real Kitty image submission and screenshot content matching passed |
+
+**Scope:** This is evidence for the existing Kitty `icat` path and the current screenshot-content check. It does not demonstrate the future native image manager or automatic Matplotlib/Rich style/geometry behavior, and category warnings remain.
+
+**Remediation after the run:** commit `710aea8` moves annotation-only PIL import under `TYPE_CHECKING`, extracts region geometry to reduce locals, consolidates nested context managers and sorts test imports. These are source-reviewed fixes to the four observed Ruff errors, **not yet validated by a fresh full local run**.
+
+**Next verification:** `just check`, `uv run pytest -q tests/test_kitty_visual.py`, `just test-kitty`, and manual pyplot/Rich visual inspection on the updated commit. Record any new type/runtime diagnostics verbatim.

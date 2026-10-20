@@ -1,24 +1,23 @@
 # wskr — Current Status
 
-Handoff; [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 0 evidence](docs/phase0-evidence.md).
+Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 0 evidence](docs/phase0-evidence.md).
 
 ## Focus
 
-**Phase 0 acceptance remains open**, but direct Kitty launch and screenshot capture now execute locally.
+**Phase 0 runtime/packaging baseline is substantially validated; full quality and Matplotlib/Rich visual gates remain open.**
 
-## Observed local results through 2026-10-20
+## Verified locally on macOS, October 20
 
-- Environment, baseline, source/wheel build, isolated wheel smoke and 34 TTY tests previously passed.
-- At `bf11996`, `just check` passed syntax but stopped on three formatting errors.
-- At `bf11996`, `just test-kitty`: **4 passed, 1 failed**. The captured PNG did not match an old full-window screenshot (`max diff 255`). This is not proof graphics were absent.
-- The new logo-content visual check and formatting corrections are **committed but not locally validated**.
+- Environment, baseline diagnostics, wheel/sdist build, isolated wheel install and headless PNG/SVG checks passed in an earlier run.
+- TTY tests: **34 passed** (earlier run; test-category warnings remain).
+- At commit `5efd931`: `just test-kitty` **5 passed**, including a real Kitty launch/payload and successful screenshot image-content detection. Five size-marker warnings remain.
+- `just check` reached Ruff lint after **71 formatted files** and stopped at four reported lint findings. Syntax and formatting passed; typing/full pytest did not run.
 
-## Changes awaiting verification
+## New code awaiting rerun
 
-- Screenshot assertion now checks the recognizable blue/yellow image independently of terminal theme, prompt and position, with positive and negative tests.
-- Removed broken inline Kitty debug-image commands; retained screenshot and diagnostics on failure.
-- Current `icat` transport, incorrect experimental direct PNG encoding, figure-size override and theme issues remain later-phase work.
+- Fixed all four reported lint findings on the Phase 0 branch. No graphics transport behavior changed.
+- Current `icat` dependency, experimental direct-Kitty framing, implicit figure resize and theme bugs are later-phase issues, not Phase 0 regressions.
 
 ## Handoff
 
-Preserve local changes, fast-forward the feature branch, run `just check` and `just test-kitty`. Then exercise standard pyplot and Rich output in Kitty. Close Phase 0 only after those results are recorded.
+Run `just check` and `just test-kitty` on the latest branch head, then perform an actual standard pyplot and RichPlot terminal visual check. Do not infer a full-quality pass or merge/close Phase 0 until the remaining checks are recorded.
