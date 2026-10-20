@@ -7,6 +7,7 @@ import pytest
 
 from wskr.render.matplotlib import utils
 from wskr.terminal import io
+from wskr.terminal.osc import query_tty
 
 
 def test_env_color_strategy(monkeypatch):
@@ -15,58 +16,44 @@ def test_env_color_strategy(monkeypatch):
     monkeypatch.setenv("COLORFGBG", "0;15")
     assert utils.EnvColorStrategy().detect() is False
     monkeypatch.delenv("COLORFGBG", raising=False)
-    try:
+    with pytest.raises(KeyError):
         utils.EnvColorStrategy().detect()
-    except KeyError:
-        pass
-    else:  # pragma: no cover - fail path
-        raise AssertionError
 
 
 def test_osc_strategy_uses_config_timeout(monkeypatch):
     monkeypatch.setattr(utils, "OSC_TIMEOUT_S", 0.5)
-    seen: dict[str, float] = {}
+    seen = {}
 
     def fake_query(cmd, more, timeout):
         seen["timeout"] = timeout
         return b"\x1b]11;rgb:0000/0000/0000\x07"
 
-    monkeypatch.setattr(utils, "query_tty", fake_query)
-    assert utils.OscQueryStrategy().detect() is True
+    assert utils.OscQueryStrategy(query=fake_query).detect() is True
     assert seen["timeout"] == pytest.approx(0.5)
 
 
-def test_osc_strategy_parser_error(monkeypatch):
-    monkeypatch.setattr(utils, "query_tty", lambda *_a, **_k: b"oops")
+@pytest.mark.parametrize("bad", [b"oops", b"\x1b]11;rgb:0000/0000\x07"])
+def test_osc_strategy_parser_error(bad):
     with pytest.raises(ValueError, match="Unexpected"):
-        utils.OscQueryStrategy().detect()
-
-
-def test_osc_strategy_parser_partial(monkeypatch):
-    monkeypatch.setattr(utils, "query_tty", lambda *_a, **_k: b"\x1b]11;rgb:0000/0000\x07")
-    with pytest.raises(ValueError, match="Unexpected"):
-        utils.OscQueryStrategy().detect()
+        utils.OscQueryStrategy(query=lambda *_a, **_k: bad).detect()
 
 
 def test_detect_dark_mode_chain(monkeypatch):
     monkeypatch.setenv("COLORFGBG", "15;0")
-    called: dict[str, bool] = {}
+    called = []
 
-    def fake_query(*_a, **_k):
-        called["osc"] = True
+    def fake_query(*_args, **_kwargs):
+        called.append(True)
         return b""
 
-    monkeypatch.setattr(utils, "query_tty", fake_query)
+    # Without input ownership, default OSC must not read shared user input.
+    monkeypatch.setattr(utils, "query_osc", fake_query)
     assert utils.detect_dark_mode() is True
-    assert called["osc"]
+    assert called == []
 
     monkeypatch.delenv("COLORFGBG", raising=False)
-    monkeypatch.setattr(
-        utils,
-        "query_tty",
-        lambda *_a, **_k: b"\x1b]11;rgb:0000/0000/0000\x07",
-    )
-    assert utils.detect_dark_mode() is True
+    injected = lambda *_a, **_k: b"\x1b]11;rgb:0000/0000/0000\x07"
+    assert utils.detect_dark_mode(strategies=[utils.OscQueryStrategy(query=injected)]) is True
 
 
 @pytest.mark.skipif(
@@ -82,12 +69,12 @@ def test_osc_strategy_real_tty(monkeypatch):
         assert data == utils._OSC_BG_QUERY
         os.write(master_fd, b"\x1b]11;rgb:0000/0000/0000\x07")
 
-    t = threading.Thread(target=responder)
-    t.start()
+    thread = threading.Thread(target=responder, daemon=True)
+    thread.start()
     try:
-        assert utils.OscQueryStrategy(timeout=0.1).detect() is True
+        assert utils.OscQueryStrategy(timeout=0.1, query=query_tty).detect() is True
     finally:
-        t.join()
+        thread.join(timeout=2)
         os.close(master_fd)
         os.close(slave_fd)
 
@@ -107,9 +94,7 @@ def test_darkdetect_strategy(monkeypatch):
 
     monkeypatch.setitem(sys.modules, "darkdetect", DummyDD)
     monkeypatch.setattr(utils, "darkdetect", DummyDD)
-    # Ensure earlier strategies fail so DarkDetectStrategy is used
     monkeypatch.delenv("COLORFGBG", raising=False)
-    monkeypatch.setattr(utils, "query_tty", lambda *_a, **_k: b"")
     assert utils.detect_dark_mode(strategies=[utils.DarkDetectStrategy()]) is True
     monkeypatch.setattr(DummyDD, "theme", staticmethod(lambda: "Light"))
     assert utils.detect_dark_mode(strategies=[utils.DarkDetectStrategy()]) is False
