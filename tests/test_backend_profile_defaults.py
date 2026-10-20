@@ -3,10 +3,10 @@
 import matplotlib as mpl
 import pytest
 
-pytestmark = pytest.mark.medium
-
 from wskr.render.matplotlib import core
 from wskr.terminal.profile import Geometry, probe_profile
+
+pytestmark = pytest.mark.medium
 
 
 def test_backend_auto_uses_measured_pixels_without_mutating_rcparams(monkeypatch):

@@ -5,11 +5,11 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-pytestmark = pytest.mark.small
-
 from wskr.terminal import profile
 from wskr.terminal.color import RGB
 from wskr.terminal.profile import Geometry, Source, Value, probe_profile
+
+pytestmark = pytest.mark.small
 
 
 def test_geometry_is_measured_and_cell_pixels_are_inferred():

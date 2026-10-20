@@ -39,6 +39,7 @@ def test_read_tty_more_predicate(monkeypatch):
 @pytest.mark.small
 def test_query_returns_without_blocking_tcdrain(monkeypatch, fake_tty):
     """A bounded query must not hang waiting for PTY output to drain."""
+
     def blocked_drain(_fd):
         pytest.fail("TTY query should never call unbounded tcdrain")
 

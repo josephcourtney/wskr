@@ -3,10 +3,10 @@
 import matplotlib as mpl
 import pytest
 
-pytestmark = pytest.mark.medium
-
 from wskr.render.matplotlib.theme import resolve_rc_defaults, suggested_figure_size
 from wskr.terminal.profile import Geometry, probe_profile
+
+pytestmark = pytest.mark.medium
 
 
 def test_unmeasured_terminal_does_not_guess_theme_or_physical_size():
