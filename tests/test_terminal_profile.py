@@ -42,8 +42,9 @@ def test_immutable_value_and_provenance_invariants():
     with pytest.raises(ValueError):
         Value(5, Source.UNKNOWN)
     item = Value(5, Source.INFERRED)
+    name = "value"
     with pytest.raises(FrozenInstanceError):
-        setattr(item, "value", 8)
+        setattr(item, name, 8)
 
 
 def test_opt_in_color_probe_recognizes_light_background_and_palette():

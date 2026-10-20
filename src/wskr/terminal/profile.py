@@ -8,7 +8,6 @@ silently acquiring machine-specific display/DPI assumptions.
 from __future__ import annotations
 
 import fcntl
-import os
 import struct
 import sys
 import termios
@@ -79,9 +78,9 @@ def read_geometry() -> Geometry | None:
     Redirected stdout is not interrogated, even if a controlling TTY exists.
     """
     stream = sys.stdout
-    if stream is None or not stream.isatty():
-        return None
     try:
+        if stream is None or not stream.isatty():
+            return None
         fd = stream.fileno()
         packed = fcntl.ioctl(fd, termios.TIOCGWINSZ, b"\x00" * 8)
         rows, cols, width, height = struct.unpack("HHHH", packed)
@@ -122,7 +121,7 @@ def probe_profile(
             try:
                 response = color_query(request)
                 rgb = parse_osc_color(response, code, index)
-            except (OSError, ValueError, TimeoutError):
+            except (OSError, RuntimeError, ValueError, TimeoutError):
                 continue
             colors[code if index is None else 100 + index] = rgb
     fg = colors.get(10)

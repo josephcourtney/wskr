@@ -11,6 +11,7 @@ def test_backend_auto_uses_measured_pixels_without_mutating_rcparams(monkeypatch
     profile = probe_profile(geometry=Geometry(30, 100, 1000, 600))
     monkeypatch.setattr(core, "probe_profile", lambda: profile)
     monkeypatch.setitem(mpl.rcParams, "figure.figsize", mpl.rcParamsDefault["figure.figsize"])
+    monkeypatch.setitem(mpl.rcParams, "figure.dpi", 100)
     original = tuple(mpl.rcParams["figure.figsize"])
     manager = core._BackendTermAgg.new_figure_manager(901)
     try:

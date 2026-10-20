@@ -81,12 +81,15 @@ def _transaction(
         new[6][termios.VTIME] = 0
         termios.tcsetattr(fd, termios.TCSANOW, new)
         pending = memoryview(request)
-        while pending:
-            writable = select.select([], [fd], [], timeout)[1]
-            if not writable:
-                raise TimeoutError("Terminal query write timed out")
-            pending = pending[os.write(fd, pending):]
         deadline = monotonic() + timeout
+        while pending:
+            left = deadline - monotonic()
+            if left <= 0 or not select.select([], [fd], [], left)[1]:
+                raise TimeoutError("Terminal query write timed out")
+            written = os.write(fd, pending)
+            if written <= 0:
+                raise TerminalQueryError("Terminal query write made no progress")
+            pending = pending[written:]
         while len(result) < max_bytes:
             left = deadline - monotonic()
             if left <= 0:
