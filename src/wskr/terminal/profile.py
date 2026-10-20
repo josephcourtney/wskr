@@ -12,9 +12,9 @@ import os
 import struct
 import sys
 import termios
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
-from collections.abc import Callable
 from typing import Generic, TypeVar
 
 from wskr.terminal.color import RGB, parse_osc_color

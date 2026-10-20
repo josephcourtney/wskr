@@ -4,8 +4,7 @@ import matplotlib as mpl
 import pytest
 
 from wskr.render.matplotlib.theme import resolve_rc_defaults, suggested_figure_size
-from wskr.terminal.color import RGB
-from wskr.terminal.profile import Geometry, Source, Value, probe_profile
+from wskr.terminal.profile import Geometry, probe_profile
 
 
 def test_unmeasured_terminal_does_not_guess_theme_or_physical_size():

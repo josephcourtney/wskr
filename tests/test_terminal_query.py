@@ -45,7 +45,7 @@ def test_pty_reply_restores_termios_and_forwards_unrelated_input(monkeypatch):
         assert request == b"\x1b]11;?\x07"
         os.write(master, b"a\x1b]10;rgb:ffff/ffff/ffff\x07\x1b]11;rgb:0000/0000/0000\x1b\\")
 
-    thread = threading.Thread(target=responder)
+    thread = threading.Thread(target=responder, daemon=True)
     thread.start()
     try:
         response = query.query_osc(
