@@ -15,10 +15,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, Generic, TypeVar
 
+from wskr.terminal.color import RGB, parse_osc_color
+
 if TYPE_CHECKING:
     from collections.abc import Callable
-
-from wskr.terminal.color import RGB, parse_osc_color
 
 T = TypeVar("T")
 
