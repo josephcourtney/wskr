@@ -349,48 +349,54 @@ def test_compare_screenshot():
         "KITTY_DEMO_DONE_FILE": str(done_file),
     }
 
-    proc = launch_kitty_terminal(kitty_bin, Path(sock), cfg.title, env)  # type: ignore[possibly-unresolved-reference]
-    wait_for_file_to_exist(sock_path)
-
-    # Ask yabai from the controlling process, not through a newly launched shell.
-    # This avoids depending on shell startup, jq, and a file created by a command
-    # that may never execute if Kitty remote send-text fails.
-    deadline = time.monotonic() + cfg.max_wait
-    windows = []
-    win_id = None
-    while time.monotonic() < deadline:
-        windows = query_windows(yabai_bin)
-        for window in windows:
-            if window.get("pid") == proc.pid or (
-                window.get("app", "").lower() == "kitty"
-                and window.get("title", "").startswith(cfg.title)
-            ):
-                win_id = window["id"]
-                break
-        if win_id is not None:
-            break
-        time.sleep(0.2)
-    if win_id is None:
-        pytest.fail(f"Kitty window not visible to yabai (pid={proc.pid}); available windows: {windows!r}")
-
-    configure_window(yabai_bin, win_id, width=cfg.width, height=cfg.height, x=cfg.x, y=cfg.y)  # type: ignore[possibly-unresolved-reference]
-
-    send_payload(kitty_bin, Path(sock), env, script_path(), done_file, log_file)
+    proc = launch_kitty_terminal(kitty_bin, Path(sock), cfg.title, env)
     try:
-        wait_for_file_with_content(done_file, timeout=cfg.max_wait)
-    except TimeoutError as exc:
-        pytest.fail(
-            f"Kitty payload did not signal completion: {exc}; "
-            f"payload log: {log_file.read_text() if log_file.exists() else 'missing'}"
+        wait_for_file_to_exist(sock_path)
+
+        # Identify the OS window from the host rather than the new shell.
+        deadline = time.monotonic() + cfg.max_wait
+        windows = []
+        win_id = None
+        while time.monotonic() < deadline:
+            windows = query_windows(yabai_bin)
+            for window in windows:
+                if window.get("pid") == proc.pid or (
+                    window.get("app", "").lower() == "kitty"
+                    and window.get("title", "").startswith(cfg.title)
+                ):
+                    win_id = window["id"]
+                    break
+            if win_id is not None:
+                break
+            time.sleep(0.2)
+        if win_id is None:
+            pytest.fail(f"Kitty window not visible to yabai (pid={proc.pid}); available windows: {windows!r}")
+
+        configure_window(yabai_bin, win_id, width=cfg.width, height=cfg.height, x=cfg.x, y=cfg.y)
+
+        send_payload(kitty_bin, Path(sock), env, script_path(), done_file, log_file)
+        try:
+            wait_for_file_with_content(done_file, timeout=cfg.max_wait)
+        except TimeoutError as exc:
+            pytest.fail(
+                f"Kitty payload did not signal completion: {exc}; "
+                f"payload log: {log_file.read_text() if log_file.exists() else 'missing'}"
+            )
+
+        show_log(log_file)
+
+        capture_path = Path.cwd() / f"capture_{uid}.png"
+        captured = take_screenshot(
+            yabai_bin,
+            lambda w: w.get("app", "").lower() == "kitty" and w.get("id") == win_id,
+            capture_path,
         )
-
-    show_log(log_file)
-
-    capture_path = Path.cwd() / f"capture_{uid}.png"
-    take_screenshot(yabai_bin, lambda w: w.get("app") == "kitty" and w.get("id") == win_id, capture_path)  # type: ignore[possibly-unresolved-reference]
-
-    close_kitty_window(kitty_bin, lambda w: w.get("title", "").startswith(cfg.title))  # type: ignore[possibly-unresolved-reference]
-    cleanup_temp_files(done_file, log_file)
-    terminate_process(proc)
-
-    assert_pixels(capture_path, uid)
+        assert captured, f"Could not capture Kitty OS window {win_id}"
+        assert_pixels(capture_path, uid)
+    finally:
+        # A failure during startup/capture must not leak Kitty windows or
+        # leave the temporary socket and marker files behind.
+        with contextlib.suppress(OSError, subprocess.CalledProcessError):
+            close_kitty_window(kitty_bin, lambda w: w.get("title", "").startswith(cfg.title))
+        terminate_process(proc)
+        cleanup_temp_files(done_file, log_file)
