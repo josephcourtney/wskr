@@ -86,3 +86,19 @@ The GUI hang was in the screenshot **harness bootstrap**, not proven to be an im
 The user's `just fix` left local modifications that were not fetched, overwritten, or committed by this assistant. Preserve the local `git diff`/`git status` before pulling the updated remote branch.
 
 **Next gate:** rerun `uv sync`, `just check`, `just baseline`, `just build`, `just wheel-smoke`, `just test-tty`, `just test-kitty` and a direct pyplot/Rich demo in a real Kitty window on the latest commit. Record failures and skips separately. No real screenshot pass is established yet.
+
+## F. Second local run — 2026-10-20, commit f056470
+
+The next log documents a fresh pull of `f056470` on macOS ARM64. The working tree was stashed before the pull, and `just fix` created **new uncommitted formatting/autofix changes** afterward.
+
+| Command | Outcome | Observed detail |
+| --- | --- | --- |
+| `uv sync` | **PASS** | Reinstalled `wskr 0.0.17` |
+| `just check` | **FAIL** | Syntax passed; formatting failed on `phase0_wheel_smoke.py` and `test_e2e_kitty.py` |
+| `just fix` | **FAIL after autofix** | Formatted two files, fixed seven Ruff findings and reported one remaining line-too-long error in the wheel smoke embedded script |
+| `just check` (again) | **FAIL** | Syntax and format passed; Ruff found that remaining line-too-long error; typing and suite not reached |
+| `just test-kitty` | **FAIL / NOT VISUALLY VALIDATED** | 3 passed, 1 failed: `yabai -m query --windows` timed out after the general helper's 1-second command timeout and raised `CommandRunnerError`; failure was in window enumeration, not image transfer/comparison |
+
+After these results, the branch fixes the long string, test formatting/unused imports, and optional-command failure handling. The GUI screenshot case now preflights **Yabai service accessibility** *before launching Kitty*; if the service is unavailable, the screenshot test explicitly skips rather than claiming a graphics failure. A separate **real Kitty launch and image-submission smoke** test runs without Yabai and records a distinct observable result. A skip is **not** a visual pass.
+
+**Next:** after protecting any new local `just fix` changes, pull the latest feature branch and rerun `just check` and `just test-kitty`. Capture test pass/fail/skip counts and the remote Kitty smoke result. Full `just check` has not yet reached ty/pytest in either local log.

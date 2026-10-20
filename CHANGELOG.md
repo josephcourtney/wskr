@@ -5,6 +5,8 @@ Notable **completed** user-visible changes are recorded here, following [Keep a 
 ## [Unreleased]
 
 ### Changed
+- harden optional GUI window-manager probing and separate live Kitty image-submission smoke from screenshot comparison
+- repair the remaining baseline-script lint issue and preserve test helper JSON failure behavior
 - improve Phase 0 diagnostic scripts, Ruff compatibility checks, and GUI screenshot-test timeout/window discovery
 - stabilize float assertions in legacy tests without altering their behavior
 - add reproducible baseline diagnostics, installed-wheel smoke test and behavior-characterization tests
