@@ -24,6 +24,10 @@ class TerminalQueryError(RuntimeError):
 
 
 _QUERY_LOCK = RLock()
+_MAX_TIMEOUT_SECONDS = 5.0
+_MAX_QUERY_BYTES = 4096
+_ESCAPE_BYTE = 0x1B
+_OSC_HEADER_LENGTH = len(b"\x1b]")
 
 
 def _open_tty() -> int:
@@ -54,7 +58,7 @@ def query_osc(
     if not _stdout_is_tty():
         msg = "OSC queries require an attached terminal output stream"
         raise TerminalQueryError(msg)
-    if not 0 < timeout <= 5 or not 1 <= max_bytes <= 4096:
+    if not 0 < timeout <= _MAX_TIMEOUT_SECONDS or not 1 <= max_bytes <= _MAX_QUERY_BYTES:
         msg = "Invalid terminal query timeout or maximum reply size"
         raise ValueError(msg)
     if not (request.startswith(b"\x1b]") and request.endswith((b"\x07", b"\x1b\\"))):
@@ -65,6 +69,67 @@ def query_osc(
         return _transaction(request, on_unmatched=on_unmatched, timeout=timeout, max_bytes=max_bytes)
 
 
+def _write_request(fd: int, request: bytes, deadline: float) -> None:
+    """Write the entire OSC request without extending the transaction deadline."""
+    offset = 0
+    while offset < len(request):
+        remaining = deadline - monotonic()
+        if remaining <= 0 or not select.select([], [fd], [], remaining)[1]:
+            msg = "Terminal query write timed out"
+            raise TimeoutError(msg)
+        written = os.write(fd, request[offset:])
+        if written <= 0:
+            msg = "Terminal query write made no progress"
+            raise TerminalQueryError(msg)
+        offset += written
+
+
+def _next_reply_byte(fd: int, deadline: float) -> bytes:
+    """Read at most one byte before the transaction's shared deadline."""
+    remaining = deadline - monotonic()
+    if remaining <= 0 or not select.select([fd], [], [], remaining)[0]:
+        msg = "Terminal query response timed out"
+        raise TimeoutError(msg)
+    try:
+        return os.read(fd, 1)
+    except BlockingIOError:
+        return b""
+
+
+def _receive_reply(
+    fd: int,
+    expected: bytes,
+    deadline: float,
+    max_bytes: int,
+    unmatched: bytearray,
+    partial: bytearray,
+) -> bytes:
+    """Read bounded input, forwarding unrelated frames to the owner's buffer."""
+    received = 0
+    while received < max_bytes:
+        chunk = _next_reply_byte(fd, deadline)
+        if not chunk:
+            continue
+        received += len(chunk)
+        if not partial and chunk[0] != _ESCAPE_BYTE:
+            unmatched.extend(chunk)
+            continue
+        partial.extend(chunk)
+        if len(partial) == _OSC_HEADER_LENGTH and partial != b"\x1b]":
+            unmatched.extend(partial)
+            partial.clear()
+            continue
+        if partial.endswith((b"\x07", b"\x1b\\")):
+            if partial.startswith(expected):
+                response = bytes(partial)
+                partial.clear()
+                return response
+            unmatched.extend(partial)
+            partial.clear()
+    msg = "Terminal response exceeded size limit"
+    raise TerminalQueryError(msg)
+
+
 def _transaction(
     request: bytes,
     *,
@@ -73,68 +138,29 @@ def _transaction(
     max_bytes: int,
 ) -> bytes:
     fd = _open_tty()
-    old = None
-    # Require a matching selector so unrelated OSC traffic can be forwarded.
+    previous = None
+    unmatched = bytearray()
+    partial = bytearray()
     marker = request.removeprefix(b"\x1b]").split(b";?", 1)[0] + b";"
     expected = b"\x1b]" + marker
-    unmatched = bytearray()
-    result = bytearray()
-    matched = False
     try:
-        old = termios.tcgetattr(fd)
-        new = termios.tcgetattr(fd)
-        new[3] &= ~(termios.ICANON | termios.ECHO)
-        new[6][termios.VMIN] = 0
-        new[6][termios.VTIME] = 0
-        termios.tcsetattr(fd, termios.TCSANOW, new)
-        pending = memoryview(request)
+        previous = termios.tcgetattr(fd)
+        attributes = termios.tcgetattr(fd)
+        attributes[3] &= ~(termios.ICANON | termios.ECHO)
+        attributes[6][termios.VMIN] = 0
+        attributes[6][termios.VTIME] = 0
+        termios.tcsetattr(fd, termios.TCSANOW, attributes)
         deadline = monotonic() + timeout
-        while pending:
-            left = deadline - monotonic()
-            if left <= 0 or not select.select([], [fd], [], left)[1]:
-                msg = "Terminal query write timed out"
-                raise TimeoutError(msg)
-            written = os.write(fd, pending)
-            if written <= 0:
-                msg = "Terminal query write made no progress"
-                raise TerminalQueryError(msg)
-            pending = pending[written:]
-        while len(result) < max_bytes:
-            left = deadline - monotonic()
-            if left <= 0:
-                msg = "Terminal query response timed out"
-                raise TimeoutError(msg)
-            if not select.select([fd], [], [], left)[0]:
-                msg = "Terminal query response timed out"
-                raise TimeoutError(msg)
-            chunk = os.read(fd, 1)
-            if not chunk:
-                continue
-            byte = chunk[0]
-            if not result and byte != 0x1B:
-                unmatched.extend(chunk)
-                continue
-            result.append(byte)
-            if len(result) == 2 and result != b"\x1b]":
-                unmatched.extend(result)
-                result.clear()
-                continue
-            if result.endswith((b"\x07", b"\x1b\\")):
-                if result.startswith(expected):
-                    matched = True
-                    return bytes(result)
-                unmatched.extend(result)
-                result.clear()
-        msg = "Terminal response exceeded size limit"
-        raise TerminalQueryError(msg)
+        _write_request(fd, request, deadline)
+        return _receive_reply(fd, expected, deadline, max_bytes, unmatched, partial)
     finally:
         try:
-            if old is not None:
-                termios.tcsetattr(fd, termios.TCSANOW, old)
+            if previous is not None:
+                termios.tcsetattr(fd, termios.TCSANOW, previous)
         finally:
             os.close(fd)
-            if not matched and result:
-                unmatched.extend(result)
+            if partial:
+                unmatched.extend(partial)
             if unmatched:
                 on_unmatched(bytes(unmatched))
 
