@@ -16,7 +16,7 @@ Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md).
 
 ## Remediation committed since that run — unverified
 
-- Compare all app-managed terminal modes while excluding only macOS `EXTPROC`; remove legacy query's blocking `tcdrain`.
+- Compare all app-managed terminal modes while excluding only the macOS `PENDIN` state bit; remove legacy query's blocking `tcdrain`.
 - Factor bounded OSC transactions into write/read/framing helpers, retaining a single deadline and restoring termios before close.
 - Replace literal magic comparisons, document validation hooks, and tighten negative-test assertions.
 - Add a no-drain regression test and classify Phase 1 test sizes; do not suppress existing lint policy.
