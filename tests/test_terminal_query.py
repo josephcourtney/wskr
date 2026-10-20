@@ -11,11 +11,11 @@ from wskr.terminal import query
 
 
 def _assert_restored_terminal_settings(slave: int, before: list) -> None:
-    """Check user-managed termios state; macOS owns the EXTPROC flag."""
+    """Check all terminal settings except the kernel-managed PENDIN state bit."""
     after = termios.tcgetattr(slave)
     assert after[:3] == before[:3]
     assert after[4:] == before[4:]
-    kernel_flags = getattr(termios, "EXTPROC", 0)
+    kernel_flags = getattr(termios, "PENDIN", 0)
     assert after[3] & ~kernel_flags == before[3] & ~kernel_flags
 
 

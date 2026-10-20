@@ -9,7 +9,7 @@ Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md).
 ## Mac validation on October 20, 2026 (at `d10040b`)
 
 - `uv sync` passed and the real Kitty suite **passed 5 tests**.
-- `just phase1`: **43 passed, 2 failed, 1 skipped**. Both failures were macOS PTY comparisons differing only in kernel-managed `EXTPROC`.
+- `just phase1`: **43 passed, 2 failed, 1 skipped**. Both failures were macOS PTY comparisons differing only in kernel-managed `PENDIN`.
 - `just test-tty`: timed out in the legacy `tcdrain` call.
 - `just check`: after local format/autofix, Ruff reported **19 remaining errors**; `ty` and full pytest were not reached.
 - The user committed/pushed Ruff's formatting changes as `d10040b`.
