@@ -26,18 +26,18 @@ def test_osc_palette_index_is_checked():
 
 
 @pytest.mark.parametrize(
-    "bad",
+    ("bad", "expected_message"),
     [
-        b"",
-        b"garbage\x1b]11;rgb:ffff/ffff/ffff\x07",
-        b"\x1b]11;rgb:ffff/0000/0000",
-        b"\x1b]11;rgb:ffff/0000/0000\x07garbage",
-        b"\x1b]11;rgb:ffff/0000/gggg\x07",
-        b"\x1b]11;rgb:ffff/0000/0000\x07" + b"A" * 200,
+        (b"", "Unexpected OSC"),
+        (b"garbage\x1b]11;rgb:ffff/ffff/ffff\x07", "Unexpected OSC"),
+        (b"\x1b]11;rgb:ffff/0000/0000", "Unexpected OSC"),
+        (b"\x1b]11;rgb:ffff/0000/0000\x07garbage", "Unexpected OSC"),
+        (b"\x1b]11;rgb:ffff/0000/gggg\x07", "Unexpected OSC"),
+        (b"\x1b]11;rgb:ffff/0000/0000\x07" + b"A" * 200, "Oversized OSC"),
     ],
 )
-def test_malformed_osc_replies_fail_closed(bad):
-    with pytest.raises(ValueError, match="Unexpected|Oversized"):
+def test_malformed_osc_replies_fail_closed(bad, expected_message):
+    with pytest.raises(ValueError, match=expected_message):
         parse_osc_color(bad, 11)
 
 

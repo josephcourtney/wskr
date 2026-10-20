@@ -80,11 +80,12 @@ def test_osc_strategy_real_tty(monkeypatch):
     thread = threading.Thread(target=responder, daemon=True)
     thread.start()
     try:
-        assert utils.OscQueryStrategy(
+        strategy = utils.OscQueryStrategy(
             timeout=0.5,
             owns_input=True,
             on_unmatched=lambda _bytes: None,
-        ).detect() is True
+        )
+        assert strategy.detect() is True
     finally:
         thread.join(timeout=2)
         os.close(master_fd)
