@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
-from PIL import Image
 from scipy import ndimage
+
+if TYPE_CHECKING:
+    from PIL import Image
 
 
 @dataclass(frozen=True)
@@ -45,6 +48,23 @@ def _largest_region(rgb: np.ndarray, color: np.ndarray) -> ColorRegion:
     )
 
 
+def _logo_bounds(blue: ColorRegion, yellow: ColorRegion) -> tuple[int, int, int, int]:
+    """Check the relative region geometry and return the combined image bounds."""
+    left = min(blue.bounds[0], yellow.bounds[0])
+    top = min(blue.bounds[1], yellow.bounds[1])
+    right = max(blue.bounds[2], yellow.bounds[2])
+    bottom = max(blue.bounds[3], yellow.bounds[3])
+    width, height = right - left + 1, bottom - top + 1
+    overlap_x = min(blue.bounds[2], yellow.bounds[2]) - max(blue.bounds[0], yellow.bounds[0])
+    overlap_y = min(blue.bounds[3], yellow.bounds[3]) - max(blue.bounds[1], yellow.bounds[1])
+    proper_order = blue.center_x < yellow.center_x and blue.center_y < yellow.center_y
+    plausible_shape = 0.6 <= width / height <= 1.7 and overlap_x > width * 0.05 and overlap_y > height * 0.05
+    if not proper_order or not plausible_shape:
+        msg = f"Colors do not form the Python logo: blue={blue}; yellow={yellow}; extent={width}x{height}"
+        raise AssertionError(msg)
+    return left, top, right, bottom
+
+
 def assert_logo_visible(capture: Image.Image, logo: Image.Image) -> dict[str, object]:
     """Verify that the expected logo, not merely terminal UI, is visible.
 
@@ -63,20 +83,8 @@ def assert_logo_visible(capture: Image.Image, logo: Image.Image) -> dict[str, ob
         )
         raise AssertionError(msg)
 
-    left = min(blue.bounds[0], yellow.bounds[0])
-    top = min(blue.bounds[1], yellow.bounds[1])
-    right = max(blue.bounds[2], yellow.bounds[2])
-    bottom = max(blue.bounds[3], yellow.bounds[3])
-    width, height = right - left + 1, bottom - top + 1
-    overlap_x = min(blue.bounds[2], yellow.bounds[2]) - max(blue.bounds[0], yellow.bounds[0])
-    overlap_y = min(blue.bounds[3], yellow.bounds[3]) - max(blue.bounds[1], yellow.bounds[1])
-    proper_order = blue.center_x < yellow.center_x and blue.center_y < yellow.center_y
-    plausible_shape = 0.6 <= width / height <= 1.7 and overlap_x > width * 0.05 and overlap_y > height * 0.05
-    if not proper_order or not plausible_shape:
-        msg = f"Colors do not form the Python logo: blue={blue}; yellow={yellow}; extent={width}x{height}"
-        raise AssertionError(msg)
     return {
-        "bounds": (left, top, right, bottom),
+        "bounds": _logo_bounds(blue, yellow),
         "blue_pixels": blue.pixels,
         "yellow_pixels": yellow.pixels,
     }

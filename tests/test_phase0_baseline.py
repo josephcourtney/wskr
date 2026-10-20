@@ -10,7 +10,6 @@ from importlib import import_module, metadata
 from io import BytesIO
 
 import pytest
-
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 

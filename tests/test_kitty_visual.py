@@ -35,9 +35,11 @@ def test_logo_detection_tolerates_theme_and_scale(background, size):
 
 
 def test_blank_capture_fails():
-    with Image.open(ASSETS / "test.png") as logo:
-        with pytest.raises(AssertionError, match="not detected"):
-            assert_logo_visible(Image.new("RGB", (800, 600), "#ece8e1"), logo)
+    with (
+        Image.open(ASSETS / "test.png") as logo,
+        pytest.raises(AssertionError, match="not detected"),
+    ):
+        assert_logo_visible(Image.new("RGB", (800, 600), "#ece8e1"), logo)
 
 
 def test_reversed_color_geometry_fails():
