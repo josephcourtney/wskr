@@ -1,31 +1,30 @@
 # wskr — Current Status
 
-Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md).
+Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 1 evidence](docs/phase1-validation.md).
 
 ## Current focus
 
-**Phase 1 terminal profile is implemented on `feature/phase1-terminal-profile-20261020`, but acceptance remains open.** Baseline Phase 0 is merged into `main`.
+**Phase 1 is under validation on `feature/phase1-terminal-profile-20261020`; `main` remains at the accepted Phase 0 baseline.**
 
-## Mac validation on October 20, 2026 (at `d10040b`)
+## Verified locally — October 20, 2026, commit `16455ccc`
 
-- `uv sync` passed and the real Kitty suite **passed 5 tests**.
-- `just phase1`: **43 passed, 2 failed, 1 skipped**. Both failures were macOS PTY comparisons differing only in kernel-managed `PENDIN`.
-- `just test-tty`: timed out in the legacy `tcdrain` call.
-- `just check`: after local format/autofix, Ruff reported **19 remaining errors**; `ty` and full pytest were not reached.
-- The user committed/pushed Ruff's formatting changes as `d10040b`.
+- `uv sync` passed; `just phase1`: **45 passed, 1 expected opt-in skip**. Medium-size test distribution advisory remains.
+- `just test-tty`: **35 passed, 26 size-marker warnings**; the previous `tcdrain` hang is no longer observed.
+- `just test-kitty`: **5 passed, 5 size-marker warnings**, including real Kitty screenshot-content verification.
+- `just check`: syntax/format passed after local `just fix`; Ruff stopped on one ambiguous `pytest.raises(match=...)` pattern. **`ty` and full pytest did not run.**
 
-## Remediation committed since that run — unverified
+## Changes after that local run (not yet verified)
 
-- Compare all app-managed terminal modes while excluding only the macOS `PENDIN` state bit; remove legacy query's blocking `tcdrain`.
-- Factor bounded OSC transactions into write/read/framing helpers, retaining a single deadline and restoring termios before close.
-- Replace literal magic comparisons, document validation hooks, and tighten negative-test assertions.
-- Add a no-drain regression test and classify Phase 1 test sizes; do not suppress existing lint policy.
+- Committed explicit per-case OSC exception assertions and formatter-stable real-PTY test code.
+- No graphics transport or profile semantics were changed.
+- Prior terminal safety and lint corrections are preserved.
 
-## Remaining
+## Remaining gates
 
-- **No rerun of the updated branch** has established a clean `just phase1`, `just check`, or `just test-tty`. The prior 5-test live Kitty pass does not apply automatically to changed code.
-- Automatic style integration, live resize and ordinary pyplot/Rich screenshot validation remain unfinished.
+- Rerun `just check` on the latest branch tip and address any newly exposed `ty`/pytest failures.
+- Repeat Phase 1, PTY, and live Kitty tests; preserve truthful test-size categories.
+- Actual stock Matplotlib/Rich visual inspection, terminal-derived artist styling, and resize safety remain incomplete.
 
 ## Handoff
 
-Rerun the local quality and terminal gates on the feature branch. Record any remaining failures before merging Phase 1.
+The user's last `just fix` left local modifications. Inspect or stash before pulling; do not report Phase 1 complete or merge until the updated quality gate passes.

@@ -10,6 +10,7 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 ### Fixed
 - Stopped package import from disabling Matplotlib's TeX setting.
 - Made a valid light-theme detection definitive and avoided automatic queries against shared terminal input.
+- Prevented legacy PTY color queries from hanging while waiting for terminal output to drain.
 
 ### Changed
 - Clarified which Kitty, Matplotlib, Rich, Sixel and iTerm2 features are supported today, with the intended architecture documented separately.

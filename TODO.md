@@ -1,10 +1,10 @@
 # wskr — Immediate Tasks
 
-Pending Phase 1 work; see [PLAN.md](PLAN.md) and [STATUS.md](STATUS.md).
+Only unfinished Phase 1 work. See [PLAN.md](PLAN.md) and [Phase 1 evidence](docs/phase1-validation.md).
 
-- [ ] On `feature/phase1-terminal-profile-20261020`, run `uv sync`, `just phase1` and `just check`; report any newly exposed Ruff, `ty`, or full-pytest failures.
-- [ ] Run `just test-tty` and `just test-kitty`, confirming that the bounded OSC path no longer hangs in `tcdrain` and the live Kitty baseline stays green.
-- [ ] Manually capture an ordinary `MPLBACKEND=wskr_kitty` figure and a `RichPlot` panel/table in Kitty, recording image placement, viewport sizing and theme behavior.
-- [ ] Integrate backend-owned font/palette/artist defaults without overriding user rcParams; document validated foreground/background provenance.
-- [ ] Cover resize, refresh, multi-figure lifecycle and input multiplexer safety before enabling automatic terminal queries.
-- [ ] Finish truthful size categorization of legacy tests; do not enable strict categories solely to silence warnings.
+- [ ] Preserve the local uncommitted Ruff autofix, update `feature/phase1-terminal-profile-20261020`, and rerun `just check` through Ruff, `ty` and full pytest.
+- [ ] On the same updated commit, repeat `just phase1`, `just test-tty` and `just test-kitty`; record exact pass/skip counts.
+- [ ] Inspect a real `MPLBACKEND=wskr_kitty` plot and `RichPlot` within a Rich panel/table for viewport size, style and placement.
+- [ ] Integrate terminal-derived font/palette/artist defaults while preserving explicit user styling and rcParams.
+- [ ] Add resize/refresh and input ownership tests; avoid unsafe automatic queries.
+- [ ] Classify remaining legacy/GUI tests by actual dependency/size, without suppressing warning or altering enforcement to hide failures.
