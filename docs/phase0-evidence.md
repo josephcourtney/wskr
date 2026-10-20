@@ -65,3 +65,24 @@ The assistant's execution container cannot clone GitHub (DNS/network unavailable
 ## D. Remaining acceptance gate
 
 `PLAN.md` Phase 0 closes when `just check`, `just baseline`, `just build`, `just wheel-smoke`, and the opt-in PTY/live Kitty probes have been run in an appropriate environment and results recorded, or when each unavailable test has an explicitly accepted external-validation waiver. The code and scripts on this branch establish a reproducible starting point, but **the evidence gate is not yet complete**.
+
+## E. Local execution evidence — 2026-10-20 (macOS ARM64)
+
+The following outcomes are from user-supplied local logs on commit `064fbc4`, with an **already dirty working tree**. They are not a pass claim for subsequent GitHub commits.
+
+| Command | Outcome | Observed detail |
+| --- | --- | --- |
+| `uv sync` | **PASS** | 57 packages resolved; `wskr 0.0.17` installed |
+| `just check` | **FAIL** | Syntax passed; formatting failed for both new Phase 0 scripts; later steps did not execute |
+| `just fix` | **FAIL after modification** | Reformatted the scripts, fixed four Ruff findings, left 19 reported errors (including pre-existing source/test lint) |
+| `just baseline` | **PASS** | Python 3.14.0, Matplotlib 3.11.2, four backend entries, all five modules importable, default NoOp; Agg PNG/SVG and figure-size/DPI checks true |
+| `just build` | **PASS** | Created `wskr-0.0.17.tar.gz` and `wskr-0.0.17-py3-none-any.whl` |
+| `just wheel-smoke` | **PASS** | Isolated wheel installation, import and PNG export |
+| `just test-tty` | **PASS / WARNINGS** | 34 passed; 34 missing-test-size warnings |
+| `just test-kitty` | **FAIL / NOT VALIDATED** | Three earlier test cases completed; real screenshot test timed out **before capture/comparison** in `wait_for_file_with_content` waiting for a child-shell window-ID response |
+
+The GUI hang was in the screenshot **harness bootstrap**, not proven to be an image-rendering failure. The global five-second test timeout conflicted with the GUI launch's longer polling path. Remediation after this log makes the explicit GUI timeout authoritative and queries window identity from host-side Yabai rather than a shell command injected into a newly launched Kitty window. This remediation **has not been locally retested**.
+
+The user's `just fix` left local modifications that were not fetched, overwritten, or committed by this assistant. Preserve the local `git diff`/`git status` before pulling the updated remote branch.
+
+**Next gate:** rerun `uv sync`, `just check`, `just baseline`, `just build`, `just wheel-smoke`, `just test-tty`, `just test-kitty` and a direct pyplot/Rich demo in a real Kitty window on the latest commit. Record failures and skips separately. No real screenshot pass is established yet.

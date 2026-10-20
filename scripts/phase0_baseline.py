@@ -52,12 +52,14 @@ def baseline() -> dict[str, object]:
     png, svg = io.BytesIO(), io.BytesIO()
     fig.savefig(png, format="png")
     fig.savefig(svg, format="svg")
-    result["agg_export"] = {
+    agg_export = {
         "png_signature": png.getvalue().startswith(b"\x89PNG\r\n\x1a\n"),
         "svg_signature": b"<svg" in svg.getvalue(),
         "preserved_figsize": tuple(fig.get_size_inches()) == (3.25, 1.75),
         "preserved_dpi": fig.dpi == BASELINE_FIGURE_DPI,
     }
+
+    result["agg_export"] = agg_export
 
     eps = importlib.metadata.entry_points(group="matplotlib.backend")
     registered = {ep.name: ep.value for ep in eps if ep.name in EXPECTED_BACKENDS}
@@ -71,14 +73,16 @@ def baseline() -> dict[str, object]:
         "rich_plot": "wskr.render.rich.plt",
         "protocol_registry": "wskr.protocol.registry",
     }
-    result["module_imports"] = {}
+    module_imports: dict[str, str] = {}
     for label, path in modules.items():
         try:
             importlib.import_module(path)
         except Exception as exc:  # ruff: ignore[blind-except] - capture all import failures
-            result["module_imports"][label] = f"{type(exc).__name__}: {exc}"
+            module_imports[label] = f"{type(exc).__name__}: {exc}"
         else:
-            result["module_imports"][label] = "ok"
+            module_imports[label] = "ok"
+
+    result["module_imports"] = module_imports
 
     old_protocol = os.environ.pop("WSKR_PROTOCOL", None)
     try:
@@ -89,13 +93,16 @@ def baseline() -> dict[str, object]:
         if old_protocol is not None:
             os.environ["WSKR_PROTOCOL"] = old_protocol
 
+    result["validation_ok"] = (
+        registered == EXPECTED_BACKENDS
+        and all(value == "ok" for value in module_imports.values())
+        and all(agg_export.values())
+    )
     return result
 
 
 if __name__ == "__main__":
     report = baseline()
     print(json.dumps(report, indent=2, sort_keys=True))
-    if not report["entry_points_match"] or not all(value == "ok" for value in report["module_imports"].values()):
-        raise SystemExit(1)
-    if not all(report["agg_export"].values()):
+    if not report["validation_ok"]:
         raise SystemExit(1)

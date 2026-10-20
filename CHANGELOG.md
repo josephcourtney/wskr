@@ -5,6 +5,8 @@ Notable **completed** user-visible changes are recorded here, following [Keep a 
 ## [Unreleased]
 
 ### Changed
+- improve Phase 0 diagnostic scripts, Ruff compatibility checks, and GUI screenshot-test timeout/window discovery
+- stabilize float assertions in legacy tests without altering their behavior
 - add reproducible baseline diagnostics, installed-wheel smoke test and behavior-characterization tests
 - replace copied development recipes with wskr-specific `uv`/Ruff/`ty`/pytest/Kitty commands
 - remove unrelated Cwide Ruff overrides and temporarily disable strict test-category enforcement during baseline establishment

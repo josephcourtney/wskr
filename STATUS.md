@@ -1,27 +1,25 @@
 # wskr — Current Status
 
-Short-horizon handoff; architecture: [DESIGN.md](DESIGN.md); order: [PLAN.md](PLAN.md); tasks: [TODO.md](TODO.md).
+Short handoff; architecture: [DESIGN.md](DESIGN.md); phases: [PLAN.md](PLAN.md); tasks: [TODO.md](TODO.md).
 
-## Current focus
+## Focus
 
-**Phase 0 source audit and baseline scaffolding are implemented on `feature/phase0-baseline-20261019`; runtime acceptance is blocked.** This status is source-backed, not a successful local test report. See [phase0 evidence](docs/phase0-evidence.md).
+**Phase 0 partly validated; acceptance remains open.** See [Phase 0 evidence](docs/phase0-evidence.md).
 
-## Completed on this branch
+## Verified in local logs (2026-10-20, commit `064fbc4`)
 
-- Fast-forward merged policy-aligned documentation to `main` (`526d71d`).
-- Replaced borrowed Cwide `justfile` recipes with wskr-specific nonmutating checks, build, baseline, wheel-smoke and opt-in terminal tests.
-- Removed stale Cwide Ruff overrides; suspended strict pytest resource-category enforcement pending test classification.
-- Added baseline API/headless export regression tests and diagnostic/wheel-install smoke scripts.
-- Inventoried backend names, public API, transport selection, configuration, known limitations and validation gates.
+- `uv sync` and `just baseline` passed (Python 3.14.0, Matplotlib 3.11.2).
+- `just build` and isolated `just wheel-smoke` passed for `wskr 0.0.17`.
+- `just test-tty`: **34 passed**, with 34 size-marker warnings.
+- `just check` failed on formatting; subsequent `just fix` left Ruff findings.
+- `just test-kitty` timed out waiting for a startup window-ID file, before screenshot comparison.
 
-## Known gaps
+## Latest branch remediation (not yet rerun)
 
-- Current main Kitty display needs `kitty +kitten icat`. Experimental direct PNG framing is incorrect; Rich and live placement need verification.
-- Figures are resized during display even when explicitly sized; `show` destroys figure managers.
-- Import changes global `text.usetex`; dark-mode chain mishandles successful light detection; unsafe TTY fallback may emit raw escapes to stdout.
-- Sixel/iTerm2 are stubs. Safe TTY/refresh, font/palette defaults and managed redraw remain future-phase work.
-- Full `just check`, installed-wheel and real Kitty tests **have not run**: the execution environment lacks repository cloning access, `just` and a live Kitty terminal.
+- Addressed reported lint/format categories and clarified baseline script typing.
+- Made an explicit long GUI test timeout possible and removed shell-driven window-ID discovery.
+- Kept source graphics behavior unchanged; current `icat` dependency, incomplete direct Kitty encoding, import-time global rcParams mutation, explicit-size overwrite and theme flaw remain future-phase work.
 
 ## Handoff
 
-Run the commands in [phase0 evidence](docs/phase0-evidence.md) on a local checkout; record outcomes before closing PLAN Phase 0. Then begin Phase 1 safely. No graphics source module was modified on this branch.
+Preserve the locally dirty tree before pulling. Re-run [Phase 0 checks](docs/phase0-evidence.md) and record exact outcomes. **Do not close Phase 0 or merge this branch as fully validated until acceptance gates are satisfied.**
