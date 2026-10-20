@@ -72,6 +72,7 @@ def _transaction(
     expected = b"\x1b]" + marker
     unmatched = bytearray()
     result = bytearray()
+    matched = False
     try:
         old = termios.tcgetattr(fd)
         new = termios.tcgetattr(fd)
@@ -106,6 +107,7 @@ def _transaction(
                 continue
             if result.endswith((b"\x07", b"\x1b\\")):
                 if result.startswith(expected):
+                    matched = True
                     return bytes(result)
                 unmatched.extend(result)
                 result.clear()
@@ -116,6 +118,8 @@ def _transaction(
                 termios.tcsetattr(fd, termios.TCSANOW, old)
         finally:
             os.close(fd)
+            if not matched and result:
+                unmatched.extend(result)
             if unmatched:
                 on_unmatched(bytes(unmatched))
 

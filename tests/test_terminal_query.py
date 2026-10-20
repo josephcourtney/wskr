@@ -81,3 +81,30 @@ def test_pty_timeout_restores_termios(monkeypatch):
     finally:
         os.close(master)
         os.close(slave)
+
+
+def test_partial_reply_on_timeout_is_routed_to_owner(monkeypatch):
+    master, slave = pty.openpty()
+    unmatched = []
+    monkeypatch.setattr(query, "_open_tty", lambda: os.dup(slave))
+    monkeypatch.setattr(query, "_stdout_is_tty", lambda: True)
+
+    def responder():
+        os.read(master, 100)
+        os.write(master, b"\x1b]11;rgb:12")
+
+    thread = threading.Thread(target=responder, daemon=True)
+    thread.start()
+    try:
+        with pytest.raises(TimeoutError):
+            query.query_osc(
+                b"\x1b]11;?\x07",
+                owns_input=True,
+                on_unmatched=unmatched.append,
+                timeout=0.08,
+            )
+        assert unmatched == [b"\x1b]11;rgb:12"]
+    finally:
+        thread.join(timeout=2)
+        os.close(master)
+        os.close(slave)

@@ -47,7 +47,7 @@ def test_detect_dark_mode_chain(monkeypatch):
         return b""
 
     # Without input ownership, default OSC must not read shared user input.
-    monkeypatch.setattr(utils, "query_osc", fake_query)
+    monkeypatch.setattr("wskr.terminal.query._open_tty", fake_query)
     assert utils.detect_dark_mode() is True
     assert called == []
 
