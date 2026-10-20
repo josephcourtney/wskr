@@ -61,7 +61,7 @@ def try_json_output(cmd: list[str]) -> list[dict] | None:
         payload = raw if isinstance(raw, (bytes, bytearray)) else raw.stdout
         return cast("list[dict]", json.loads(payload))
     except (json.JSONDecodeError, subprocess.CalledProcessError, CommandRunnerError, OSError) as e:
-        logger.debug("Terminal helper JSON query failed: %s", e)
+        logger.debug("JSON parsing failed or command unavailable: %s", e)
         return None
 
 
