@@ -1,0 +1,83 @@
+"""Safe OSC I/O tests, including a real pseudo-terminal round trip."""
+
+import os
+import pty
+import termios
+import threading
+
+import pytest
+
+from wskr.terminal import query
+
+
+def test_query_requires_explicit_input_ownership():
+    with pytest.raises(query.TerminalQueryError, match="exclusive input"):
+        query.query_osc(b"\x1b]11;?\x07")
+
+
+def test_query_refuses_redirected_output(monkeypatch):
+    monkeypatch.setattr(query, "_stdout_is_tty", lambda: False)
+    with pytest.raises(query.TerminalQueryError, match="output"):
+        query.query_osc(b"\x1b]11;?\x07", owns_input=True, on_unmatched=lambda b: None)
+
+
+def test_query_rejects_non_osc_requests(monkeypatch):
+    monkeypatch.setattr(query, "_stdout_is_tty", lambda: True)
+    with pytest.raises(ValueError, match="OSC"):
+        query.query_osc(b"\x1b[6n", owns_input=True, on_unmatched=lambda b: None)
+
+
+def test_query_bounds_configuration(monkeypatch):
+    monkeypatch.setattr(query, "_stdout_is_tty", lambda: True)
+    with pytest.raises(ValueError, match="timeout"):
+        query.query_osc(b"\x1b]11;?\x07", owns_input=True, on_unmatched=lambda b: None, timeout=-2)
+
+
+def test_pty_reply_restores_termios_and_forwards_unrelated_input(monkeypatch):
+    master, slave = pty.openpty()
+    before = termios.tcgetattr(slave)
+    unmatched = []
+    monkeypatch.setattr(query, "_open_tty", lambda: os.dup(slave))
+    monkeypatch.setattr(query, "_stdout_is_tty", lambda: True)
+
+    def responder():
+        request = os.read(master, 100)
+        assert request == b"\x1b]11;?\x07"
+        os.write(master, b"a\x1b]10;rgb:ffff/ffff/ffff\x07\x1b]11;rgb:0000/0000/0000\x1b\\")
+
+    thread = threading.Thread(target=responder)
+    thread.start()
+    try:
+        response = query.query_osc(
+            b"\x1b]11;?\x07",
+            owns_input=True,
+            on_unmatched=unmatched.append,
+            timeout=1,
+        )
+        assert response == b"\x1b]11;rgb:0000/0000/0000\x1b\\"
+        assert unmatched == [b"a\x1b]10;rgb:ffff/ffff/ffff\x07"]
+        assert termios.tcgetattr(slave) == before
+    finally:
+        thread.join(timeout=2)
+        os.close(master)
+        os.close(slave)
+    assert not thread.is_alive()
+
+
+def test_pty_timeout_restores_termios(monkeypatch):
+    master, slave = pty.openpty()
+    before = termios.tcgetattr(slave)
+    monkeypatch.setattr(query, "_open_tty", lambda: os.dup(slave))
+    monkeypatch.setattr(query, "_stdout_is_tty", lambda: True)
+    try:
+        with pytest.raises(TimeoutError):
+            query.query_osc(
+                b"\x1b]11;?\x07",
+                owns_input=True,
+                on_unmatched=lambda b: None,
+                timeout=0.025,
+            )
+        assert termios.tcgetattr(slave) == before
+    finally:
+        os.close(master)
+        os.close(slave)
