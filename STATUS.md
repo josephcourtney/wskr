@@ -1,26 +1,31 @@
 # wskr — Current Status
 
-Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 0 evidence](docs/phase0-evidence.md).
+Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md).
 
 ## Current focus
 
-**Phase 1 implementation is in progress on `feature/phase1-terminal-profile-20261020`; local verification is pending.** Phase 0 is merged into main.
+**Phase 1 terminal profile is implemented on `feature/phase1-terminal-profile-20261020`, but acceptance remains open.** Baseline Phase 0 is merged into `main`.
 
-## Implemented on the feature branch
+## Mac validation on October 20, 2026 (at `d10040b`)
 
-- Immutable, provenance-aware terminal geometry and optional OSC 4/10/11 color profile; unknown font/DPI/opacity remain unknown.
-- Bounded, opt-in owned-input OSC query with response matching, unrelated-byte routing, timeouts and termios restoration.
-- Pure terminal-derived figure/style defaults and initial pyplot-backend figure size; explicit sizing and nondefault rcParams take precedence.
-- Importing `wskr` no longer changes `text.usetex`. Light-mode `False` is definitive; default detection no longer interrogates shared TTY input.
-- Focused unit and PTY regression tests plus `just phase1`.
+- `uv sync` passed and the real Kitty suite **passed 5 tests**.
+- `just phase1`: **43 passed, 2 failed, 1 skipped**. Both failures were macOS PTY comparisons differing only in kernel-managed `EXTPROC`.
+- `just test-tty`: timed out in the legacy `tcdrain` call.
+- `just check`: after local format/autofix, Ruff reported **19 remaining errors**; `ty` and full pytest were not reached.
+- The user committed/pushed Ruff's formatting changes as `d10040b`.
 
-## Remaining gaps
+## Remediation committed since that run — unverified
 
-- **Not yet validated on macOS**: `just phase1`, `just check`, `just test-tty`, `just test-kitty`. Do not assume the new code passes.
-- Automatic live OSC colors still require a caller-owned input session; no background reading of interactive keystrokes is allowed.
-- Artist styling, runtime theme/geometry refresh and display-time explicit-size preservation are incomplete; direct Kitty protocol remains Phase 2/3 work.
-- Ordinary pyplot/Rich visual verification and pytest size classification remain outstanding.
+- Compare all app-managed terminal modes while excluding only macOS `EXTPROC`; remove legacy query's blocking `tcdrain`.
+- Factor bounded OSC transactions into write/read/framing helpers, retaining a single deadline and restoring termios before close.
+- Replace literal magic comparisons, document validation hooks, and tighten negative-test assertions.
+- Add a no-drain regression test and classify Phase 1 test sizes; do not suppress existing lint policy.
+
+## Remaining
+
+- **No rerun of the updated branch** has established a clean `just phase1`, `just check`, or `just test-tty`. The prior 5-test live Kitty pass does not apply automatically to changed code.
+- Automatic style integration, live resize and ordinary pyplot/Rich screenshot validation remain unfinished.
 
 ## Handoff
 
-Run the quality gates and report any Ruff, ty, pytest or live-Kitty failures before merging or declaring the Phase 1 gate complete.
+Rerun the local quality and terminal gates on the feature branch. Record any remaining failures before merging Phase 1.
