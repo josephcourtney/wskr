@@ -4,13 +4,13 @@ import pytest
 
 from wskr.terminal.color import RGB, parse_osc_color
 
+pytestmark = pytest.mark.small
+
 
 @pytest.mark.parametrize("ending", [b"\x07", b"\x1b\\"])
 def test_osc_11_accepts_bel_and_st(ending):
     value = parse_osc_color(b"\x1b]11;rgb:ffff/0000/8000" + ending, 11)
     assert value == RGB(255, 0, 128)
-
-pytestmark = pytest.mark.small
 
 
 def test_channel_depth_scales_to_eight_bits():
