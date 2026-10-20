@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import os
 import select
+import sys
 import termios
-from threading import RLock
 from collections.abc import Callable
+from threading import RLock
 from time import monotonic
 
 
@@ -24,6 +25,10 @@ _QUERY_LOCK = RLock()
 
 def _open_tty() -> int:
     return os.open("/dev/tty", os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+
+
+def _stdout_is_tty() -> bool:
+    return sys.stdout is not None and sys.stdout.isatty()
 
 
 def query_osc(
@@ -42,6 +47,8 @@ def query_osc(
     """
     if not owns_input or on_unmatched is None:
         raise TerminalQueryError("OSC queries require exclusive input ownership and an unmatched-byte handler")
+    if not _stdout_is_tty():
+        raise TerminalQueryError("OSC queries require an attached terminal output stream")
     if not 0 < timeout <= 5 or not 1 <= max_bytes <= 4096:
         raise ValueError("Invalid terminal query timeout or maximum reply size")
     if not (request.startswith(b"\x1b]") and request.endswith((b"\x07", b"\x1b\\"))):
@@ -60,6 +67,9 @@ def _transaction(
 ) -> bytes:
     fd = _open_tty()
     old = None
+    # Require a matching selector so unrelated OSC traffic can be forwarded.
+    marker = request.removeprefix(b"\x1b]").split(b";?", 1)[0] + b";"
+    expected = b"\x1b]" + marker
     unmatched = bytearray()
     result = bytearray()
     try:
@@ -95,9 +105,10 @@ def _transaction(
                 result.clear()
                 continue
             if result.endswith((b"\x07", b"\x1b\\")):
-                if not result.startswith(b"\x1b]"):
-                    raise TerminalQueryError("Unexpected terminal response")
-                return bytes(result)
+                if result.startswith(expected):
+                    return bytes(result)
+                unmatched.extend(result)
+                result.clear()
         raise TerminalQueryError("Terminal response exceeded size limit")
     finally:
         try:

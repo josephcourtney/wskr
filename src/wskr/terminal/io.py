@@ -131,9 +131,11 @@ class PosixTtyIO(TtyIO):
                     if select(r, w, x, timeout - (monotonic() - start))[0]:
                         input_data.extend(os.read(fd, 1))
         finally:
-            if owns_fd:
-                os.close(fd)
-            stack.close()
+            try:
+                stack.close()  # Restore termios while the descriptor is still open.
+            finally:
+                if owns_fd:
+                    os.close(fd)
         return bytes(input_data)
 
     @lock_tty

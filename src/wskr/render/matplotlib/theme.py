@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from cycler import cycler
+
 from wskr.terminal.color import RGB
 from wskr.terminal.profile import TerminalProfile
 
@@ -80,7 +82,7 @@ def resolve_rc_defaults(
     if palette is not None:
         usable = [color.to_hex() for color in palette if color is not None]
         if len(usable) >= 3:
-            defaults["axes.prop_cycle"] = __import__("cycler").cycler(color=usable)
+            defaults["axes.prop_cycle"] = cycler(color=usable)
 
     figure = suggested_figure_size(profile, dpi=dpi)
     if figure is not None:
