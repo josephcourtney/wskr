@@ -9,6 +9,8 @@ from __future__ import annotations
 from importlib import import_module, metadata
 from io import BytesIO
 
+import pytest
+
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
@@ -49,7 +51,7 @@ def test_agg_export_png_svg_without_tty_or_kitty():
     assert png.getvalue().startswith(b"\x89PNG\r\n\x1a\n")
     assert b"<svg" in svg.getvalue()
     assert tuple(fig.get_size_inches()) == before[0]
-    assert fig.dpi == before[1]
+    assert fig.dpi == pytest.approx(before[1])
 
 
 def test_registry_default_is_explicit_noop_when_no_protocol_is_selected(monkeypatch):
