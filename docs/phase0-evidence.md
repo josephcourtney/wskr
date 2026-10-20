@@ -145,3 +145,29 @@ The user's latest log confirms a **clean working tree** at `5efd931` and a succe
 **Remediation after the run:** commit `710aea8` moves annotation-only PIL import under `TYPE_CHECKING`, extracts region geometry to reduce locals, consolidates nested context managers and sorts test imports. These are source-reviewed fixes to the four observed Ruff errors, **not yet validated by a fresh full local run**.
 
 **Next verification:** `just check`, `uv run pytest -q tests/test_kitty_visual.py`, `just test-kitty`, and manual pyplot/Rich visual inspection on the updated commit. Record any new type/runtime diagnostics verbatim.
+
+## I. Fifth local run — 2026-10-20, commit 74c2b55
+
+The user provided another macOS ARM64 execution log with a clean working tree on commit `74c2b558e551c0345004196ff53e79bbd48be059`.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| `git pull --ff-only` | **PASS** | Fast-forwarded to `74c2b55` |
+| `just check` — compile/format | **PASS** | Compileall succeeded; Ruff reported 71 formatted files |
+| `just check` — Ruff lint | **PASS** | All lint checks passed |
+| `just check` — ty | **FAIL** | 26 diagnostics reported across production code and test fakes; pytest was not reached |
+| `just fix` | **PASS, no changes** | 71 files unchanged; Ruff lint clean |
+| `just test-kitty` | **PASS** | 5 passed, 5 test-category warnings; actual Kitty image-content screenshot assertion passed |
+
+The reported ty issues were type-safety gaps around a possibly-null Kitty executable, the Matplotlib base canvas/manager, unsupported backend stubs, integer terminal pixel metrics, a heterogeneous screenshot result dictionary, and deliberately incomplete test doubles. A number of the tests intentionally submit invalid objects and should retain those runtime checks while explicitly disclosing static casts.
+
+### Subsequent remediation (not yet executed on the user's Mac)
+
+- Narrow the Kitty executable after `shutil.which`; check for `FigureCanvasAgg` when a figure manager renders; avoid calling `show` through an optional manager.
+- Give iTerm2/Sixel stub backends a valid base manager type without representing them as implemented.
+- Reflect integer pixel dimensions from `TIOCGWINSZ` and give test process handles a small structural protocol for safe cleanup.
+- Return a typed image-content detection result. Update negative-test casts and mocks, captured-byte narrowing, optional test timeouts, and redundant module assertions.
+
+These changes are source-reviewed and committed, **not** a verified clean ty/full pytest run. No standalone Kitty graphics protocol redesign or automatic styling was introduced in Phase 0.
+
+**Next acceptance:** `just check` (including ty and full pytest), `just test-kitty` and manual stock pyplot/Rich display checks. Mark skipped GUI tests separately, never as passes.
