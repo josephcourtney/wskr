@@ -7,6 +7,7 @@ from rich.measure import Measurement
 from rich.text import Text
 
 from wskr.protocol import ImageProtocol, get_image_protocol
+from wskr.protocol.noop import NoOpProtocol
 
 # diacritics used to encode the row and column indices
 
@@ -32,7 +33,7 @@ class RichImage:
     ):
         self.desired_width = desired_width
         self.desired_height = desired_height
-        self.transport = transport or get_image_protocol()
+        self.transport = transport if transport is not None else get_image_protocol()
 
         if isinstance(image_path, BytesIO):
             image_path.seek(0)
@@ -41,20 +42,30 @@ class RichImage:
             png = Path(image_path).read_bytes()
         self._png = png
 
-        try:
-            self.image_id = self.transport.init_image(png)
-        except RuntimeError:
-            # Do not dump PNG to stdout; leave painting to a textual fallback.
+        if isinstance(self.transport, NoOpProtocol):
+            # A no-op transport must not attempt upload or print outside Rich.
             self.image_id = -1
+        else:
+            try:
+                self.image_id = self.transport.init_image(png)
+            except RuntimeError:
+                # A one-off image path may still work without inline placement.
+                self.image_id = -1
         self._fallback_sent = False
 
     def __rich_measure__(self, console: Console, options: ConsoleOptions) -> Measurement:  # ruff: ignore[undocumented-magic-method]
         return Measurement(self.desired_width, self.desired_width)
 
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:  # ruff: ignore[undocumented-magic-method]
-        if self.image_id == -1 and not self._fallback_sent:
-            self.transport.send_image(self._png)
-            self._fallback_sent = True
+        if isinstance(self.transport, NoOpProtocol):
+            yield Text("[wskr: image unavailable (no graphics protocol)]", style="dim")
+            return
+
+        if self.image_id == -1:
+            if not self._fallback_sent:
+                self.transport.send_image(self._png)
+                self._fallback_sent = True
+            yield Text("[wskr: inline image placement unavailable]", style="dim")
             return
 
         # paint each row with the kitty color trick
