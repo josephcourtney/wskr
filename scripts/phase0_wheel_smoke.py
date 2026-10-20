@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import os
 import shutil
-from pathlib import Path
 import subprocess  # ruff: ignore[suspicious-subprocess-import] - isolated wheel-install subprocess
 import sys
 import tempfile
+from pathlib import Path
 
 
 def run(cmd: list[str], *, env: dict[str, str] | None = None) -> None:
