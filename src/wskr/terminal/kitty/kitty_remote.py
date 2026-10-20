@@ -9,7 +9,7 @@ import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, NoReturn, cast
+from typing import Any, NoReturn, Protocol, cast
 
 from wskr.core.errors import CommandRunnerError
 from wskr.terminal.core.command import CommandRunner
@@ -231,7 +231,16 @@ def cleanup_temp_files(*paths: Path) -> None:
         path.unlink(missing_ok=True)
 
 
-def terminate_process(proc: subprocess.Popen) -> None:  # accept stub objects in tests
+class ProcessHandle(Protocol):
+    """Methods required for cleaning up an owned child process."""
+
+    def poll(self) -> int | None: ...
+    def terminate(self) -> object: ...
+    def wait(self, timeout: float | None = None) -> object: ...
+    def kill(self) -> object: ...
+
+
+def terminate_process(proc: ProcessHandle) -> None:
     try:
         if proc.poll() is None:
             proc.terminate()

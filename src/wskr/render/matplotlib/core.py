@@ -62,7 +62,11 @@ class WskrFigureManager(FigureManagerBase):
         self.caps = caps_factory() if caps_factory is not None else None
 
     def show(self, *_args: Any, **_kwargs: Any) -> None:
-        render_figure_to_terminal(self.canvas, self.transport, self.caps)
+        canvas = self.canvas
+        if not isinstance(canvas, FigureCanvasAgg):
+            msg = "wskr requires an Agg canvas for terminal rendering"
+            raise TypeError(msg)
+        render_figure_to_terminal(canvas, self.transport, self.caps)
 
 
 class WskrFigureCanvas(FigureCanvasAgg):
@@ -96,7 +100,7 @@ class WskrFigureCanvas(FigureCanvasAgg):
             if not do_draw:
                 return
             super().draw()
-            if is_interactive() and self.figure.get_axes():
+            if is_interactive() and self.figure.get_axes() and self.manager is not None:
                 self.manager.show()
 
     draw_idle = draw
@@ -117,7 +121,11 @@ class BaseFigureManager(FigureManagerBase):
         self.caps = caps
 
     def show(self, *_args: Any, **_kwargs: Any) -> None:
-        render_figure_to_terminal(self.canvas, self.transport, self.caps)
+        canvas = self.canvas
+        if not isinstance(canvas, FigureCanvasAgg):
+            msg = "wskr requires an Agg canvas for terminal rendering"
+            raise TypeError(msg)
+        render_figure_to_terminal(canvas, self.transport, self.caps)
 
 
 class TerminalBackend(_Backend):

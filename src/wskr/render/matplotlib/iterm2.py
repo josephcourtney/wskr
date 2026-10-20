@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 
 from matplotlib import _api  # ruff: ignore[import-private-name]
-from matplotlib.backend_bases import _Backend  # ruff: ignore[import-private-name]
+from matplotlib.backend_bases import FigureManagerBase, _Backend  # ruff: ignore[import-private-name]
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from wskr.core.errors import FeatureUnavailableError
@@ -23,7 +23,7 @@ class _Iterm2Canvas(FigureCanvasAgg):
 class _BackendIterm2Agg(TerminalBackend):
     not_impl_msg = "iTerm2 backend not yet implemented"
     FigureCanvas = _Iterm2Canvas
-    FigureManager = None
+    FigureManager = FigureManagerBase
 
 
 __all__ = ["_BackendIterm2Agg"]

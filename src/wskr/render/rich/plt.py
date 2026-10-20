@@ -26,7 +26,7 @@ dpi_external_monitors_195 = 137
 
 
 @lru_cache(maxsize=1)
-def get_terminal_size() -> tuple[float, float, int, int]:
+def get_terminal_size() -> tuple[int, int, int, int]:
     """Determine the pixel dimensions of each character cell in the terminal."""
     buf = array.array("H", [0, 0, 0, 0])
     try:

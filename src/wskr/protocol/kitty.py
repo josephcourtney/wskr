@@ -63,10 +63,11 @@ class KittyTransport(ImageProtocol):
     __slots__ = ("_cache_time", "_cached_size", "_kitty", "_next_img", "_runner")
 
     def __init__(self) -> None:
-        self._kitty = shutil.which("kitty")
-        if not self._kitty:
+        kitty_executable = shutil.which("kitty")
+        if kitty_executable is None:
             msg = "[wskr] Kitty protocol not available: 'kitty' binary not found."
             raise TransportUnavailableError(msg)
+        self._kitty = kitty_executable
         logger.debug("KittyTransport.__init__: kitty=%s timeout=%s", self._kitty, TIMEOUT_S)
         self._next_img = 1
         self._cached_size: tuple[int, int] | None = None

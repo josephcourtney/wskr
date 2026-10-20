@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TypedDict
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -65,7 +66,13 @@ def _logo_bounds(blue: ColorRegion, yellow: ColorRegion) -> tuple[int, int, int,
     return left, top, right, bottom
 
 
-def assert_logo_visible(capture: Image.Image, logo: Image.Image) -> dict[str, object]:
+class LogoDetection(TypedDict):
+    bounds: tuple[int, int, int, int]
+    blue_pixels: int
+    yellow_pixels: int
+
+
+def assert_logo_visible(capture: Image.Image, logo: Image.Image) -> LogoDetection:
     """Verify that the expected logo, not merely terminal UI, is visible.
 
     The test tolerates background/theme, translation, and reasonable scaling
