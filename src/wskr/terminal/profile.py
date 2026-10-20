@@ -11,10 +11,12 @@ import fcntl
 import struct
 import sys
 import termios
-from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 from wskr.terminal.color import RGB, parse_osc_color
 

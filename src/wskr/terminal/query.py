@@ -11,9 +11,12 @@ import os
 import select
 import sys
 import termios
-from collections.abc import Callable
 from threading import RLock
 from time import monotonic
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class TerminalQueryError(RuntimeError):
@@ -46,13 +49,17 @@ def query_osc(
     Unrelated input is reported through on_unmatched rather than discarded.
     """
     if not owns_input or on_unmatched is None:
-        raise TerminalQueryError("OSC queries require exclusive input ownership and an unmatched-byte handler")
+        msg = "OSC queries require exclusive input ownership and an unmatched-byte handler"
+        raise TerminalQueryError(msg)
     if not _stdout_is_tty():
-        raise TerminalQueryError("OSC queries require an attached terminal output stream")
+        msg = "OSC queries require an attached terminal output stream"
+        raise TerminalQueryError(msg)
     if not 0 < timeout <= 5 or not 1 <= max_bytes <= 4096:
-        raise ValueError("Invalid terminal query timeout or maximum reply size")
+        msg = "Invalid terminal query timeout or maximum reply size"
+        raise ValueError(msg)
     if not (request.startswith(b"\x1b]") and request.endswith((b"\x07", b"\x1b\\"))):
-        raise ValueError("Only complete OSC requests are permitted")
+        msg = "Only complete OSC requests are permitted"
+        raise ValueError(msg)
 
     with _QUERY_LOCK:
         return _transaction(request, on_unmatched=on_unmatched, timeout=timeout, max_bytes=max_bytes)
@@ -85,17 +92,21 @@ def _transaction(
         while pending:
             left = deadline - monotonic()
             if left <= 0 or not select.select([], [fd], [], left)[1]:
-                raise TimeoutError("Terminal query write timed out")
+                msg = "Terminal query write timed out"
+                raise TimeoutError(msg)
             written = os.write(fd, pending)
             if written <= 0:
-                raise TerminalQueryError("Terminal query write made no progress")
+                msg = "Terminal query write made no progress"
+                raise TerminalQueryError(msg)
             pending = pending[written:]
         while len(result) < max_bytes:
             left = deadline - monotonic()
             if left <= 0:
-                raise TimeoutError("Terminal query response timed out")
+                msg = "Terminal query response timed out"
+                raise TimeoutError(msg)
             if not select.select([fd], [], [], left)[0]:
-                raise TimeoutError("Terminal query response timed out")
+                msg = "Terminal query response timed out"
+                raise TimeoutError(msg)
             chunk = os.read(fd, 1)
             if not chunk:
                 continue
@@ -114,7 +125,8 @@ def _transaction(
                     return bytes(result)
                 unmatched.extend(result)
                 result.clear()
-        raise TerminalQueryError("Terminal response exceeded size limit")
+        msg = "Terminal response exceeded size limit"
+        raise TerminalQueryError(msg)
     finally:
         try:
             if old is not None:

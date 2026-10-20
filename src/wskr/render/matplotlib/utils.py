@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Callable, Sequence
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from wskr.core.config import OSC_TIMEOUT_S
 from wskr.terminal.color import parse_osc_color
@@ -15,6 +14,9 @@ try:
     import darkdetect  # type: ignore[import-not-found]
 except ImportError:  # pragma: no cover - optional OS appearance fallback
     darkdetect = None
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
 
 logger = logging.getLogger(__name__)
 _ENV_BG_THRESHOLD = 8
@@ -29,7 +31,8 @@ class EnvColorStrategy:
     def detect(self) -> bool:
         value = os.getenv("COLORFGBG", "")
         if ";" not in value:
-            raise KeyError("COLORFGBG not set or invalid")
+            msg = "COLORFGBG not set or invalid"
+            raise KeyError(msg)
         return int(value.rsplit(";", 1)[-1]) < _ENV_BG_THRESHOLD
 
 
@@ -64,17 +67,20 @@ class OscQueryStrategy:
                 timeout=self._timeout,
             )
         if not response:
-            raise RuntimeError("No ANSI background-color response")
+            msg = "No ANSI background-color response"
+            raise RuntimeError(msg)
         return parse_osc_color(response, 11).is_dark
 
 
 class DarkDetectStrategy:
     def detect(self) -> bool:
         if darkdetect is None:
-            raise RuntimeError("darkdetect not available")
+            msg = "darkdetect not available"
+            raise RuntimeError(msg)
         mode = darkdetect.theme()
         if mode is None:
-            raise RuntimeError("darkdetect could not determine theme")
+            msg = "darkdetect could not determine theme"
+            raise RuntimeError(msg)
         return mode.lower() == "dark"
 
 

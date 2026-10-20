@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING
 
 from cycler import cycler
 
 from wskr.terminal.color import RGB
 from wskr.terminal.profile import TerminalProfile
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,7 +39,8 @@ def suggested_figure_size(
     if not width or not height or dpi <= 0:
         return None
     if not (0 < width_fraction <= 1 and 0 < height_fraction <= 1):
-        raise ValueError("Figure fractions must be between zero and one")
+        msg = "Figure fractions must be between zero and one"
+        raise ValueError(msg)
     return FigureDefaults(width * width_fraction / dpi, height * height_fraction / dpi, dpi)
 
 

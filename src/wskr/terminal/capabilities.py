@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 from wskr.terminal.color import parse_osc_color
 from wskr.terminal.query import query_osc
@@ -21,7 +23,8 @@ class TerminalCapabilities(Protocol):
 def _env_is_dark() -> bool:
     value = os.getenv("COLORFGBG", "")
     if ";" not in value:
-        raise KeyError("COLORFGBG not set or invalid")
+        msg = "COLORFGBG not set or invalid"
+        raise KeyError(msg)
     return int(value.rsplit(";", 1)[-1]) < _ENV_BG_THRESHOLD
 
 

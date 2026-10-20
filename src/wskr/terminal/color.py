@@ -20,7 +20,8 @@ class RGB:
 
     def __post_init__(self) -> None:
         if any(not 0 <= v <= 255 for v in (self.red, self.green, self.blue)):
-            raise ValueError("RGB channels must be in [0, 255]")
+            msg = "RGB channels must be in [0, 255]"
+            raise ValueError(msg)
 
     @property
     def luminance(self) -> float:
@@ -49,15 +50,19 @@ def parse_osc_color(data: bytes, code: int, index: int | None = None) -> RGB:
     three-, or four-digit RGB channels. They are scaled by channel bit depth.
     """
     if len(data) > 128:
-        raise ValueError("Oversized OSC color reply")
+        msg = "Oversized OSC color reply"
+        raise ValueError(msg)
     match = _COLOR.fullmatch(data)
     if match is None:
-        raise ValueError("Unexpected OSC color response")
+        msg = "Unexpected OSC color response"
+        raise ValueError(msg)
     received_code, received_index, *channels = match.groups()
     if int(received_code) != code:
-        raise ValueError("Unexpected OSC color selector")
+        msg = "Unexpected OSC color selector"
+        raise ValueError(msg)
     if (int(received_index) if received_index is not None else None) != index:
-        raise ValueError("Unexpected OSC palette index")
+        msg = "Unexpected OSC palette index"
+        raise ValueError(msg)
     rgb = tuple(round(int(channel, 16) * 255 / (16 ** len(channel) - 1)) for channel in channels)
     return RGB(*rgb)
 
