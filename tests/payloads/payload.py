@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-import wskr.protocol.kitty  # noqa: F401  ensure Kitty protocol registers itself
+import wskr.protocol.kitty  # ruff: ignore[unused-import]  ensure Kitty protocol registers itself
 from wskr.protocol.registry import get_image_protocol
 
 

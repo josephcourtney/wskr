@@ -13,11 +13,11 @@ def test_sixel_import_raises(monkeypatch):
         FeatureUnavailableError,
         match=r"Sixel backend is not yet implemented\. Set WSKR_ENABLE_SIXEL=true to bypass\.",
     ):
-        import wskr.render.matplotlib.sixel  # noqa: PLC0415
+        import wskr.render.matplotlib.sixel
     orig = os.environ.get("WSKR_ENABLE_SIXEL")
     os.environ["WSKR_ENABLE_SIXEL"] = "true"
     sys.modules.pop("wskr.render.matplotlib.sixel", None)
-    import wskr.render.matplotlib.sixel  # noqa: PLC0415
+    import wskr.render.matplotlib.sixel
 
     # sourcery skip: no-conditionals-in-tests
     if orig is not None:
@@ -28,7 +28,7 @@ def test_sixel_import_raises(monkeypatch):
 def test_sixel_backend_show_raises(monkeypatch):
     orig = os.environ.get("WSKR_ENABLE_SIXEL")
     os.environ["WSKR_ENABLE_SIXEL"] = "true"
-    from wskr.render.matplotlib.sixel import _BackendSixelAgg  # noqa: PLC0415
+    from wskr.render.matplotlib.sixel import _BackendSixelAgg
 
     with pytest.raises(NotImplementedError, match="not yet implemented"):
         _BackendSixelAgg.show()

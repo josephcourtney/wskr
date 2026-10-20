@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 from rich.console import Console
 
-import wskr.protocol.kitty  # noqa: F401
+import wskr.protocol.kitty  # ruff: ignore[unused-import]
 from wskr.render.rich.plt import RichPlot
 
 # 1) build a matplotlib figure

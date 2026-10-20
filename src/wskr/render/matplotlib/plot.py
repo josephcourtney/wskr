@@ -73,9 +73,7 @@ def check_for_overlaps(ranges, nrows, ncols):
     return occupancy  # Return for potential future use
 
 
-def initialize_subplots(
-    fig, gs, ranges, sharex_dict, sharey_dict, sharez_dict, subplot_kwargs, *args, **kwargs
-):
+def initialize_subplots(fig, gs, ranges, sharex_dict, sharey_dict, sharez_dict, subplot_kwargs, *args, **kwargs):
     """Initialize subplots within the figure."""
     ax = np.empty(len(ranges), dtype=object)
     for i, rng in enumerate(ranges):

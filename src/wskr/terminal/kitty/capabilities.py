@@ -36,14 +36,14 @@ class KittyCapabilities(TerminalCapabilities):
         rows = DEFAULT_TTY_ROWS
         return (w_px, h_px - (3 * h_px) // rows)
 
-    def is_dark(self) -> bool:  # noqa: PLR6301
+    def is_dark(self) -> bool:  # ruff: ignore[no-self-use]
         # Prefer OSC background query; fall back to COLORFGBG
         try:
             return _osc_is_dark()
-        except Exception:  # noqa: BLE001 - best-effort
+        except Exception:  # ruff: ignore[blind-except] - best-effort
             try:
                 return _env_is_dark()
-            except Exception:  # noqa: BLE001 - default False
+            except Exception:  # ruff: ignore[blind-except] - default False
                 return False
 
 

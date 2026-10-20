@@ -89,14 +89,14 @@ class RichPlot:
         buf.seek(0)
         return buf
 
-    def __rich_measure__(self, console: Console, options: ConsoleOptions) -> Measurement:  # noqa: PLW3201
+    def __rich_measure__(self, console: Console, options: ConsoleOptions) -> Measurement:  # ruff: ignore[bad-dunder-method-name]
         """Measure the width needed for the figure."""
         desired_width, _desired_height = self._adapt_size(console, options)
         max_width = min(desired_width, options.max_width)
         min_width = min(desired_width, options.max_width)
         return Measurement(min_width, max_width)
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:  # noqa: PLW3201
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:  # ruff: ignore[bad-dunder-method-name]
         """Render the figure within the terminal constraints."""
         w_px, h_px, n_col, n_row = get_terminal_size()
 
@@ -106,7 +106,5 @@ class RichPlot:
         w_in, h_in = compute_terminal_figure_size(desired_width, desired_height, metrics)
         self.figure.set_size_inches(w_in, h_in)
 
-        img = RichImage(
-            image_path=self._render_to_buffer(), desired_width=desired_width, desired_height=desired_height
-        )
+        img = RichImage(image_path=self._render_to_buffer(), desired_width=desired_width, desired_height=desired_height)
         yield from img.__rich_console__(console, options)

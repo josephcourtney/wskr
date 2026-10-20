@@ -1,14 +1,14 @@
 import os
 import sys
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from io import BytesIO
 from typing import Any
 
 import matplotlib as mpl
-from matplotlib import _api, interactive, is_interactive  # noqa: PLC2701
-from matplotlib._pylab_helpers import Gcf  # noqa: PLC2701
-from matplotlib.backend_bases import FigureManagerBase, _Backend  # noqa: PLC2701
+from matplotlib import _api, interactive, is_interactive  # ruff: ignore[import-private-name]
+from matplotlib._pylab_helpers import Gcf  # ruff: ignore[import-private-name]
+from matplotlib.backend_bases import FigureManagerBase, _Backend  # ruff: ignore[import-private-name]
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from wskr.protocol import ImageProtocol, get_image_protocol
@@ -69,7 +69,7 @@ class WskrFigureCanvas(FigureCanvasAgg):
     manager_class: Any = _api.classproperty(lambda _: WskrFigureManager)
 
     @contextmanager
-    def _guard_draw(self) -> Iterator[bool]:
+    def _guard_draw(self) -> Generator[bool]:
         """Context manager preventing re-entrant ``draw`` calls.
 
         Matplotlib can trigger recursive ``draw`` invocations via stale

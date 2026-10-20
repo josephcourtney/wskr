@@ -38,20 +38,20 @@ def register_image_protocol(name: str, cls: type[ImageProtocol], *, enabled: boo
 
 
 def _load_entry_points() -> None:
-    global _ENTRYPOINTS_LOADED  # noqa: PLW0603
+    global _ENTRYPOINTS_LOADED  # ruff: ignore[global-statement]
     if _ENTRYPOINTS_LOADED:
         return
     _ENTRYPOINTS_LOADED = True
     try:
         eps = importlib.metadata.entry_points(group="wskr.image_protocols")
-    except Exception:  # noqa: BLE001 - defensive guard
+    except Exception:
         logger.debug("protocol entry point discovery failed", exc_info=True)
         return
     for ep in eps:
         try:
             cls = ep.load()
             register_image_protocol(ep.name, cls)
-        except Exception:  # noqa: BLE001 - defensive guard
+        except Exception:
             logger.warning("failed to load protocol %s", ep.name, exc_info=True)
 
 
@@ -64,10 +64,10 @@ def _ensure_builtin_protocols() -> None:
     # Ensure `noop` exists for safe defaults
     if "noop" not in _IMAGE_PROTOCOLS:
         try:  # pragma: no cover - tiny import guard
-            from .noop import NoOpProtocol  # noqa: PLC0415
+            from .noop import NoOpProtocol  # ruff: ignore[import-outside-top-level]
 
             register_image_protocol("noop", NoOpProtocol)
-        except Exception:  # noqa: BLE001 - defensive guard
+        except Exception:
             logger.debug("failed to auto-register NoOpProtocol", exc_info=True)
 
 
@@ -95,7 +95,7 @@ def get_image_protocol(name: str | None = None) -> ImageProtocol:
         else:
             try:
                 return entry.cls()
-            except Exception as e:  # noqa: BLE001 - defensive guard
+            except Exception as e:  # ruff: ignore[blind-except] - defensive guard
                 err = TransportInitError(f"Protocol {key!r} failed to initialise: {e}")
     # Fallback to noop if available
     if "noop" in _IMAGE_PROTOCOLS:

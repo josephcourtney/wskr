@@ -72,7 +72,7 @@ def test_load_entry_points(monkeypatch):
         "entry_points",
         lambda group=None: [DummyEP()] if group == "wskr.image_protocols" else [],
     )
-    from wskr.protocol import registry as reg  # noqa: PLC0415
+    from wskr.protocol import registry as reg
 
     reg._ENTRYPOINTS_LOADED = False  # type: ignore[attr-defined]
     reg._IMAGE_PROTOCOLS.clear()  # type: ignore[attr-defined]

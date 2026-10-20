@@ -32,7 +32,7 @@ class ImageProtocol(ABC):
         """
         ...
 
-    def close(self) -> None:  # noqa: B027
+    def close(self) -> None:  # ruff: ignore[empty-method-without-abstract-decorator]
         """Release any acquired resources (optional)."""
 
     def __enter__(self) -> Self:

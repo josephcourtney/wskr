@@ -4,7 +4,7 @@ import wskr.terminal.kitty.kitty_utils as ku
 
 
 def test_query_kitty_color(monkeypatch):
-    def fake_query(request: bytes, more, timeout):  # noqa: ANN001 - test stub
+    def fake_query(request: bytes, more, timeout):
         assert request == b"\x1b]21;background=?\x07"
         return b"\x1b]21;background=rgb:12/34/56\x07"
 
@@ -13,7 +13,7 @@ def test_query_kitty_color(monkeypatch):
 
 
 def test_query_colors(monkeypatch):
-    def fake_query(request: bytes, more, timeout):  # noqa: ANN001 - test stub
+    def fake_query(request: bytes, more, timeout):
         assert request == b"\x1b]21;foreground=?;background=?\x07"
         return b"\x1b]21;foreground=rgb:00/11/22;background=rgb:33/44/55\x07"
 

@@ -13,7 +13,7 @@ def init(*, style: str | None = None, **config_overrides: object) -> None:
     if config_overrides:
         _config.configure(**config_overrides)
     if style == "auto-dark":
-        from .render.matplotlib.utils import detect_dark_mode  # noqa: PLC0415
+        from .render.matplotlib.utils import detect_dark_mode  # ruff: ignore[import-outside-top-level]
 
         if detect_dark_mode():
             plt.style.use("dark_background")

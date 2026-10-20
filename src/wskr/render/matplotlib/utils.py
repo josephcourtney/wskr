@@ -17,7 +17,7 @@ from wskr.terminal.osc import query_tty
 
 try:
     import darkdetect  # type: ignore[import-not-found]
-except Exception:  # noqa: BLE001  pragma: no cover - optional dependency
+except Exception:  # ruff: ignore[blind-except]  pragma: no cover - optional dependency
     darkdetect = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
@@ -45,7 +45,7 @@ class DarkModeStrategy(Protocol):
 class EnvColorStrategy:
     """Detect dark mode using the ``COLORFGBG`` environment variable."""
 
-    def detect(self) -> bool:  # noqa: PLR6301 - simple protocol implementation
+    def detect(self) -> bool:  # ruff: ignore[no-self-use] - simple protocol implementation
         val = os.getenv("COLORFGBG", "")
         if ";" not in val:
             msg = "COLORFGBG not set or invalid"
@@ -81,7 +81,7 @@ class OscQueryStrategy:
 class DarkDetectStrategy:
     """Detect dark mode using the optional ``darkdetect`` library."""
 
-    def detect(self) -> bool:  # noqa: PLR6301 - protocol implementation
+    def detect(self) -> bool:  # ruff: ignore[no-self-use] - protocol implementation
         if darkdetect is None:
             msg = "darkdetect not available"
             raise RuntimeError(msg)

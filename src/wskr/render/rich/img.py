@@ -1,4 +1,4 @@
-# ruff: noqa: PLW3201
+# ruff: file-ignore[bad-dunder-method-name]
 from io import BytesIO
 from pathlib import Path
 
@@ -48,10 +48,10 @@ class RichImage:
             self.image_id = -1
         self._fallback_sent = False
 
-    def __rich_measure__(self, console: Console, options: ConsoleOptions) -> Measurement:  # noqa: D105
+    def __rich_measure__(self, console: Console, options: ConsoleOptions) -> Measurement:  # ruff: ignore[undocumented-magic-method]
         return Measurement(self.desired_width, self.desired_width)
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:  # noqa: D105
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:  # ruff: ignore[undocumented-magic-method]
         if self.image_id == -1 and not self._fallback_sent:
             self.transport.send_image(self._png)
             self._fallback_sent = True
@@ -60,9 +60,5 @@ class RichImage:
         # paint each row with the kitty color trick
         for row in range(self.desired_height):
             esc = f"\x1b[38;5;{self.image_id}m"
-            line = (
-                esc
-                + "".join(f"\U0010eeee{RCD[row]}{RCD[col]}" for col in range(self.desired_width))
-                + "\x1b[39m"
-            )
+            line = esc + "".join(f"\U0010eeee{RCD[row]}{RCD[col]}" for col in range(self.desired_width)) + "\x1b[39m"
             yield Text.from_ansi(line)

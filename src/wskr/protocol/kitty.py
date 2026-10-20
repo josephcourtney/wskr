@@ -176,7 +176,7 @@ class KittyPyTransport(ImageProtocol):
     def __init__(self) -> None:
         self._next_img = 1
 
-    def get_window_size_px(self) -> tuple[int, int]:  # noqa: PLR6301
+    def get_window_size_px(self) -> tuple[int, int]:  # ruff: ignore[no-self-use]
         return (800, 600)
 
     def send_image(self, png_bytes: bytes) -> None:

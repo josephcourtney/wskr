@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-import subprocess  # noqa: S404
+import subprocess  # ruff: ignore[suspicious-subprocess-import]
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -55,7 +55,7 @@ class CommandRunner:
                     attempts,
                     effective_timeout,
                 )
-                return subprocess.run(  # noqa: S603,PLW1510
+                return subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true, subprocess-run-without-check]
                     cmd,
                     timeout=effective_timeout,
                     **kwargs,

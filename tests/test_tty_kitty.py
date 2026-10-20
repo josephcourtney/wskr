@@ -144,7 +144,7 @@ def test_get_window_size_px_uses_timeout(monkeypatch):
 def test_send_image_uses_timeout(monkeypatch):
     seen = {}
 
-    def fake_run(cmd, input=None, stdout=None, check=None, timeout=None, **kwargs):  # noqa: A002
+    def fake_run(cmd, input=None, stdout=None, check=None, timeout=None, **kwargs):  # ruff: ignore[builtin-argument-shadowing]
         seen["t"] = timeout
 
     monkeypatch.setattr(subprocess, "run", fake_run)

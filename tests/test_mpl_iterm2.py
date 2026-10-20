@@ -13,11 +13,11 @@ def test_iterm2_import_raises(monkeypatch):
         FeatureUnavailableError,
         match=r"iTerm2 backend is not yet implemented\. Set WSKR_ENABLE_ITERM2=true to bypass\.",
     ):
-        import wskr.render.matplotlib.iterm2  # noqa: PLC0415
+        import wskr.render.matplotlib.iterm2
     orig_wskr_enable_iterm2 = os.environ.get("WSKR_ENABLE_ITERM2")
     os.environ["WSKR_ENABLE_ITERM2"] = "true"
     sys.modules.pop("wskr.render.matplotlib.iterm2", None)
-    import wskr.render.matplotlib.iterm2  # noqa: PLC0415
+    import wskr.render.matplotlib.iterm2
 
     # sourcery skip: no-conditionals-in-tests
     if orig_wskr_enable_iterm2 is not None:
@@ -29,7 +29,7 @@ def test_iterm2_import_raises(monkeypatch):
 def test_iterm2_backend_show_raises(monkeypatch):
     orig_wskr_enable_iterm2 = os.environ.get("WSKR_ENABLE_ITERM2")
     os.environ["WSKR_ENABLE_ITERM2"] = "true"
-    from wskr.render.matplotlib.iterm2 import _BackendIterm2Agg  # noqa: PLC0415
+    from wskr.render.matplotlib.iterm2 import _BackendIterm2Agg
 
     with pytest.raises(NotImplementedError, match="not yet implemented"):
         _BackendIterm2Agg.show()

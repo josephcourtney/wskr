@@ -1,7 +1,7 @@
 import sys
 
-from matplotlib import _api, interactive  # noqa: PLC2701
-from matplotlib.backend_bases import _Backend  # noqa: PLC2701
+from matplotlib import _api, interactive  # ruff: ignore[import-private-name]
+from matplotlib.backend_bases import _Backend  # ruff: ignore[import-private-name]
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from wskr.protocol.kitty import KittyTransport

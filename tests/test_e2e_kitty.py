@@ -249,7 +249,7 @@ def terminate_process(proc: subprocess.Popen) -> None:
 
 
 def prepare_paths() -> tuple[Path, Path, str, str]:
-    tmp = tempfile.NamedTemporaryFile(delete=False)  # noqa: SIM115
+    tmp = tempfile.NamedTemporaryFile(delete=False)  # ruff: ignore[open-file-with-context-handler]
     done_file = Path(tmp.name)
     log_file = done_file.with_suffix(".log")
     uid = done_file.parts[-1]

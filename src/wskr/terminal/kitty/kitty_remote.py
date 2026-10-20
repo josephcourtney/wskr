@@ -1,9 +1,9 @@
-# ruff: noqa: S603
+# ruff: file-ignore[subprocess-without-shell-equals-true]
 import contextlib
 import json
 import logging
 import shutil
-import subprocess  # noqa: S404
+import subprocess  # ruff: ignore[suspicious-subprocess-import]
 import sys
 import time
 from collections.abc import Callable, Mapping
