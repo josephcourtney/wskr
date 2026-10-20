@@ -11,9 +11,19 @@ from wskr.core.errors import CommandRunnerError, TransportRuntimeError, Transpor
 from wskr.protocol.base import ImageProtocol
 from wskr.protocol.registry import register_image_protocol
 from wskr.terminal.core.command import CommandRunner
+from wskr.terminal.io import write_tty
 from wskr.terminal.osc import query_tty
 
 logger = logging.getLogger(__name__)
+
+
+def _tty_or_stdout_write(data: bytes) -> None:
+    """Prefer writing escape-chunk data to the TTY, or fall back to stdout in tests."""
+    try:
+        write_tty(data)
+    except OSError:
+        sys.stdout.buffer.write(data)
+        sys.stdout.flush()
 
 
 class KittyChunkParser:
@@ -31,9 +41,9 @@ class KittyChunkParser:
             len(chunk),
             final,
         )
-        header = f"\x1b_Ga=t,q=0,f=32,i={img_num},m={m_flag};"
-        sys.stdout.buffer.write(header.encode("ascii") + chunk + b"\x1b\\")
-        sys.stdout.flush()
+        # Write directly to the TTY so Rich/stdio layers don't echo raw PNG bytes.
+        header = f"\x1b_Ga=t,q=0,f=32,i={img_num},m={m_flag};".encode("ascii")
+        _tty_or_stdout_write(header + chunk + b"\x1b\\")
 
     @classmethod
     def parse_init_response(cls, img_num: int, resp: bytes) -> int:

@@ -1,2 +1,5 @@
 .envrc
 capture_tmp*.png
+.ropefolder
+.coverage*
+**/__pycache__/

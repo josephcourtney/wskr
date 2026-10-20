@@ -44,6 +44,7 @@ class RichImage:
         try:
             self.image_id = self.transport.init_image(png)
         except RuntimeError:
+            # Do not dump PNG to stdout; leave painting to a textual fallback.
             self.image_id = -1
         self._fallback_sent = False
 

@@ -86,7 +86,9 @@ def get_image_protocol(name: str | None = None) -> ImageProtocol:
     try:
         entry = _IMAGE_PROTOCOLS[key]
     except KeyError:
-        err: Exception = TransportUnavailableError(f"Unknown protocol {key!r}")
+        err: Exception = TransportUnavailableError(
+            f"Unknown protocol {key!r}. Registered protocols: {', '.join(_IMAGE_PROTOCOLS.keys())}"
+        )
     else:
         if not entry.enabled:
             err = TransportUnavailableError(f"Protocol {key!r} is disabled")
