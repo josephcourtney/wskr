@@ -28,7 +28,7 @@ class DarkModeStrategy(Protocol):
 
 
 class EnvColorStrategy:
-    def detect(self) -> bool:
+    def detect(self) -> bool:  # ruff: ignore[no-self-use] - strategy protocol method
         value = os.getenv("COLORFGBG", "")
         if ";" not in value:
             msg = "COLORFGBG not set or invalid"
@@ -73,7 +73,7 @@ class OscQueryStrategy:
 
 
 class DarkDetectStrategy:
-    def detect(self) -> bool:
+    def detect(self) -> bool:  # ruff: ignore[no-self-use] - strategy protocol method
         if darkdetect is None:
             msg = "darkdetect not available"
             raise RuntimeError(msg)

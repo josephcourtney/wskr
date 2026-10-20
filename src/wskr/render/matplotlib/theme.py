@@ -15,6 +15,9 @@ if TYPE_CHECKING:
     from wskr.terminal.profile import TerminalProfile
 
 
+_MIN_PALETTE_COLORS = 3
+
+
 @dataclass(frozen=True, slots=True)
 class FigureDefaults:
     """Default figure dimensions in inches and the effective raster DPI."""
@@ -86,7 +89,7 @@ def resolve_rc_defaults(
     palette = profile.ansi_palette.value
     if palette is not None:
         usable = [color.to_hex() for color in palette if color is not None]
-        if len(usable) >= 3:
+        if len(usable) >= _MIN_PALETTE_COLORS:
             defaults["axes.prop_cycle"] = cycler(color=usable)
 
     figure = suggested_figure_size(profile, dpi=dpi)

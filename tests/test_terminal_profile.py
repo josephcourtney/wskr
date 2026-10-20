@@ -37,9 +37,9 @@ def test_invalid_geometry_has_no_fabricated_measurements():
 
 
 def test_immutable_value_and_provenance_invariants():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="unknown provenance"):
         Value(None, Source.MEASURED)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="unknown provenance"):
         Value(5, Source.UNKNOWN)
     item = Value(5, Source.INFERRED)
     name = "value"

@@ -5,6 +5,11 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+_MAX_RGB_CHANNEL = 255
+_SRGB_LINEAR_CUTOFF = 0.04045
+_DARK_LUMINANCE_CUTOFF = 0.179
+_MAX_OSC_REPLY_BYTES = 128
+
 _COLOR = re.compile(
     rb"^\x1b\](4|10|11);(?:(\d{1,2});)?rgb:"
     rb"([0-9a-fA-F]{1,4})/([0-9a-fA-F]{1,4})/([0-9a-fA-F]{1,4})"
@@ -19,7 +24,8 @@ class RGB:
     blue: int
 
     def __post_init__(self) -> None:
-        if any(not 0 <= v <= 255 for v in (self.red, self.green, self.blue)):
+        """Ensure every color component lies within the RGB channel range."""
+        if any(not 0 <= v <= _MAX_RGB_CHANNEL for v in (self.red, self.green, self.blue)):
             msg = "RGB channels must be in [0, 255]"
             raise ValueError(msg)
 
@@ -27,13 +33,13 @@ class RGB:
     def luminance(self) -> float:
         def linear(channel: int) -> float:
             value = channel / 255
-            return value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
+            return value / 12.92 if value <= _SRGB_LINEAR_CUTOFF else ((value + 0.055) / 1.055) ** 2.4
 
         return 0.2126 * linear(self.red) + 0.7152 * linear(self.green) + 0.0722 * linear(self.blue)
 
     @property
     def is_dark(self) -> bool:
-        return self.luminance < 0.179
+        return self.luminance < _DARK_LUMINANCE_CUTOFF
 
     def to_hex(self) -> str:
         return f"#{self.red:02x}{self.green:02x}{self.blue:02x}"
@@ -45,7 +51,7 @@ def parse_osc_color(data: bytes, code: int, index: int | None = None) -> RGB:
     Kitty and other terminals can send BEL or ST terminators, and one-, two-,
     three-, or four-digit RGB channels. They are scaled by channel bit depth.
     """
-    if len(data) > 128:
+    if len(data) > _MAX_OSC_REPLY_BYTES:
         msg = "Oversized OSC color reply"
         raise ValueError(msg)
     match = _COLOR.fullmatch(data)

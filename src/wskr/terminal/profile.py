@@ -38,6 +38,7 @@ class Value[T]:
     source: Source = Source.UNKNOWN
 
     def __post_init__(self) -> None:
+        """Enforce correspondence between unknown values and provenance."""
         if (self.value is None) != (self.source == Source.UNKNOWN):
             msg = "A missing value must have unknown provenance and vice versa"
             raise ValueError(msg)

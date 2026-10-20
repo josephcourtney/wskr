@@ -35,7 +35,7 @@ def test_osc_palette_index_is_checked():
     ],
 )
 def test_malformed_osc_replies_fail_closed(bad):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Unexpected|Oversized"):
         parse_osc_color(bad, 11)
 
 
