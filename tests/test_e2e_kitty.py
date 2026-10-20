@@ -328,6 +328,41 @@ def assert_pixels(capture_path, uid):
         raise
 
 
+
+@pytest.mark.skipif(
+    os.getenv("WSKR_RUN_E2E") != "1",
+    reason="WSKR_RUN_E2E!=1; live Kitty test is opt-in",
+)
+@pytest.mark.timeout(60)
+def test_kitty_transport_launch_and_payload_without_yabai():
+    """Check real Kitty launch and payload execution; this is not a screenshot test."""
+    try:
+        kitty_bin = find_executable("kitty")
+    except FileNotFoundError as exc:
+        pytest.skip(str(exc))
+
+    done_file, log_file, sock, _uid = prepare_paths()
+    sock_path = Path(sock.removeprefix("unix:"))
+    env = {**os.environ, "KITTY_DEMO_DONE_FILE": str(done_file)}
+
+    proc = launch_kitty_terminal(kitty_bin, Path(sock), "wskr-smoke", env)
+    try:
+        wait_for_file_to_exist(sock_path)
+        send_payload(kitty_bin, Path(sock), env, script_path(), done_file, log_file)
+        try:
+            wait_for_file_with_content(done_file, timeout=20.0)
+        except TimeoutError as exc:
+            log = log_file.read_text(encoding="utf-8") if log_file.exists() else "no payload log"
+            pytest.fail(f"Kitty shell did not complete its payload: {exc}; log: {log}")
+
+        assert log_file.exists(), "No log file from Kitty payload"
+        text = log_file.read_text(encoding="utf-8")
+        assert "Image sent successfully" in text, f"Kitty payload did not report image submission: {text}"
+    finally:
+        terminate_process(proc)
+        cleanup_temp_files(done_file, log_file, sock_path)
+
+
 @pytest.mark.skipif(
     os.getenv("WSKR_RUN_E2E") != "1",
     reason="WSKR_RUN_E2E!=1; skip kitty e2e in constrained env",

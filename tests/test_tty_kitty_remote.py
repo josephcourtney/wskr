@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from wskr.core.errors import CommandRunnerError
 from wskr.terminal.kitty import kitty_remote
 from wskr.terminal.kitty.kitty_remote import (
     WindowConfig,
@@ -126,6 +127,19 @@ def test_wait_for_file_to_exist(tmp_path, present, exc):
     else:
         with pytest.raises(exc):
             wait_for_file_to_exist(p, timeout=0.0)
+
+
+
+def test_try_json_output_handles_unresponsive_service(monkeypatch):
+    """An unavailable optional window manager must not mask the real test failure."""
+
+    def unavailable(_cmd, **_kwargs):
+        msg = "yabai service timed out"
+        raise CommandRunnerError(msg)
+
+    monkeypatch.setattr(kitty_remote, "run", unavailable)
+    assert try_json_output(["yabai", "-m", "query", "--windows"]) is None
+    assert query_windows("yabai") == []
 
 
 def test_query_windows(monkeypatch):
