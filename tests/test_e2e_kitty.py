@@ -328,7 +328,6 @@ def assert_pixels(capture_path, uid):
         raise
 
 
-
 @pytest.mark.skipif(
     os.getenv("WSKR_RUN_E2E") != "1",
     reason="WSKR_RUN_E2E!=1; live Kitty test is opt-in",
