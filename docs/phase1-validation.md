@@ -29,6 +29,24 @@ The log included a local `just fix` formatting change to `tests/test_dark_mode.p
 - Separated the real-TTY strategy construction and assertion to retain exact behavior without formatter churn.
 - The branch's updated tests and full quality gate **remain unverified on macOS**.
 
+
+## Third macOS run — October 20, 2026, `a2f12f5`
+
+The user supplied a fresh copout execution log from the Phase 1 branch. The working tree was reported clean at the start of validation, and all four gates completed successfully.
+
+| Command | Observed result | Qualification |
+| --- | --- | --- |
+| `just check` | **PASS** | Compileall, Ruff format (80 files), Ruff lint, `ty`, and full pytest all passed |
+| Full pytest (inside `just check`) | **181 passed, 3 skipped, 137 warnings** | Skips: opt-in dark-mode TTY and two opt-in Kitty E2E cases; size marker warnings are nonfatal |
+| `just phase1` | **45 passed, 1 skipped** | One opt-in dark-mode TTY test skipped; medium-size distribution advisory |
+| `just test-tty` | **35 passed, 26 warnings** | Previous `tcdrain` hang no longer observed |
+| `just test-kitty` | **5 passed, 5 warnings** | Real Kitty image submission and screenshot-content verification |
+| Ordinary pyplot/Rich visual display | **NOT VERIFIED** | Image-content tests use the Python-logo payload, not a stock plotted figure or Rich panel |
+
+**Interpretation:** The executable portion of the Phase 1 safety/profile gate is now green on macOS. The package still does not prove terminal-derived font/palette/artist defaults are applied correctly to new plots or that Rich and ordinary Matplotlib appear correctly. No actual figure/artist/Rich screenshot was supplied.
+
+**Outstanding:** validate Phase 1 style precedence and backend-owned artist defaults, capture stock Matplotlib/Rich visuals, then repeat checks against the resulting implementation commit. The project has not completed Phase 1 or advanced to the Phase 2 Kitty codec migration.
+
 ## Required completion evidence
 
-Run `just check`, `just phase1`, `just test-tty` and `just test-kitty` at the new branch head. Record normal Matplotlib and Rich visual behavior independently of the Kitty-logo test; do not interpret skipped or advisory tests as acceptance evidence.
+The previously failing checks now pass at `a2f12f5`. After implementing the remaining Phase 1 backend-owned style work, rerun `just check`, `just phase1`, `just test-tty` and `just test-kitty` on the resulting commit. Record normal Matplotlib and Rich visuals independently of Kitty-logo checks. Warnings and skipped cases are tracked separately.

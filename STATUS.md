@@ -4,27 +4,24 @@ Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 
 
 ## Current focus
 
-**Phase 1 is under validation on `feature/phase1-terminal-profile-20261020`; `main` remains at the accepted Phase 0 baseline.**
+**Phase 1 terminal-profile and TTY safety tests now pass locally.** The feature branch is not merged; style/visual integration remains open.
 
-## Verified locally — October 20, 2026, commit `16455ccc`
+## Verified on macOS — October 20, 2026, `a2f12f5`
 
-- `uv sync` passed; `just phase1`: **45 passed, 1 expected opt-in skip**. Medium-size test distribution advisory remains.
-- `just test-tty`: **35 passed, 26 size-marker warnings**; the previous `tcdrain` hang is no longer observed.
-- `just test-kitty`: **5 passed, 5 size-marker warnings**, including real Kitty screenshot-content verification.
-- `just check`: syntax/format passed after local `just fix`; Ruff stopped on one ambiguous `pytest.raises(match=...)` pattern. **`ty` and full pytest did not run.**
+- `just check`: **PASS** — syntax, Ruff format/lint, `ty`, pytest **181 passed, 3 skipped**.
+- `just phase1`: **45 passed, 1 opt-in TTY skip**.
+- `just test-tty`: **35 passed**, including the earlier problematic TTY/PTY path; no `tcdrain` hang.
+- `just test-kitty`: **5 passed**, including live image transmission and screenshot-content detection.
+- Warnings are test-size classifications (**137** in full pytest; **26** TTY; **5** Kitty) and the Phase 1 medium-size distribution advisory. No test failures were reported.
+- Branch head at the time of execution: `a2f12f5`; results do not imply later commits were rerun.
 
-## Changes after that local run (not yet verified)
+## Implemented, outstanding and risks
 
-- Committed explicit per-case OSC exception assertions and formatter-stable real-PTY test code.
-- No graphics transport or profile semantics were changed.
-- Prior terminal safety and lint corrections are preserved.
-
-## Remaining gates
-
-- Rerun `just check` on the latest branch tip and address any newly exposed `ty`/pytest failures.
-- Repeat Phase 1, PTY, and live Kitty tests; preserve truthful test-size categories.
-- Actual stock Matplotlib/Rich visual inspection, terminal-derived artist styling, and resize safety remain incomplete.
+- Immutable provenance-aware profile, bounded caller-owned OSC queries, strict color parsing, decisive light-mode detection, pure defaults and no import-time rcParams mutation.
+- Initial terminal-derived figure dimensions work in unit tests; terminal-derived artist/font/palette application still needs integration and explicit-style tests.
+- Ordinary stock Matplotlib/Rich plots have **not** been visually verified in Kitty; image-logo checks do not establish layout correctness.
+- Display-time figure resizing, runtime refresh and unsupported protocol paths remain later-phase work. Legacy test-size markers are incomplete.
 
 ## Handoff
 
-The user's last `just fix` left local modifications. Inspect or stash before pulling; do not report Phase 1 complete or merge until the updated quality gate passes.
+Complete safe style/default integration and real plot/Rich visual characterization before closing Phase 1. Record subsequent checks against their exact branch commit; do not merge on test counts alone.
