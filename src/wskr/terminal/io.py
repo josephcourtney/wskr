@@ -142,9 +142,9 @@ class PosixTtyIO(TtyIO):
     def query(self, request: bytes, more: MorePredicate, timeout: float | None = None) -> bytes:
         fd = _get_tty_fd()
         try:
+            # tcdrain may wait indefinitely on a PTY, even with a bounded read.
+            # The small control request does not require a blocking drain.
             os.write(fd, request)
-            with suppress(termios.error):
-                termios.tcdrain(fd)
             return self.read(timeout=timeout, more=more, fd=fd)
         finally:
             os.close(fd)

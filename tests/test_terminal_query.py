@@ -10,6 +10,15 @@ import pytest
 from wskr.terminal import query
 
 
+def _assert_restored_terminal_settings(slave: int, before: list) -> None:
+    """Check user-managed termios state; macOS owns the EXTPROC flag."""
+    after = termios.tcgetattr(slave)
+    assert after[:3] == before[:3]
+    assert after[4:] == before[4:]
+    kernel_flags = getattr(termios, "EXTPROC", 0)
+    assert after[3] & ~kernel_flags == before[3] & ~kernel_flags
+
+
 def test_query_requires_explicit_input_ownership():
     with pytest.raises(query.TerminalQueryError, match="exclusive input"):
         query.query_osc(b"\x1b]11;?\x07")
@@ -56,7 +65,7 @@ def test_pty_reply_restores_termios_and_forwards_unrelated_input(monkeypatch):
         )
         assert response == b"\x1b]11;rgb:0000/0000/0000\x1b\\"
         assert unmatched == [b"a\x1b]10;rgb:ffff/ffff/ffff\x07"]
-        assert termios.tcgetattr(slave) == before
+        _assert_restored_terminal_settings(slave, before)
     finally:
         thread.join(timeout=2)
         os.close(master)
@@ -77,7 +86,7 @@ def test_pty_timeout_restores_termios(monkeypatch):
                 on_unmatched=lambda b: None,
                 timeout=0.025,
             )
-        assert termios.tcgetattr(slave) == before
+        _assert_restored_terminal_settings(slave, before)
     finally:
         os.close(master)
         os.close(slave)
