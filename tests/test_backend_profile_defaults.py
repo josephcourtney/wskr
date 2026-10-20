@@ -3,6 +3,8 @@
 import matplotlib as mpl
 import pytest
 
+pytestmark = pytest.mark.medium
+
 from wskr.render.matplotlib import core
 from wskr.terminal.profile import Geometry, probe_profile
 

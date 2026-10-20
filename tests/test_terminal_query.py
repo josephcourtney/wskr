@@ -19,29 +19,34 @@ def _assert_restored_terminal_settings(slave: int, before: list) -> None:
     assert after[3] & ~kernel_flags == before[3] & ~kernel_flags
 
 
+@pytest.mark.small
 def test_query_requires_explicit_input_ownership():
     with pytest.raises(query.TerminalQueryError, match="exclusive input"):
         query.query_osc(b"\x1b]11;?\x07")
 
 
+@pytest.mark.small
 def test_query_refuses_redirected_output(monkeypatch):
     monkeypatch.setattr(query, "_stdout_is_tty", lambda: False)
     with pytest.raises(query.TerminalQueryError, match="output"):
         query.query_osc(b"\x1b]11;?\x07", owns_input=True, on_unmatched=lambda b: None)
 
 
+@pytest.mark.small
 def test_query_rejects_non_osc_requests(monkeypatch):
     monkeypatch.setattr(query, "_stdout_is_tty", lambda: True)
     with pytest.raises(ValueError, match="OSC"):
         query.query_osc(b"\x1b[6n", owns_input=True, on_unmatched=lambda b: None)
 
 
+@pytest.mark.small
 def test_query_bounds_configuration(monkeypatch):
     monkeypatch.setattr(query, "_stdout_is_tty", lambda: True)
     with pytest.raises(ValueError, match="timeout"):
         query.query_osc(b"\x1b]11;?\x07", owns_input=True, on_unmatched=lambda b: None, timeout=-2)
 
 
+@pytest.mark.medium
 def test_pty_reply_restores_termios_and_forwards_unrelated_input(monkeypatch):
     master, slave = pty.openpty()
     before = termios.tcgetattr(slave)
@@ -73,6 +78,7 @@ def test_pty_reply_restores_termios_and_forwards_unrelated_input(monkeypatch):
     assert not thread.is_alive()
 
 
+@pytest.mark.medium
 def test_pty_timeout_restores_termios(monkeypatch):
     master, slave = pty.openpty()
     before = termios.tcgetattr(slave)
@@ -92,6 +98,7 @@ def test_pty_timeout_restores_termios(monkeypatch):
         os.close(slave)
 
 
+@pytest.mark.medium
 def test_partial_reply_on_timeout_is_routed_to_owner(monkeypatch):
     master, slave = pty.openpty()
     unmatched = []

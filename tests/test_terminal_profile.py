@@ -5,6 +5,8 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
+pytestmark = pytest.mark.small
+
 from wskr.terminal import profile
 from wskr.terminal.color import RGB
 from wskr.terminal.profile import Geometry, Source, Value, probe_profile

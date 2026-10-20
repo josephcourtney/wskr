@@ -2,6 +2,8 @@ import contextlib
 import os
 import termios
 
+import pytest
+
 from wskr.terminal import io, osc
 
 
@@ -32,6 +34,18 @@ def test_read_tty_more_predicate(monkeypatch):
 
     assert io.read_tty(timeout=1, more=more) == b""
     assert called == [b""]
+
+
+@pytest.mark.small
+def test_query_returns_without_blocking_tcdrain(monkeypatch, fake_tty):
+    """A bounded query must not hang waiting for PTY output to drain."""
+    def blocked_drain(_fd):
+        pytest.fail("TTY query should never call unbounded tcdrain")
+
+    monkeypatch.setattr(termios, "tcdrain", blocked_drain)
+    monkeypatch.setattr(io.TTY_IO, "read", lambda **_kw: b"reply")
+    assert io.TTY_IO.query(b"\x1b]11;?\x07", more=lambda _data: False, timeout=0.1) == b"reply"
+    assert fake_tty == [99]
 
 
 def test_query_tty_single_fd(monkeypatch, tmp_path):

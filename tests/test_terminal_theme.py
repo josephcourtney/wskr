@@ -3,6 +3,8 @@
 import matplotlib as mpl
 import pytest
 
+pytestmark = pytest.mark.medium
+
 from wskr.render.matplotlib.theme import resolve_rc_defaults, suggested_figure_size
 from wskr.terminal.profile import Geometry, probe_profile
 

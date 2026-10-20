@@ -9,6 +9,7 @@ from wskr.render.matplotlib import utils
 from wskr.terminal import query
 
 
+@pytest.mark.small
 def test_env_color_strategy(monkeypatch):
     monkeypatch.setenv("COLORFGBG", "15;0")
     assert utils.EnvColorStrategy().detect() is True
@@ -19,6 +20,7 @@ def test_env_color_strategy(monkeypatch):
         utils.EnvColorStrategy().detect()
 
 
+@pytest.mark.small
 def test_osc_strategy_uses_config_timeout(monkeypatch):
     monkeypatch.setattr(utils, "OSC_TIMEOUT_S", 0.5)
     seen = {}
@@ -32,11 +34,13 @@ def test_osc_strategy_uses_config_timeout(monkeypatch):
 
 
 @pytest.mark.parametrize("bad", [b"oops", b"\x1b]11;rgb:0000/0000\x07"])
+@pytest.mark.small
 def test_osc_strategy_parser_error(bad):
     with pytest.raises(ValueError, match="Unexpected"):
         utils.OscQueryStrategy(query=lambda *_a, **_k: bad).detect()
 
 
+@pytest.mark.small
 def test_detect_dark_mode_chain(monkeypatch):
     monkeypatch.setenv("COLORFGBG", "15;0")
     called = []
@@ -62,6 +66,7 @@ def test_detect_dark_mode_chain(monkeypatch):
     os.getenv("WSKR_RUN_TTY") != "1",
     reason="WSKR_RUN_TTY!=1; skip PTY-dependent test in constrained env",
 )
+@pytest.mark.medium
 def test_osc_strategy_real_tty(monkeypatch):
     master_fd, slave_fd = pty.openpty()
     monkeypatch.setattr(query, "_open_tty", lambda: os.dup(slave_fd))
@@ -86,6 +91,7 @@ def test_osc_strategy_real_tty(monkeypatch):
         os.close(slave_fd)
 
 
+@pytest.mark.small
 def test_detect_dark_mode_override(monkeypatch):
     monkeypatch.setenv("WSKR_DARK_MODE", "1")
     assert utils.detect_dark_mode() is True
@@ -93,6 +99,7 @@ def test_detect_dark_mode_override(monkeypatch):
     assert utils.detect_dark_mode() is False
 
 
+@pytest.mark.small
 def test_darkdetect_strategy(monkeypatch):
     class DummyDD:
         @staticmethod

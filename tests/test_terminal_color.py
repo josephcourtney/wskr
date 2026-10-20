@@ -2,6 +2,8 @@
 
 import pytest
 
+pytestmark = pytest.mark.small
+
 from wskr.terminal.color import RGB, parse_osc_color
 
 
