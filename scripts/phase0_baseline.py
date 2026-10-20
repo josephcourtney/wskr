@@ -16,6 +16,12 @@ import shutil
 import sys
 
 import matplotlib
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.figure import Figure
+
+from wskr.protocol.registry import get_image_protocol
+
+BASELINE_FIGURE_DPI = 120
 
 EXPECTED_BACKENDS = {
     "wskr": "wskr.render.matplotlib.core",
@@ -39,10 +45,7 @@ def baseline() -> dict[str, object]:
         "live_kitty_validation": "not-run",
     }
 
-    from matplotlib.backends.backend_agg import FigureCanvasAgg
-    from matplotlib.figure import Figure
-
-    fig = Figure(figsize=(3.25, 1.75), dpi=120)
+    fig = Figure(figsize=(3.25, 1.75), dpi=BASELINE_FIGURE_DPI)
     FigureCanvasAgg(fig)
     ax = fig.subplots()
     ax.plot([0, 1, 2], [2, 1, 3])
@@ -53,7 +56,7 @@ def baseline() -> dict[str, object]:
         "png_signature": png.getvalue().startswith(b"\x89PNG\r\n\x1a\n"),
         "svg_signature": b"<svg" in svg.getvalue(),
         "preserved_figsize": tuple(fig.get_size_inches()) == (3.25, 1.75),
-        "preserved_dpi": fig.dpi == 120,
+        "preserved_dpi": fig.dpi == BASELINE_FIGURE_DPI,
     }
 
     eps = importlib.metadata.entry_points(group="matplotlib.backend")
@@ -72,12 +75,10 @@ def baseline() -> dict[str, object]:
     for label, path in modules.items():
         try:
             importlib.import_module(path)
-        except Exception as exc:  # diagnostic, not success masking
+        except Exception as exc:  # ruff: ignore[blind-except] - capture all import failures
             result["module_imports"][label] = f"{type(exc).__name__}: {exc}"
         else:
             result["module_imports"][label] = "ok"
-
-    from wskr.protocol.registry import get_image_protocol
 
     old_protocol = os.environ.pop("WSKR_PROTOCOL", None)
     try:
@@ -94,9 +95,7 @@ def baseline() -> dict[str, object]:
 if __name__ == "__main__":
     report = baseline()
     print(json.dumps(report, indent=2, sort_keys=True))
-    if not report["entry_points_match"] or not all(
-        value == "ok" for value in report["module_imports"].values()
-    ):
+    if not report["entry_points_match"] or not all(value == "ok" for value in report["module_imports"].values()):
         raise SystemExit(1)
     if not all(report["agg_export"].values()):
         raise SystemExit(1)

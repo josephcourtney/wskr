@@ -33,7 +33,7 @@ def test_osc_strategy_uses_config_timeout(monkeypatch):
 
     monkeypatch.setattr(utils, "query_tty", fake_query)
     assert utils.OscQueryStrategy().detect() is True
-    assert seen["timeout"] == 0.5
+    assert seen["timeout"] == pytest.approx(0.5)
 
 
 def test_osc_strategy_parser_error(monkeypatch):

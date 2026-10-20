@@ -12,7 +12,7 @@ def test_autosize_figure_preserves_aspect_ratio():
     fig = plt.figure(figsize=(2, 4))  # 2:1 aspect
     autosize_figure(fig, width_px=800, height_px=400)
     w, h = fig.get_size_inches()
-    assert round(h / w, 1) == 2.0
+    assert round(h / w, 1) == pytest.approx(2.0)
 
 
 def test_autosize_figure_skips_zero_dimensions():

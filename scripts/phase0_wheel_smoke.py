@@ -9,17 +9,18 @@ No live Kitty output is attempted; actual terminal graphics remain a separate te
 
 from __future__ import annotations
 
-import glob
 import os
 from pathlib import Path
 import shutil
-import subprocess
+import subprocess  # ruff: ignore[suspicious-subprocess-import] - isolated wheel-install subprocess
 import sys
 import tempfile
 
 
 def run(cmd: list[str], *, env: dict[str, str] | None = None) -> None:
-    completed = subprocess.run(cmd, check=False, env=env, text=True, capture_output=True, timeout=180)
+    completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed argv, no shell
+        cmd, check=False, env=env, text=True, capture_output=True, timeout=180
+    )
     if completed.returncode != 0:
         raise RuntimeError(
             f"{' '.join(cmd)} failed ({completed.returncode})\n"
@@ -34,11 +35,14 @@ def main() -> int:
     if uv is None:
         print("uv is not installed", file=sys.stderr)
         return 2
-    wheels = sorted(glob.glob("dist/wskr-*.whl"))
+    wheels = sorted(Path("dist").glob("wskr-*.whl"))
     if len(wheels) != 1:
-        print("Expected exactly one current wskr wheel in dist/; clear stale wheels and run just build", file=sys.stderr)
+        print(
+            "Expected exactly one current wskr wheel in dist/; clear stale wheels and run just build",
+            file=sys.stderr,
+        )
         return 2
-    wheel = str(Path(wheels[0]).resolve())
+    wheel = str(wheels[0].resolve())
 
     with tempfile.TemporaryDirectory(prefix="wskr-phase0-wheel-") as temp:
         venv = Path(temp) / "venv"
@@ -65,7 +69,14 @@ f.savefig(p,format='png')
 assert p.getvalue().startswith(b'\\x89PNG\\r\\n\\x1a\\n')
 print(json.dumps({'installed_version':importlib.metadata.version('wskr'),'backend_entries':eps,'png_export':'ok','kitty_import':'ok'}))
 """
-        run([interpreter, "-c", script], env=env)
+        completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed argv, no shell
+            [interpreter, "-c", script], cwd=temp, env=env,
+            capture_output=True, text=True, check=False, timeout=120,
+        )
+        if completed.returncode:
+            msg = f"Installed-wheel smoke failed: {completed.stderr}"
+            raise RuntimeError(msg)
+        print(completed.stdout.strip())
     return 0
 
 

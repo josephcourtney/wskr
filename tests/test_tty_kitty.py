@@ -132,7 +132,7 @@ def fake_which(monkeypatch):
 def test_get_window_size_px_uses_timeout(monkeypatch):
     def fake_run(args, capture_output, text, check, timeout):
         # we expect our 1.0s timeout
-        assert timeout == 1.0
+        assert timeout == pytest.approx(1.0)
         return type("P", (), {"stdout": "100x200"})()
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -150,7 +150,7 @@ def test_send_image_uses_timeout(monkeypatch):
     monkeypatch.setattr(subprocess, "run", fake_run)
     kt = KittyTransport()
     kt.send_image(b"foo")
-    assert seen.get("t") == 1.0
+    assert seen.get("t") == pytest.approx(1.0)
 
 
 @pytest.mark.parametrize("mode", ["error", "badout"])

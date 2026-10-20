@@ -48,7 +48,8 @@ def test_agg_export_png_svg_without_tty_or_kitty():
     fig.savefig(svg, format="svg")
     assert png.getvalue().startswith(b"\x89PNG\r\n\x1a\n")
     assert b"<svg" in svg.getvalue()
-    assert (tuple(fig.get_size_inches()), fig.dpi) == before
+    assert tuple(fig.get_size_inches()) == before[0]
+    assert fig.dpi == before[1]
 
 
 def test_registry_default_is_explicit_noop_when_no_protocol_is_selected(monkeypatch):

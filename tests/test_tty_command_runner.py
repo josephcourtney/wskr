@@ -15,7 +15,7 @@ def test_run_uses_default_timeout(monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     CommandRunner().run(["echo"])
-    assert seen["timeout"] == 1.0
+    assert seen["timeout"] == pytest.approx(1.0)
 
 
 def test_check_output_returns_stdout(monkeypatch):

@@ -1,3 +1,4 @@
+# ruff: file-ignore[non-empty-init-module]  # pre-migration compatibility hook; PLAN P1 removes import side effects
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 

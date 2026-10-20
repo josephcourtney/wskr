@@ -1,3 +1,4 @@
+# ruff: file-ignore[too-many-statements-in-try-clause]  # legacy screenshot helper; phase 0 characterizes it
 import contextlib
 import importlib
 import logging
@@ -6,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import types
 from pathlib import Path
 
@@ -21,6 +23,7 @@ from wskr.terminal.kitty.kitty_remote import (
     find_executable,
     get_window_id,
     launch_kitty_terminal,
+    query_windows,
     send_payload,
     send_startup_command,
     take_screenshot,
@@ -330,6 +333,7 @@ def assert_pixels(capture_path, uid):
     os.getenv("WSKR_RUN_E2E") != "1",
     reason="WSKR_RUN_E2E!=1; skip kitty e2e in constrained env",
 )
+@pytest.mark.timeout(90)  # GUI launch, remote control, and screenshots exceed the normal 5-second unit budget.
 def test_compare_screenshot():
     cfg = WindowConfig()
     try:
@@ -348,14 +352,37 @@ def test_compare_screenshot():
     proc = launch_kitty_terminal(kitty_bin, Path(sock), cfg.title, env)  # type: ignore[possibly-unresolved-reference]
     wait_for_file_to_exist(sock_path)
 
-    send_startup_command(kitty_bin, Path(sock), done_file, env)  # type: ignore[possibly-unresolved-reference]
-    wait_for_file_with_content(done_file, timeout=cfg.max_wait)
-    win_id = get_window_id(done_file)
+    # Ask yabai from the controlling process, not through a newly launched shell.
+    # This avoids depending on shell startup, jq, and a file created by a command
+    # that may never execute if Kitty remote send-text fails.
+    deadline = time.monotonic() + cfg.max_wait
+    windows = []
+    win_id = None
+    while time.monotonic() < deadline:
+        windows = query_windows(yabai_bin)
+        for window in windows:
+            if window.get("pid") == proc.pid or (
+                window.get("app", "").lower() == "kitty"
+                and window.get("title", "").startswith(cfg.title)
+            ):
+                win_id = window["id"]
+                break
+        if win_id is not None:
+            break
+        time.sleep(0.2)
+    if win_id is None:
+        pytest.fail(f"Kitty window not visible to yabai (pid={proc.pid}); available windows: {windows!r}")
 
     configure_window(yabai_bin, win_id, width=cfg.width, height=cfg.height, x=cfg.x, y=cfg.y)  # type: ignore[possibly-unresolved-reference]
 
-    send_payload(kitty_bin, Path(sock), env, script_path(), done_file, log_file)  # type: ignore[possibly-unresolved-reference]
-    wait_for_file_with_content(done_file, timeout=cfg.max_wait)
+    send_payload(kitty_bin, Path(sock), env, script_path(), done_file, log_file)
+    try:
+        wait_for_file_with_content(done_file, timeout=cfg.max_wait)
+    except TimeoutError as exc:
+        pytest.fail(
+            f"Kitty payload did not signal completion: {exc}; "
+            f"payload log: {log_file.read_text() if log_file.exists() else 'missing'}"
+        )
 
     show_log(log_file)
 

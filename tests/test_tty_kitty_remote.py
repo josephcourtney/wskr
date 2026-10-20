@@ -35,7 +35,7 @@ def test_window_config_defaults():
     assert cfg.height == 600
     assert cfg.x == 100
     assert cfg.y == 100
-    assert cfg.max_wait == 10.0
+    assert cfg.max_wait == pytest.approx(10.0)
 
 
 @pytest.mark.parametrize(

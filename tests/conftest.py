@@ -15,7 +15,8 @@ MAX_TIME_PER_TEST = 5
 
 def pytest_collection_modifyitems(config, items):  # call signature defined by pytest
     for test in items:
-        test.add_marker(pytest.mark.timeout(MAX_TIME_PER_TEST))
+        if test.get_closest_marker("timeout") is None:
+            test.add_marker(pytest.mark.timeout(MAX_TIME_PER_TEST))
 
 
 @pytest.hookimpl(tryfirst=True)

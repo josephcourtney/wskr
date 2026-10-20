@@ -1,4 +1,4 @@
-# ruff: file-ignore[subprocess-without-shell-equals-true]
+# ruff: file-ignore[subprocess-without-shell-equals-true, too-many-statements-in-try-clause]
 import contextlib
 import json
 import logging
