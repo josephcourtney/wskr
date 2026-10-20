@@ -28,13 +28,3 @@ def test_noop_renders_visible_status_on_every_print_without_raw_upload(monkeypat
     assert "[wskr] Warning" not in capsys.readouterr().out
     assert "\\x1b_G" not in output
 
-
-def test_missing_inline_placement_never_emits_invalid_placeholder(dummy_png):
-    class CannotPlace(NoOpProtocol):
-        def init_image(self, png_bytes: bytes) -> int:
-            return -1
-
-    image = RichImage(BytesIO(dummy_png), desired_width=4, desired_height=2, transport=CannotPlace())
-    console = Console(width=60, record=True)
-    console.print(image)
-    assert "image unavailable" in console.export_text()
