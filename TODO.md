@@ -1,9 +1,9 @@
 # wskr — Immediate Tasks
 
-Pending Phase 1 completion; [PLAN.md](PLAN.md) and [validation evidence](docs/phase1-validation.md).
+Unfinished Phase 1 work; see [PLAN.md](PLAN.md) and [Phase 1 evidence](docs/phase1-validation.md).
 
-- [ ] Apply measured foreground/background, default artist colors, font/cell metrics and optional palette only to backend-owned defaults, without changing Matplotlib globals or user-specified rcParams/artists.
-- [ ] Add explicit-precedence and import-side-effect regression cases, including light/dark colors, palette contrast, and absent/invalid terminal responses.
-- [ ] Produce and inspect a normal `MPLBACKEND=wskr_kitty` Matplotlib plot and `RichPlot` in a Rich panel/table; record placement, contrast and sizing separately from the Python-logo Kitty test.
-- [ ] Run `just check`, `just phase1`, `just test-tty` and `just test-kitty` again after style changes; keep feature branch unmerged until accepted.
-- [ ] Finish truthful test-size classification for legacy tests; maintain current size-enforcement policy until coverage is adequate.
+- [ ] Rerun `just check`, `just phase1`, `just test-tty` and `just test-kitty` on the latest branch, including the Rich no-op fallback regression test.
+- [ ] Capture an ordinary `MPLBACKEND=wskr_kitty` plot in an actual Kitty window, noting window geometry and whether the plotted image is visible (stdout capture is insufficient).
+- [ ] Characterize `RichPlot` with an explicitly selected `WSKR_PROTOCOL=kitty`; record errors, clipping and image placement. Do not treat the legacy inline-upload path as production ready.
+- [ ] Complete application of terminal-derived backend-owned palette, text and artist defaults with tests that explicit rcParams/artist settings remain authoritative.
+- [ ] Complete truthful test-size classification for legacy/GUI tests; retain current warning policy until classifications are verified.

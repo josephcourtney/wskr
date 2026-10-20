@@ -50,3 +50,24 @@ The user supplied a fresh copout execution log from the Phase 1 branch. The work
 ## Required completion evidence
 
 The previously failing checks now pass at `a2f12f5`. After implementing the remaining Phase 1 backend-owned style work, rerun `just check`, `just phase1`, `just test-tty` and `just test-kitty` on the resulting commit. Record normal Matplotlib and Rich visuals independently of Kitty-logo checks. Warnings and skipped cases are tracked separately.
+
+## Fourth macOS run — October 20, 2026, `d9b1e32`
+
+The user ran all four local verification commands and two proposed visual smoke scripts in the same feature-branch checkout, starting with a clean working tree.
+
+| Command | Result | Interpretation |
+| --- | --- | --- |
+| `uv sync` | **PASS** | Environment resolved and installed |
+| `just check` | **PASS** | Compileall, Ruff format (80 files), Ruff lint, `ty`, and full pytest (**181 passed, 3 skipped, 137 test-size warnings**) |
+| `just phase1` | **PASS** | **45 passed, 1 skipped**; medium-size distribution advisory |
+| `just test-tty` | **PASS** | **35 passed, 26 warnings** |
+| `just test-kitty` | **PASS** | **5 passed, 5 warnings** |
+| Stock Matplotlib `plt.show()` script | **EXIT 0; DISPLAY UNKNOWN** | No captured text or errors; terminal images may appear without textual logs, and no screenshot was supplied |
+| `RichPlot` inside `Panel` | **NO IMAGE** | The registry chose its documented default `NoOpProtocol`; printed upload/no-protocol warnings and produced an empty bordered panel |
+| End-of-run `git status` | **CLEAN** | Local head `d9b1e32` |
+
+**Diagnosis of the Rich smoke:** The suggested test script omitted `WSKR_PROTOCOL=kitty`. The current registry defaults to `noop` unless explicitly configured. Thus the empty panel demonstrates unsupported/default configuration behavior, not a failure of a successfully negotiated Kitty upload. The experimental inline Kitty upload/placement path remains unverified, so setting the variable does not guarantee working Rich graphics.
+
+**Code follow-up:** A safe Rich fallback now shows an in-panel message when `NoOpProtocol` is used, without issuing an invalid image upload or corrupting surrounding layout. A focused regression test was added. This change was **not** included in the fourth local run and must be validated independently.
+
+**Visual evidence still missing:** actual on-screen screenshots or a direct observation for stock Matplotlib and explicitly configured Kitty-backed Rich layouts; captured stdout and a passing Kitty-logo E2E test are insufficient.

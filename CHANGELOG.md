@@ -8,6 +8,7 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 - Introduced provenance-aware terminal measurements, guarded OSC queries, and a pure resolver for terminal-derived Matplotlib defaults.
 
 ### Fixed
+- Showed an in-layout Rich text fallback when no graphics protocol is configured, instead of silently rendering an empty panel.
 - Stopped package import from disabling Matplotlib's TeX setting.
 - Made a valid light-theme detection definitive and avoided automatic queries against shared terminal input.
 - Prevented legacy PTY color queries from hanging while waiting for terminal output to drain.
