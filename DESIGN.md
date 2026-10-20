@@ -595,7 +595,7 @@ The consolidated implementation is complete only if **all** of the following hol
 
 - [Kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/) — image transmission, chunking, IDs, placements and Unicode placeholders.
 - [Kitty terminal queries](https://sw.kovidgoyal.net/kitty/kittens/query_terminal/) — runtime font, DPI, foreground/background and opacity capabilities.
-- [Matplotlib backend bases](https://matplotlib.org/stable/api/backend_bases_api.html) and [backend development](https://matplotlib.org/stable/users/explain/figure/backends.html) — canvas/manager and selection contracts.
+- [Matplotlib backend bases](https://matplotlib.org/stable/api/backend_bases_api.html) and [backend development](https://matplotlib.org/stable/users/explain/figure/writing_a_backend_pyplot_interface.html) — canvas/manager and selection contracts.
 - [Rich renderables](https://rich.readthedocs.io/en/stable/console.html#console-renderables) — layout measurement and output protocol.
 
 ### Discussion history integrated
