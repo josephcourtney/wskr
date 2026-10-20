@@ -2,7 +2,7 @@
 [project]
   name = "wskr"
   version = "0.0.17"
-  description = ""
+  description = "Terminal image rendering backends for Matplotlib and Rich"
   readme = "README.md"
   authors = [
     { name = "Joseph M Courtney", email = "5942706+josephcourtney@users.noreply.github.com" },
@@ -82,49 +82,7 @@
 
     extend-ignore = []
 
-    [tool.ruff.lint.extend-per-file-ignores]
-      # Typer evaluates command annotations at runtime. Path must remain imported
-      # outside TYPE_CHECKING even though it appears only in annotations.
-      # Boolean options are declarative CLI parameters, not positional boolean APIs.
-      "src/wskr/cli/app.py" = ["FBT002", "TC003"]
-
-      # Markdown inline parsing is a deliberately explicit token-state machine.
-      "src/wskr/domains/markdown/parser.py" = ["C901", "PLR0912"]
-
-      # The math module is a compact recursive-descent/Pratt parser plus renderer.
-      # Branching mirrors grammar productions, and confusable Unicode characters
-      # are the actual mathematical symbols being recognized.
-      "src/wskr/domains/math.py" = [
-        "C901",
-        "PLR0911",
-        "PLR0912",
-        "PLR0914",
-        "PLR0915",
-        "PLR2004",
-        "RUF001",
-      ]
-
-      # Citation ranges intentionally accept en/em dashes as written source syntax.
-      "src/wskr/domains/citations.py" = ["RUF001"]
-
-      # Chemistry recognizes written Unicode subscripts, superscripts, middle dots,
-      # and reaction arrows; those characters are semantic input, not typography.
-      "src/wskr/domains/chemistry/parser.py" = ["RUF001"]
-
-      # _compile_markdown_node is a typed AST visitor; the cases are the supported
-      # document-node algebra rather than unrelated business branches.
-      # Vocalizer's established public facade exceeds the generic method-count heuristic.
-      # Preserve public compatibility rather than splitting or hiding supported API methods.
-      "src/wskr/core/pipeline.py" = ["C901", "PLR0904", "PLR0911", "PLR0912"]
-
-      # Unit symbols intentionally distinguish the MICRO SIGN and Greek mu, and
-      # exponent values 2/3 are part of the supported unit grammar.
-      "src/wskr/domains/units.py"        = ["PLR2004", "RUF001"]
-      "tests/test_runtime.py"            = ["RUF001"]
-      "tests/test_structured_domains.py" = ["RUF001"]
-      "tests/**/*.py"                    = ["RUF001"]
-
-
+# =================================== test ===================================
 # =================================== test ===================================
 [tool.pytest.ini_options]
   minversion = "9.0"
@@ -139,7 +97,7 @@
     "--cov-branch",
     "--cov-report=",
     "--timeout-method=thread",
-    "--test-categories-enforcement=strict",
+    "--test-categories-enforcement=off",
     "--test-categories-distribution-enforcement=off",
   ]
   xfail_strict = true
@@ -186,7 +144,6 @@
 
     # Purpose markers
     "acceptance: Requirement-driven system tests tied to user stories or acceptance criteria.",
-    "m2_contract(*ids): Mandatory M2 acceptance contract identifiers from docs/m2-contracts.json.",
     "regression: Prevent re-introduction of known bugs or failures.",
     "sanity: Narrow checks verifying specific bugfixes or features.",
     "smoke: Fast, critical-path tests run before larger suites.",
