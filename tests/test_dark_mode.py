@@ -58,7 +58,7 @@ def test_detect_dark_mode_chain(monkeypatch):
 
     monkeypatch.setattr(utils, "query_tty", fake_query)
     assert utils.detect_dark_mode() is True
-    assert "osc" not in called
+    assert called["osc"]
 
     monkeypatch.delenv("COLORFGBG", raising=False)
     monkeypatch.setattr(

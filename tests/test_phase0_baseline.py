@@ -87,8 +87,8 @@ def test_baseline_renderer_resizes_an_explicit_figure():
     assert target.png.startswith(b"\x89PNG")
 
 
-def test_baseline_theme_chain_continues_after_light(monkeypatch):
-    """Capture known pre-migration defect; replace with P1 design assertion."""
+def test_light_result_is_definitive(monkeypatch):
+    """A valid light result cannot be overridden by a later strategy."""
     from wskr.render.matplotlib.utils import detect_dark_mode
 
     monkeypatch.delenv("WSKR_DARK_MODE", raising=False)
@@ -101,4 +101,4 @@ def test_baseline_theme_chain_continues_after_light(monkeypatch):
         def detect(self) -> bool:
             return True
 
-    assert detect_dark_mode(strategies=[Light(), Dark()]) is True
+    assert detect_dark_mode(strategies=[Light(), Dark()]) is False

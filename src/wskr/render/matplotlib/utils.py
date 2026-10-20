@@ -1,8 +1,7 @@
 """Dark mode detection utilities for Matplotlib backends.
 
-The detection logic is implemented as a chain of strategies.  Each strategy
-attempts to determine whether the terminal is using a dark colour scheme.  The
-default order is environment-variable detection followed by an OSC 11 query.
+The detection logic is a chain of strategies with a definitive result. Runtime
+terminal colors take precedence over environment and host appearance hints.
 """
 
 from __future__ import annotations
@@ -93,8 +92,8 @@ class DarkDetectStrategy:
 
 
 DEFAULT_STRATEGIES: list[DarkModeStrategy] = [
-    EnvColorStrategy(),
     OscQueryStrategy(),
+    EnvColorStrategy(),
     DarkDetectStrategy(),
 ]
 
@@ -102,18 +101,17 @@ DEFAULT_STRATEGIES: list[DarkModeStrategy] = [
 def detect_dark_mode(
     strategies: Sequence[DarkModeStrategy] | None = None,
 ) -> bool:
-    """Return ``True`` when any strategy reports a dark background.
+    """Return the first valid dark/light result, with explicit override first.
 
-    ``WSKR_DARK_MODE`` acts as an override.  If unset, the configured
-    strategies are tried in order until one succeeds.
+    A detected light terminal (False) is authoritative; only failure or an
+    unavailable strategy permits checking the next source.
     """
     override = os.getenv("WSKR_DARK_MODE")
     if override is not None:
         return override.lower() in {"1", "true", "yes", "on"}
     for strat in strategies or DEFAULT_STRATEGIES:
         try:
-            if strat.detect():
-                return True
+            return strat.detect()
         except (KeyError, RuntimeError, ValueError, OSError) as e:
             logger.debug("%s failed: %s", strat.__class__.__name__, e)
     return False

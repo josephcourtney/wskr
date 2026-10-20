@@ -10,12 +10,20 @@ from __future__ import annotations
 import os
 import select
 import termios
+from threading import RLock
 from collections.abc import Callable
 from time import monotonic
 
 
 class TerminalQueryError(RuntimeError):
     """Terminal ownership, framing or deadline could not be established."""
+
+
+_QUERY_LOCK = RLock()
+
+
+def _open_tty() -> int:
+    return os.open("/dev/tty", os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
 
 
 def query_osc(
@@ -39,7 +47,18 @@ def query_osc(
     if not (request.startswith(b"\x1b]") and request.endswith((b"\x07", b"\x1b\\"))):
         raise ValueError("Only complete OSC requests are permitted")
 
-    fd = os.open("/dev/tty", os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+    with _QUERY_LOCK:
+        return _transaction(request, on_unmatched=on_unmatched, timeout=timeout, max_bytes=max_bytes)
+
+
+def _transaction(
+    request: bytes,
+    *,
+    on_unmatched: Callable[[bytes], None],
+    timeout: float,
+    max_bytes: int,
+) -> bytes:
+    fd = _open_tty()
     old = None
     unmatched = bytearray()
     result = bytearray()

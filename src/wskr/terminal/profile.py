@@ -14,6 +14,7 @@ import sys
 import termios
 from dataclasses import dataclass
 from enum import StrEnum
+from collections.abc import Callable
 from typing import Generic, TypeVar
 
 from wskr.terminal.color import RGB, parse_osc_color
@@ -94,7 +95,7 @@ def read_geometry() -> Geometry | None:
 def probe_profile(
     *,
     geometry: Geometry | None = None,
-    color_query: object = None,
+    color_query: Callable[[bytes], bytes] | None = None,
     palette: bool = False,
 ) -> TerminalProfile:
     """Build a profile; only an explicitly supplied color callback may query.
@@ -112,7 +113,7 @@ def probe_profile(
     cell_width = Value(geom.width_px / geom.columns, Source.INFERRED) if geom.width_px > 0 else Value()
     cell_height = Value(geom.height_px / geom.rows, Source.INFERRED) if geom.height_px > 0 else Value()
     colors: dict[int, RGB] = {}
-    if callable(color_query):
+    if color_query is not None:
         indices = [(10, None), (11, None)]
         if palette:
             indices.extend((4, i) for i in range(16))
