@@ -13,7 +13,8 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from wskr.protocol import ImageProtocol, get_image_protocol
 from wskr.render.matplotlib.size import autosize_figure
-from wskr.terminal import TerminalCapabilities
+from wskr.render.matplotlib.theme import resolve_rc_defaults
+from wskr.terminal import TerminalCapabilities, probe_profile
 
 if sys.flags.interactive:
     interactive(b=True)
@@ -132,6 +133,27 @@ class TerminalBackend(_Backend):
     """Generic Matplotlib backend for terminal-image protocols."""
 
     not_impl_msg: str | None = None
+
+    @classmethod
+    def new_figure_manager(cls, num: int, *args: Any, **kwargs: Any) -> FigureManagerBase:
+        """Choose backend-owned new-figure defaults without changing global rcParams.
+
+        An explicit figsize/facecolor or nondefault rcParams value wins. Kernel
+        geometry is non-interactive; colors remain unknown without safe, owned
+        terminal interrogation.
+        """
+        kwargs = dict(kwargs)
+        if "figsize" not in kwargs or "facecolor" not in kwargs:
+            dpi = kwargs.get("dpi", mpl.rcParams["figure.dpi"])
+            defaults = resolve_rc_defaults(probe_profile(), dpi=float(dpi))
+            for rc_key, argument in (("figure.figsize", "figsize"), ("figure.facecolor", "facecolor")):
+                if argument in kwargs:
+                    continue
+                if mpl.rcParams[rc_key] != mpl.rcParamsDefault[rc_key]:
+                    continue
+                if rc_key in defaults:
+                    kwargs[argument] = defaults[rc_key]
+        return super().new_figure_manager(num, *args, **kwargs)
 
     @classmethod
     def draw_if_interactive(cls):
