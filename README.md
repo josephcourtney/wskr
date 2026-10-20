@@ -1,182 +1,95 @@
 # wskr
 
-A modular, pluggable Matplotlib “image‐in‐terminal” backend.
+**Experimental Matplotlib-in-terminal rendering**, with a Kitty backend, a protocol registry, and Rich renderables.
 
-## What is wskr?
+wskr currently uses Matplotlib's Agg renderer to produce images for a graphical terminal. The project is being redesigned to take its default size, colors, typography and light/dark appearance from the **running terminal**, while keeping the public plotting API unchanged. The planned behavior is specified in [DESIGN.md](DESIGN.md); **it is not all implemented yet**.
 
-wskr lets you render Matplotlib figures as inline images in terminals that support Kitty, iTerm2, or Sixel protocols. It cleanly separates:
+## What works today
 
-- **Transports** (`wskr.terminal.core.*`): how to talk to the terminal (e.g. Kitty image protocol, Sixel, etc.).
-- **Backends** (`wskr.render.matplotlib.*`): a generic Matplotlib FigureCanvas/FigureManager that uses a Transport to size and send a PNG.
-- **Rich integration** (`wskr.render.rich.*`): display plots in a `rich` console using the same transport layer.
+- A `wskr_kitty` Matplotlib backend based on `FigureCanvasAgg`/`FigureManagerBase`.
+- A Kitty transport that runs the external `kitty +kitten icat` command to size/display PNGs.
+- A protocol registry, terminal-size helpers and an OSC-based dark-mode detection utility.
+- `RichPlot` and `RichImage` renderable implementations for Rich.
+- An experimental direct Kitty transport implementation (not a production-ready substitute for `icat`).
 
-## Features
+**Limitations:** direct Kitty PNG encoding is incomplete, terminal sizing uses heuristics, theme matching is not automatic at default figure creation, and live resizing/managed placements are not established. `wskr_sixel` and `wskr_iterm2` are **stubs, not supported backends**, even though names are registered. The current generic backend can select a warning/no-op transport; do not use it as proof of graphics support. See [STATUS.md](STATUS.md).
 
-- **Kitty backend** out of the box (via `KittyTransport`)
-- Planned support for iTerm2 & Sixel
-- Registry of transports so you can add new protocols without touching Matplotlib code
-- Automatic resizing to fill your terminal viewport while preserving aspect ratio
-- `rich` renderables for embedding plots in TUI applications
+## Requirements and local installation
 
-## Installation
+This repository declares **Python >=3.13,<3.15**, Matplotlib >=3.10.1 and the dependencies in [pyproject.toml](pyproject.toml). A Kitty terminal **and the `kitty` executable on PATH** are currently required for the primary graphics transport.
 
-```bash
-pip install wskr
+From a checkout:
+
+```sh
+uv sync
 ```
 
-## Quick start
+Run the installed development environment with `uv run` (or activate its environment). The repository contains some borrowed tool configuration unrelated to wskr; see [STATUS.md](STATUS.md) before relying on `just check`.
+
+## Basic Matplotlib usage
 
 ```python
 import matplotlib
-# choose one of: wskr (generic), wskr_kitty, wskr_sixel, wskr_iterm2
-matplotlib.use("wskr_kitty")
-import matplotlib.pyplot as plt
-
-# make a simple plot...
-plt.plot([0, 1, 2], [10, 20, 15], marker="o")
-plt.title("Hello, terminal!")
-plt.show()   # renders inline via Kitty protocol
-```
-
-### Backend selection
-
-You can also choose a backend via the ``MPLBACKEND`` environment variable. For
-example, to force the Kitty transport:
-
-```bash
-MPLBACKEND=wskr_kitty python my_plot.py
-```
-
-Backends are feature gated; set ``WSKR_ENABLE_SIXEL=1`` or ``WSKR_ENABLE_ITERM2=1``
-to activate optional transports.
-
-## Using with Rich
+matplotlib.use("wskr_kitty")  # before importing pyplot
 
 import matplotlib.pyplot as plt
 
-```python
-from rich.console import Console
-from wskr.render.rich.plt import RichPlot
-
-console = Console()
-fig = plt.figure()
-ax = fig.add_subplot(111)
-ax.plot([0,1,2], [2,3,1], c="w")
-rich_plot = RichPlot(fig, desired_width=40, desired_height=10)
-console.print(rich_plot)
-```
-
-## Extending to new protocols
-
-To add a new terminal protocol (e.g. `MyTerm`) for inline Matplotlib rendering:
-
-### ✅ Step 1: Implement a Custom Transport
-
-Create a class that inherits from `ImageTransport` and implements:
-
-```python
-from wskr.terminal.core.base import ImageTransport
-
-class MyTermTransport(ImageTransport):
-    def get_window_size_px(self) -> tuple[int, int]:
-        # return (width_px, height_px)
-        ...
-
-    def send_image(self, png_bytes: bytes) -> None:
-        # display image in terminal
-        ...
-
-    def init_image(self, png_bytes: bytes) -> int:
-        # optional: upload image once, return an ID
-        ...
-```
-
-Then register it:
-
-```python
-from wskr.terminal.core.registry import register_image_transport
-register_image_transport("myterm", MyTermTransport)
-```
-
----
-
-### ✅ Step 2: Define a Matplotlib Backend
-
-Use the shared base classes for minimal boilerplate:
-
-```python
-import matplotlib.pyplot as plt
-from matplotlib import _api
-from matplotlib.backend_bases import _Backend
-from matplotlib.backends.backend_agg import FigureCanvasAgg
-from matplotlib._pylab_helpers import Gcf
-
-from wskr.render.matplotlib.core import BaseFigureManager
-from myterm_module import MyTermTransport  # your transport from Step 1
-
-plt.style.use("dark_background")
-
-
-class MyTermFigureManager(BaseFigureManager):
-    def __init__(self, canvas: FigureCanvasAgg, num: int = 1):
-        super().__init__(canvas, num, MyTermTransport)
-
-
-class MyTermFigureCanvas(FigureCanvasAgg):
-    manager_class = _api.classproperty(lambda _: MyTermFigureManager)
-
-
-@_Backend.export
-class _BackendMyTermAgg(_Backend):
-    FigureCanvas = MyTermFigureCanvas
-    FigureManager = MyTermFigureManager
-
-    @classmethod
-    def draw_if_interactive(cls):
-        manager = Gcf.get_active()
-        if manager and manager.canvas.figure.get_axes():
-            cls.show()
-
-    @classmethod
-    def show(cls, *args, **kwargs):
-        manager = Gcf.get_active()
-        if manager:
-            manager.show(*args, **kwargs)
-            Gcf.destroy_all()
-```
-
----
-
-### ✅ Step 3: Add It to `pyproject.toml`
-
-```toml
-[project.entry-points."matplotlib.backends"]
-wskr_myterm = "your_module_path"
-```
-
----
-
-### ✅ Step 4: Use It
-
-```python
-import matplotlib
-matplotlib.use("wskr_myterm")
-
-import matplotlib.pyplot as plt
-plt.plot([1, 2, 3])
+fig, ax = plt.subplots()
+ax.plot([0, 1, 2], [10, 20, 15], marker="o")
+ax.set_title("Hello, Kitty")
 plt.show()
 ```
 
-## Testing
+Instead of selecting the backend in Python, set it externally:
 
-```bash
-pytest
+```sh
+MPLBACKEND=wskr_kitty uv run python example.py
 ```
 
-## The Future
+The explicit module path may also be selected as `module://wskr.render.matplotlib.kitty`. This is a terminal-display backend: normal `fig.savefig("plot.png")` and `fig.savefig("plot.svg")` remain the ordinary Matplotlib interfaces for files.
 
-- Possible pure-Python Kitty image protocol implementation (socket or OSC-in-stdin) to replace external CLI
+**Current caution:** the backend's display code resizes figures to the viewport using heuristic dimensions and the backend show path may close figure managers. The intended behavior (respect explicit `figsize`/`dpi`, correct `block=...`, REPL and pandas auto-display, multi-figure management) is an adopted **requirement**, not a validated current guarantee.
+
+## Using the current Rich adapter
+
+```python
+import matplotlib.pyplot as plt
+from rich.console import Console
+from wskr.render.rich.plt import RichPlot
+
+fig, ax = plt.subplots()
+ax.plot([0, 1, 2], [2, 3, 1])
+
+Console().print(RichPlot(fig, desired_width=40, desired_height=10))
+```
+
+The current default protocol registry uses `noop` unless a transport is requested or configured. For experimental Kitty-backed Rich rendering, set `WSKR_PROTOCOL=kitty` in the environment, with Kitty's executable available. The Rich image upload/Unicode placeholder implementation still requires protocol and visual verification; it may not display correctly in all layouts. Do not use it for an unattended production dashboard yet.
+
+## Extending transports
+
+The current extension interface is `wskr.protocol.base.ImageProtocol`, registered by `wskr.protocol.registry.register_image_protocol(name, cls)`. It exposes `get_window_size_px()`, `send_image(png_bytes)` and `init_image(png_bytes)`; the registry can load entry points from `wskr.image_protocols`.
+
+A transport is not considered supported merely because it is registered. The future protocol and placement lifecycle are specified in [DESIGN.md](DESIGN.md), and the migration path is in [PLAN.md](PLAN.md).
+
+## Documentation
+
+| Document | Role |
+| --- | --- |
+| [DESIGN.md](DESIGN.md) | Durable intended capabilities, interfaces and invariants |
+| [PLAN.md](PLAN.md) | Phased migration and validation strategy |
+| [STATUS.md](STATUS.md) | Current implementation, limitations and handoff |
+| [TODO.md](TODO.md) | Immediate unfinished engineering work |
+| [CHANGELOG.md](CHANGELOG.md) | Curated completed user-visible changes |
+| [Architecture decisions](docs/adr/) | Rationale for durable design choices |
+| [POLICY.md](POLICY.md) | Authoritative document/history policy |
+| [AGENTS.md](AGENTS.md) | Contributor instructions specific to wskr |
+
+## Testing and maturity
+
+Test files exist under `tests/`, including unit and PTY cases and opt-in Kitty screenshot work. A complete successful test run **has not been established for the current repository state** in this documentation-only update. Core local checks should use the wskr-specific `uv` environment; the existing `justfile` currently contains unrelated Cwide settings.
+
+Development should not be declared complete based on unit or simulated terminal tests alone. Real Kitty appearance, image placement, cleanup and resize/theme behavior have distinct acceptance criteria in [PLAN.md](PLAN.md).
 
 ## License
 
-GPL-3.0-only
+[GPL-3.0-only](LICENSE.md).
