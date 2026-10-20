@@ -29,11 +29,7 @@ class RGB:
             value = channel / 255
             return value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
 
-        return (
-            0.2126 * linear(self.red)
-            + 0.7152 * linear(self.green)
-            + 0.0722 * linear(self.blue)
-        )
+        return 0.2126 * linear(self.red) + 0.7152 * linear(self.green) + 0.0722 * linear(self.blue)
 
     @property
     def is_dark(self) -> bool:

@@ -13,7 +13,7 @@ import sys
 import termios
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 from wskr.terminal.color import RGB, parse_osc_color
 
@@ -33,7 +33,7 @@ class Source(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
-class Value(Generic[T]):
+class Value[T]:
     value: T | None = None
     source: Source = Source.UNKNOWN
 

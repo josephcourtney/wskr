@@ -8,10 +8,11 @@ from typing import TYPE_CHECKING
 from cycler import cycler
 
 from wskr.terminal.color import RGB
-from wskr.terminal.profile import TerminalProfile
 
 if TYPE_CHECKING:
     from typing import Any
+
+    from wskr.terminal.profile import TerminalProfile
 
 
 @dataclass(frozen=True, slots=True)

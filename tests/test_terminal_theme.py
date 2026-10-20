@@ -26,9 +26,7 @@ def test_measured_color_produces_contrast_defaults_without_global_rc_change():
     result = probe_profile(
         geometry=Geometry(30, 80, 800, 600),
         color_query=lambda request: (
-            b"\x1b]10;rgb:ffff/ffff/ffff\x07"
-            if request.startswith(b"\x1b]10")
-            else b"\x1b]11;rgb:0000/0000/0000\x07"
+            b"\x1b]10;rgb:ffff/ffff/ffff\x07" if request.startswith(b"\x1b]10") else b"\x1b]11;rgb:0000/0000/0000\x07"
         ),
     )
     defaults = resolve_rc_defaults(result)

@@ -24,9 +24,7 @@ def test_backend_auto_uses_measured_pixels_without_mutating_rcparams(monkeypatch
 
 
 def test_explicit_figsize_and_dpi_remain_authoritative(monkeypatch):
-    monkeypatch.setattr(
-        core, "probe_profile", lambda: probe_profile(geometry=Geometry(30, 100, 1000, 600))
-    )
+    monkeypatch.setattr(core, "probe_profile", lambda: probe_profile(geometry=Geometry(30, 100, 1000, 600)))
     manager = core._BackendTermAgg.new_figure_manager(902, figsize=(7, 3), dpi=125)
     try:
         assert tuple(manager.canvas.figure.get_size_inches()) == (7, 3)
@@ -36,9 +34,7 @@ def test_explicit_figsize_and_dpi_remain_authoritative(monkeypatch):
 
 
 def test_nondefault_matplotlib_style_figsize_is_respected(monkeypatch):
-    monkeypatch.setattr(
-        core, "probe_profile", lambda: probe_profile(geometry=Geometry(30, 100, 1000, 600))
-    )
+    monkeypatch.setattr(core, "probe_profile", lambda: probe_profile(geometry=Geometry(30, 100, 1000, 600)))
     monkeypatch.setitem(mpl.rcParams, "figure.figsize", [6, 3])
     manager = core._BackendTermAgg.new_figure_manager(903)
     try:

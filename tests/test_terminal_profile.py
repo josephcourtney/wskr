@@ -115,7 +115,8 @@ def test_read_geometry_handles_kernel_failure(monkeypatch):
     monkeypatch.setattr(profile.sys, "stdout", Tty())
 
     def failing(*_args):
-        raise OSError("no controlling terminal")
+        msg = "no controlling terminal"
+        raise OSError(msg)
 
     monkeypatch.setattr(profile.fcntl, "ioctl", failing)
     assert profile.read_geometry() is None

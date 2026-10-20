@@ -52,7 +52,10 @@ def test_detect_dark_mode_chain(monkeypatch):
     assert called == []
 
     monkeypatch.delenv("COLORFGBG", raising=False)
-    injected = lambda *_a, **_k: b"\x1b]11;rgb:0000/0000/0000\x07"
+
+    def injected(*_a, **_k):
+        return b"\x1b]11;rgb:0000/0000/0000\x07"
+
     assert utils.detect_dark_mode(strategies=[utils.OscQueryStrategy(query=injected)]) is True
 
 

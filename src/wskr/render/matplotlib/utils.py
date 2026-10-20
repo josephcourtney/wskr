@@ -99,11 +99,15 @@ def detect_dark_mode(
     if override is not None:
         return override.lower() in {"1", "true", "yes", "on"}
 
-    candidates = strategies if strategies is not None else [
-        OscQueryStrategy(owns_input=owns_input, on_unmatched=on_unmatched),
-        EnvColorStrategy(),
-        DarkDetectStrategy(),
-    ]
+    candidates = (
+        strategies
+        if strategies is not None
+        else [
+            OscQueryStrategy(owns_input=owns_input, on_unmatched=on_unmatched),
+            EnvColorStrategy(),
+            DarkDetectStrategy(),
+        ]
+    )
     for strategy in candidates:
         try:
             return strategy.detect()
