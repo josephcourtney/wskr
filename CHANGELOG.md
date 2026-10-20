@@ -1,21 +1,13 @@
 # Changelog
 
-Notable **completed** user-visible changes are recorded here, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Design requirements and unfinished work are not release changes.
+Notable completed user-visible changes, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
 ### Changed
-- replace brittle full-terminal Kitty screenshot comparison with logo-content checks robust to terminal background, placement and scale
-- add positive and negative regression tests for screenshot image detection and retain meaningful capture diagnostics
-- harden optional GUI window-manager probing and separate live Kitty image-submission smoke from screenshot comparison
-- repair the remaining baseline-script lint issue and preserve test helper JSON failure behavior
-- improve Phase 0 diagnostic scripts, Ruff compatibility checks, and GUI screenshot-test timeout/window discovery
-- stabilize float assertions in legacy tests without altering their behavior
-- add reproducible baseline diagnostics, installed-wheel smoke test and behavior-characterization tests
-- replace copied development recipes with wskr-specific `uv`/Ruff/`ty`/pytest/Kitty commands
-- remove unrelated Cwide Ruff overrides and temporarily disable strict test-category enforcement during baseline establishment
-- clarify supported Kitty and Rich workflows and distinguish currently experimental or unavailable transports in the README
-- organize the target design, implementation plan, short-horizon status, immediate tasks, and architectural decision rationale according to POLICY.md
+- Clarified which Kitty, Matplotlib, Rich, Sixel and iTerm2 features are supported today, with the intended architecture documented separately.
+- Replaced the copied development workflow with reproducible wskr-specific quality, package, terminal and wheel smoke checks.
+- Improved the real Kitty screenshot test to recognize image content across terminal themes and positions instead of requiring identical whole-window pixels.
 
 ## [0.0.16] - 2025-08-29
 

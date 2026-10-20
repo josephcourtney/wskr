@@ -171,3 +171,27 @@ The reported ty issues were type-safety gaps around a possibly-null Kitty execut
 These changes are source-reviewed and committed, **not** a verified clean ty/full pytest run. No standalone Kitty graphics protocol redesign or automatic styling was introduced in Phase 0.
 
 **Next acceptance:** `just check` (including ty and full pytest), `just test-kitty` and manual stock pyplot/Rich display checks. Mark skipped GUI tests separately, never as passes.
+
+## J. Phase 0 local acceptance — 2026-10-20, commit 9bf3263 + one local autofix
+
+The latest user-provided macOS ARM64 log is from commit `9bf3263f15e90f2c1dff161703a25adc6414be9c` with a locally modified working tree. The sole observed local modification during this run was Ruff's import-order correction in `tests/kitty_visual.py`, later committed to the branch as `6c7eedd`.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| `uv sync` | **Previously passed** | Earlier 2026-10-20 local runs |
+| `just check`: syntax | **PASS** | `compileall` |
+| `just check`: formatting | **PASS** | 71 files already formatted |
+| `just check`: lint | **PASS after local autofix** | First attempt: one `I001` in `tests/kitty_visual.py`; `just fix` corrected it; rerun clean |
+| `just check`: static typing | **PASS** | `ty check src tests scripts`: all checks passed |
+| `just check`: full pytest | **PASS** | **142 passed, 3 skipped, 145 warnings**, 10.30 s |
+| `just test-kitty` | **PASS** | **5 passed, 5 warnings**, 11.99 s; includes live Kitty image-submission and screenshot-content checks |
+| Build/wheel smoke | **Previously passed** | Earlier observed local `just build` and `just wheel-smoke` on Phase 0 branch |
+| Baseline API/compatibility inventory | **DOCUMENTED** | Sections A–D above and repository's characterization tests |
+| Ordinary pyplot/Rich visual output | **NOT TESTED** | No actual Matplotlib or Rich screenshot/visual observation supplied; logo test does not establish either |
+| Pytest size classifications | **PENDING** | All test-size categories are unmarked; warnings are nonfatal in present config |
+
+**Interpretation:** This satisfies the literal `PLAN.md` Phase 0 gate: baseline tests are runnable, the existing compatibility surface and defects are inventoried, and each important behavior is explicitly classified as passed, failed/known-broken, or untested. Visual Matplotlib/Rich behavior is **untested**, not silently accepted as correct. Full on-screen rendering acceptance remains a later phase gate.
+
+**Remaining limitation:** The remote branch commit including the local Ruff import-order change was not independently run after its commit. The tested working tree and committed change are equivalent for that single correction; the evidence is not misrepresented as a fresh remote-head execution. The 145 pytest size warnings are tracked as classification work, not suppressed or claimed fixed.
+
+**Phase 0 disposition:** **Complete (baseline characterization)**. Next work is Phase 1, beginning with terminal query safety and provenance. Preserve this evidence rather than turning STATUS into an archive.
