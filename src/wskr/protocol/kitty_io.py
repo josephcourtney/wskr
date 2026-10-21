@@ -10,12 +10,15 @@ import os
 import select
 import sys
 import termios
-from collections.abc import Callable, Iterable
 from threading import RLock
 from time import monotonic
+from typing import TYPE_CHECKING
 
 from wskr.core.errors import TransportRuntimeError, TransportUnavailableError
 from wskr.protocol.kitty_codec import parse_response
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 _TTY_LOCK = RLock()
 
