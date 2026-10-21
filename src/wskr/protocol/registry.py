@@ -113,7 +113,10 @@ def get_image_protocol(name: str | None = None) -> ImageProtocol:
                 return entry.cls()
             except Exception as e:  # ruff: ignore[blind-except] - defensive guard
                 err = TransportInitError(f"Protocol {key!r} failed to initialise: {e}")
-    # Fallback to noop if available
+    # An explicitly selected native Kitty backend must not silently become
+    # a successful-looking no-op when the terminal is unsupported.
+    if key == "kitty":
+        raise err
     if "noop" in _IMAGE_PROTOCOLS:
         logger.warning("%s; falling back to NoOpProtocol", err)
         return _IMAGE_PROTOCOLS["noop"].cls()
