@@ -233,3 +233,19 @@ Both Rich modes behaved as designed for Phase 1. The Matplotlib PNG transport vi
 **Interpretation:** This run establishes a *small-window limitation*, not a demonstrated code regression: the previous 1272×1381 capture and this 712×619 capture used the same Matplotlib transport/figure path but different available terminal geometry. Preserve explicitly configured figure properties and do not silently recolor or resize user-owned figures. Display-time terminal fitting, viewport clipping and oversized figure handling belong to Phase 3; the defect is not resolved by a successful PNG transfer or a green unit suite. A separate default-configuration visual baseline will eventually be required to assess terminal-derived figure defaults independently of user rcParams.
 
 **Follow-up (not tested on macOS):** `7e15b47` replaced the formatter-sensitive multi-line failure list comprehension with equivalent, straightforward statements. No change to terminal I/O, transport, figure layout or test outcomes is claimed. Rerun the full `just evidence` quality gate at the new head to establish lint/`ty`/pytest results before closing Phase 1 or merging.
+
+
+## Thirteenth macOS run — October 21, 2026, `11343a1`: formatting green, three lint findings
+
+The user ran `git pull --ff-only; just check` from a **clean** macOS arm64 checkout at `11343a12a31fc2ff31411eb76af7e4ef45bfef1c` (Python 3.14.0). This run took approximately one second, exited 1, and did not capture new screenshots.
+
+| Gate | Observed result |
+| --- | --- |
+| `just syntax` | **PASS** — `compileall -q src tests scripts` |
+| `just format` | **PASS** — Ruff reported 87 files already formatted |
+| `just lint` | **FAIL** — three findings in `scripts/phase1_evidence.py` |
+| `just typecheck` / full pytest | **NOT REACHED** — `just check` stops at lint |
+
+Exact lint findings: `too-many-statements-in-try-clause` at 185:5 (11 vs limit 5); `raise-within-try` at 201:13; `non-imperative-mood` at 246:5. No evidence of a new runtime regression is established by this lint-only failure. Preserve earlier focused Kitty/PTY and graphical observations at `207005d` as historical evidence, not passing checks at the newer SHA.
+
+**Unverified follow-up:** `adeeec4` extracted bounded screenshot acquisition into `_capture_rendered_window` outside the owned process's cleanup `try` block and changed the docstring to an imperative. The helper retains `_wait_for_render`, exact title lookup, the compositor delay, scoped `screencapture -l`, screenshot presence/error checks and PNG verification; the original `finally` cleanup remains intact. The patch has **not** received local Ruff, typing, pytest or GUI validation. Rerun `just check` first, then `just evidence` if successful.
