@@ -169,9 +169,7 @@ class NativeKittyTransport(ImageProtocol):
         virtual: bool = False,
     ) -> int:
         """Create a scoped physical or virtual placement of an uploaded image."""
-        return self.manager.place(
-            image_id, columns=columns, rows=rows, placement_id=placement_id, virtual=virtual
-        )
+        return self.manager.place(image_id, columns=columns, rows=rows, placement_id=placement_id, virtual=virtual)
 
     def delete_image(self, image_id: int) -> None:
         """Delete only this transport's owned image and its placements."""
