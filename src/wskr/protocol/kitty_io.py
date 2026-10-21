@@ -94,6 +94,7 @@ def _read_reply(fd: int, deadline: float, unmatched: bytearray, pending: bytearr
             pending.clear()
     if pending:
         unmatched.extend(pending)
+        pending.clear()
     raise TransportRuntimeError("Kitty graphics reply exceeded bounded input limit")
 
 
