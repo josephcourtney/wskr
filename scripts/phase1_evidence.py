@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKS = ("check", "phase1", "phase2", "test-tty", "test-kitty")
-SCENARIOS = ("matplotlib", "rich", "noop")
+SCENARIOS = ("matplotlib", "rich", "noop", "native-physical", "native-virtual")
 RCPARAM_KEYS = (
     "figure.figsize",
     "figure.dpi",
@@ -189,7 +189,8 @@ def _capture_scenario(name: str, run_id: str, directory: Path, *, timeout: float
     screenshot = directory / f"{name}-screen.png"
     launch_log = directory / f"{name}-kitty.log"
     env = dict(os.environ)
-    env["WSKR_PROTOCOL"] = "kitty" if name == "rich" else "noop"
+    env["WSKR_PROTOCOL"] = "kitty" if name in {"rich", "native-physical", "native-virtual"} else "noop"
+    script = "phase2_visual_smoke.py" if name.startswith("native-") else "phase1_visual_smoke.py"
     cmd = [
         kitty,
         "--title",
@@ -198,7 +199,7 @@ def _capture_scenario(name: str, run_id: str, directory: Path, *, timeout: float
         str(ROOT),
         "--hold",
         sys.executable,
-        str(ROOT / "scripts" / "phase1_visual_smoke.py"),
+        str(ROOT / "scripts" / script),
         "--mode",
         name,
         "--reference",
