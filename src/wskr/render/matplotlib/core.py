@@ -9,9 +9,11 @@ import matplotlib as mpl
 from matplotlib import _api, interactive, is_interactive  # ruff: ignore[import-private-name]
 from matplotlib._pylab_helpers import Gcf  # ruff: ignore[import-private-name]
 from matplotlib.backend_bases import FigureManagerBase, _Backend  # ruff: ignore[import-private-name]
+from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from wskr.protocol import ImageProtocol, get_image_protocol
+from wskr.render.matplotlib.figure import TerminalFigure
 from wskr.render.matplotlib.size import autosize_figure
 from wskr.render.matplotlib.theme import resolve_rc_defaults
 from wskr.terminal import TerminalCapabilities, probe_profile
@@ -143,17 +145,32 @@ class TerminalBackend(_Backend):
         terminal interrogation.
         """
         kwargs = dict(kwargs)
-        if "figsize" not in kwargs or "facecolor" not in kwargs:
-            user_dpi = kwargs.get("dpi")
-            dpi = float(mpl.rcParams["figure.dpi"] if user_dpi is None else user_dpi)
-            defaults = resolve_rc_defaults(probe_profile(), dpi=dpi)
-            for rc_key, argument in (("figure.figsize", "figsize"), ("figure.facecolor", "facecolor")):
-                if argument in kwargs:
-                    continue
-                if mpl.rcParams[rc_key] != mpl.rcParamsDefault[rc_key]:
-                    continue
-                if rc_key in defaults:
-                    kwargs[argument] = defaults[rc_key]
+        user_dpi = kwargs.get("dpi")
+        dpi = float(mpl.rcParams["figure.dpi"] if user_dpi is None else user_dpi)
+        defaults = resolve_rc_defaults(probe_profile(), dpi=dpi)
+        backend_owned = {
+            key: value
+            for key, value in defaults.items()
+            if mpl.rcParams[key] == mpl.rcParamsDefault[key]
+        }
+
+        # pyplot always supplies FigureClass=Figure and figsize=None. None
+        # means unspecified; only non-None arguments are user-owned.
+        for rc_key, argument in (("figure.figsize", "figsize"), ("figure.facecolor", "facecolor")):
+            if kwargs.get(argument) is None and rc_key in backend_owned:
+                kwargs[argument] = backend_owned[rc_key]
+
+        # Do not replace a user-selected Figure subclass. Only the stock Figure
+        # receives figure-local defaults, scoped to creation of subsequent axes.
+        if kwargs.get("FigureClass", Figure) is Figure:
+            artist_defaults = {
+                key: value
+                for key, value in backend_owned.items()
+                if key not in {"figure.figsize", "figure.dpi", "figure.facecolor"}
+            }
+            if artist_defaults:
+                kwargs["FigureClass"] = TerminalFigure
+                kwargs["_wskr_defaults"] = artist_defaults
         return super().new_figure_manager(num, *args, **kwargs)
 
     @classmethod

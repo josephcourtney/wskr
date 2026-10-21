@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 
 
 _MIN_PALETTE_COLORS = 3
+_MIN_CONTRAST_RATIO = 3.0
+_MIN_COLOR_DISTANCE_SQUARED = 48 * 48
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +48,30 @@ def suggested_figure_size(
         msg = "Figure fractions must be between zero and one"
         raise ValueError(msg)
     return FigureDefaults(width * width_fraction / dpi, height * height_fraction / dpi, dpi)
+
+
+def _contrast_ratio(a: RGB, b: RGB) -> float:
+    """Compute luminance-based contrast against the terminal background."""
+    lighter = max(a.luminance, b.luminance)
+    darker = min(a.luminance, b.luminance)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def _color_separation_squared(a: RGB, b: RGB) -> int:
+    """Reject effectively identical palette entries."""
+    return (a.red - b.red) ** 2 + (a.green - b.green) ** 2 + (a.blue - b.blue) ** 2
+
+
+def _visible_palette(colors: tuple[RGB | None, ...], background: RGB) -> list[str]:
+    """Prefer terminal palette order after excluding low-contrast duplicates."""
+    selected: list[RGB] = []
+    for candidate in colors:
+        if candidate is None or _contrast_ratio(candidate, background) < _MIN_CONTRAST_RATIO:
+            continue
+        if any(_color_separation_squared(candidate, other) < _MIN_COLOR_DISTANCE_SQUARED for other in selected):
+            continue
+        selected.append(candidate)
+    return [color.to_hex() for color in selected]
 
 
 def resolve_rc_defaults(
@@ -87,8 +113,8 @@ def resolve_rc_defaults(
         defaults["font.size"] = max(6.0, cell_height * 0.6 * 72 / dpi)
 
     palette = profile.ansi_palette.value
-    if palette is not None:
-        usable = [color.to_hex() for color in palette if color is not None]
+    if palette is not None and background is not None:
+        usable = _visible_palette(palette, background)
         if len(usable) >= _MIN_PALETTE_COLORS:
             defaults["axes.prop_cycle"] = cycler(color=usable)
 
