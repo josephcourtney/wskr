@@ -45,7 +45,11 @@ test-kitty:
 
 # Phase 1: bounded queries, measured geometry, themes, and figure defaults.
 phase1:
-  uv run pytest -q tests/test_terminal_color.py tests/test_terminal_profile.py tests/test_terminal_query.py tests/test_terminal_theme.py tests/test_backend_profile_defaults.py tests/test_dark_mode.py
+  uv run pytest -q tests/test_terminal_color.py tests/test_terminal_profile.py tests/test_terminal_query.py tests/test_terminal_theme.py tests/test_terminal_figure.py tests/test_backend_profile_defaults.py tests/test_dark_mode.py
+
+# Manual visual smoke run, inside Kitty. For Rich, set WSKR_PROTOCOL=kitty.
+visual-smoke mode="matplotlib":
+  uv run python scripts/phase1_visual_smoke.py --mode '{{mode}}'
 
 # Structured, diagnostic baseline report with no active graphics output.
 baseline:
