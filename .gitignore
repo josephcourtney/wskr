@@ -3,3 +3,4 @@ capture_tmp*.png
 .ropefolder
 .coverage*
 **/__pycache__/
+/artifacts/evidence/

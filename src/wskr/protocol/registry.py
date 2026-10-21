@@ -71,6 +71,18 @@ def _ensure_builtin_protocols() -> None:
             logger.debug("failed to auto-register NoOpProtocol", exc_info=True)
 
 
+def _ensure_requested_kitty(name: str) -> None:
+    """Register Kitty only when selected, without opening a TTY at import."""
+    if name not in {"kitty", "kitty_py"}:
+        return
+    from .kitty import KittyPyTransport, KittyTransport  # ruff: ignore[import-outside-top-level] - lazy built-ins
+
+    if "kitty" not in _IMAGE_PROTOCOLS:
+        register_image_protocol("kitty", KittyTransport)
+    if "kitty_py" not in _IMAGE_PROTOCOLS:
+        register_image_protocol("kitty_py", KittyPyTransport)
+
+
 def get_image_protocol(name: str | None = None) -> ImageProtocol:
     """Return an initialised protocol instance.
 
@@ -81,6 +93,7 @@ def get_image_protocol(name: str | None = None) -> ImageProtocol:
     _ensure_builtin_protocols()
     _load_entry_points()
     key = name or os.getenv("WSKR_PROTOCOL", "noop")
+    _ensure_requested_kitty(key)
     logger.debug("get_image_protocol: requested=%r", key)
 
     try:

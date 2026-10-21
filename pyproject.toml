@@ -87,6 +87,8 @@
   minversion = "9.0"
   testpaths = ["tests"]
   python_files = ["test_*.py"]
+  # With --import-mode=importlib, expose repository-local tooling to its tests.
+  pythonpath = ["."]
   addopts = [
     "--strict-markers",
     "--strict-config",

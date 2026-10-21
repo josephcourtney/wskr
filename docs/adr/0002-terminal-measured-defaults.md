@@ -12,6 +12,12 @@ The `git-wut` plots showed that fixed figures and hardcoded palettes can look ou
 
 Derive default figure extent, typography, color cycle and contrast from a safe, provenance-aware runtime `TerminalProfile`. Use measured cell/pixel geometry to compute ordinary Matplotlib defaults; distinguish rendering DPI from physical display DPI. Infer effective light/dark mode from the terminal background before using environmental or OS fallbacks. Preserve all explicit user sizing, colors and styles. Do not add a new public unit system or substitute Matplotlib plotting API.
 
+## Contrast of user-owned styles
+
+A dark terminal can make a user-configured transparent figure with black labels difficult to read. This is a legibility problem, not proof that the PNG transfer or Matplotlib rendering failed. **Never silently rewrite explicit Matplotlib colors, transparency, figsize or DPI to improve terminal contrast.** A value identical to Matplotlib's factory default is not evidence that the application did not deliberately select it; style ownership must be treated conservatively where provenance is unavailable.
+
+Phase 1 accepts correct rendering of user-owned settings even when the resulting contrast is poor. A future contrast-assistance feature, if justified, must require explicit opt-in, report its effects, and preserve ordinary saved figure output by default. Display-only changes, if feasible, belong with the Phase 3 display/lifecycle work; avoid global `rcParams` mutation or post hoc claims that unreadable text is transport failure.
+
 ## Alternatives considered
 
 - Hardcode a Kitty-themed Matplotlib style: straightforward but incorrect across terminal color themes and font settings.

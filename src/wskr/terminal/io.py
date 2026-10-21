@@ -131,18 +131,20 @@ class PosixTtyIO(TtyIO):
                     if select(r, w, x, timeout - (monotonic() - start))[0]:
                         input_data.extend(os.read(fd, 1))
         finally:
-            if owns_fd:
-                os.close(fd)
-            stack.close()
+            try:
+                stack.close()  # Restore termios while the descriptor is still open.
+            finally:
+                if owns_fd:
+                    os.close(fd)
         return bytes(input_data)
 
     @lock_tty
     def query(self, request: bytes, more: MorePredicate, timeout: float | None = None) -> bytes:
         fd = _get_tty_fd()
         try:
+            # tcdrain may wait indefinitely on a PTY, even with a bounded read.
+            # The small control request does not require a blocking drain.
             os.write(fd, request)
-            with suppress(termios.error):
-                termios.tcdrain(fd)
             return self.read(timeout=timeout, more=more, fd=fd)
         finally:
             os.close(fd)

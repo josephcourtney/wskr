@@ -10,10 +10,13 @@ from matplotlib import _api, interactive, is_interactive  # ruff: ignore[import-
 from matplotlib._pylab_helpers import Gcf  # ruff: ignore[import-private-name]
 from matplotlib.backend_bases import FigureManagerBase, _Backend  # ruff: ignore[import-private-name]
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.figure import Figure
 
 from wskr.protocol import ImageProtocol, get_image_protocol
+from wskr.render.matplotlib.figure import TerminalFigure
 from wskr.render.matplotlib.size import autosize_figure
-from wskr.terminal import TerminalCapabilities
+from wskr.render.matplotlib.theme import resolve_rc_defaults
+from wskr.terminal import TerminalCapabilities, probe_profile
 
 if sys.flags.interactive:
     interactive(b=True)
@@ -132,6 +135,49 @@ class TerminalBackend(_Backend):
     """Generic Matplotlib backend for terminal-image protocols."""
 
     not_impl_msg: str | None = None
+
+    @classmethod
+    def new_figure_manager(cls, num: int, *args: Any, **kwargs: Any) -> FigureManagerBase:
+        """Choose backend-owned new-figure defaults without changing global rcParams.
+
+        An explicit figsize/facecolor or nondefault rcParams value wins. Kernel
+        geometry is non-interactive; colors remain unknown without safe, owned
+        terminal interrogation.
+        """
+        kwargs = dict(kwargs)
+        if kwargs.get("FigureClass", Figure) is not Figure:
+            # A custom Figure class may implement its own sizing/style policy.
+            return super().new_figure_manager(num, *args, **kwargs)
+
+        user_dpi = kwargs.get("dpi")
+        dpi = float(mpl.rcParams["figure.dpi"] if user_dpi is None else user_dpi)
+        defaults = resolve_rc_defaults(probe_profile(), dpi=dpi)
+        # Iterating rcParams gives Matplotlib's statically valid configuration
+        # keys. An arbitrary string returned by the resolver is not such a key.
+        backend_owned = {
+            key: defaults[key]
+            for key in mpl.rcParams
+            if key in defaults and mpl.rcParams[key] == mpl.rcParamsDefault[key]
+        }
+
+        # pyplot always supplies FigureClass=Figure and figsize=None. None
+        # means unspecified; only non-None arguments are user-owned.
+        for rc_key, argument in (("figure.figsize", "figsize"), ("figure.facecolor", "facecolor")):
+            if kwargs.get(argument) is None and rc_key in backend_owned:
+                kwargs[argument] = backend_owned[rc_key]
+
+        # Do not replace a user-selected Figure subclass. Only the stock Figure
+        # receives figure-local defaults, scoped to creation of subsequent axes.
+        if kwargs.get("FigureClass", Figure) is Figure:
+            artist_defaults = {
+                key: value
+                for key, value in backend_owned.items()
+                if key not in {"figure.figsize", "figure.dpi", "figure.facecolor"}
+            }
+            if artist_defaults:
+                kwargs["FigureClass"] = TerminalFigure
+                kwargs["_wskr_defaults"] = artist_defaults
+        return super().new_figure_manager(num, *args, **kwargs)
 
     @classmethod
     def draw_if_interactive(cls):

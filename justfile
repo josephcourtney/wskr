@@ -43,6 +43,18 @@ test-tty:
 test-kitty:
   WSKR_RUN_E2E=1 WSKR_RUN_TTY=1 uv run pytest -q tests/test_e2e_kitty.py
 
+# Phase 1: bounded queries, measured geometry, themes, and figure defaults.
+phase1:
+  uv run pytest -q tests/test_terminal_color.py tests/test_terminal_profile.py tests/test_terminal_query.py tests/test_terminal_theme.py tests/test_terminal_figure.py tests/test_backend_profile_defaults.py tests/test_dark_mode.py
+
+# Manual visual smoke run, inside Kitty. For Rich, set WSKR_PROTOCOL=kitty.
+visual-smoke mode="matplotlib":
+  uv run python scripts/phase1_visual_smoke.py --mode '{{mode}}'
+
+# Complete validation plus isolated Kitty screenshots and one run-specific ZIP.
+evidence *args:
+  uv run python scripts/phase1_evidence.py {{args}}
+
 # Structured, diagnostic baseline report with no active graphics output.
 baseline:
   uv run python scripts/phase0_baseline.py

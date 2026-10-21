@@ -26,6 +26,21 @@ uv sync
 
 Run the installed development environment with `uv run` (or activate its environment). The `justfile` provides wskr-specific checks and smoke tests. Runtime success still requires validation in your environment; consult [STATUS.md](STATUS.md).
 
+## Terminal discovery (Phase 1, under validation)
+
+The development branch introduces immutable `TerminalProfile` measurements and pure default styling. Kernel geometry is read from an attached terminal without escape sequences; unknown font, physical DPI and colors remain explicitly unavailable. Live OSC color interrogation requires **exclusive ownership of terminal input** and a callback that routes any unrelated bytes back to the application. Importing `wskr` no longer changes global Matplotlib `text.usetex`.
+
+```python
+from wskr.terminal import probe_profile
+from wskr.render.matplotlib.theme import resolve_rc_defaults
+
+profile = probe_profile()  # geometry only; no terminal escape queries
+defaults = resolve_rc_defaults(profile)
+print(profile.columns.value, profile.cell_width_px.source, defaults)
+```
+
+Only backend-owned **initial** figure defaults can use measured terminal dimensions. The legacy display path still resizes figures, and unattended automatic OSC color probing is deliberately disabled until input ownership is available. This is not the final live-theme/resize design.
+
 ## Basic Matplotlib usage
 
 ```python
@@ -63,7 +78,7 @@ ax.plot([0, 1, 2], [2, 3, 1])
 Console().print(RichPlot(fig, desired_width=40, desired_height=10))
 ```
 
-The current default protocol registry uses `noop` unless a transport is requested or configured. For experimental Kitty-backed Rich rendering, set `WSKR_PROTOCOL=kitty` in the environment, with Kitty's executable available. The Rich image upload/Unicode placeholder implementation still requires protocol and visual verification; it may not display correctly in all layouts. Do not use it for an unattended production dashboard yet.
+The current default protocol registry uses `noop` unless a transport is requested or configured. Without an image transport, `RichPlot` now displays a visible text fallback, not an image. Setting `WSKR_PROTOCOL=kitty` now selects the built-in Kitty transport when its executable is available, but **Rich inline graphics remain unavailable**: the old upload/placement path is known to be unsafe and incomplete. Rich shows an in-layout diagnostic instead of sending unsupported inline graphics. Actual Kitty-backed Rich plots require the Phase 2 codec and Phase 4 placement implementation. Do not use it for an unattended production dashboard yet.
 
 ## Extending transports
 
@@ -83,6 +98,22 @@ A transport is not considered supported merely because it is registered. The fut
 | [Architecture decisions](docs/adr/) | Rationale for durable design choices |
 | [POLICY.md](POLICY.md) | Authoritative document/history policy |
 | [AGENTS.md](AGENTS.md) | Contributor instructions specific to wskr |
+
+## Automated run-specific evidence
+
+For one reproducible output containing validation logs, Matplotlib and Rich screenshots, reference PNGs, a manifest and SHA-256 hashes:
+
+```sh
+just evidence
+```
+
+The command prints the generated `artifacts/evidence/<run-id>.zip` path. It launches uniquely titled Kitty windows and captures each using macOS's window-scoped screenshot facility. Captures require a GUI session and appropriate macOS permissions. Missing screenshots remain explicit failures; captured screenshots must still be reviewed. See the [complete guide](docs/phase1-evidence-bundles.md).
+
+## Phase 1 visual checks (experimental)
+
+Use `just visual-smoke matplotlib` inside Kitty to exercise ordinary pyplot, `WSKR_PROTOCOL=kitty just visual-smoke rich` to examine a Rich panel and table, and `just visual-smoke noop` to verify the intentional text-only fallback. These are manual tests: a zero exit status does not guarantee that an image was displayed. [Detailed screenshot procedure](docs/phase1-visual-procedure.md).
+
+The Phase 1 figure-local defaults apply when terminal measurements are available. Color OSC interrogation is opt-in and requires explicitly owned terminal input; unattended pyplot currently obtains geometry but not queried foreground/background colors. Figures using user-selected Figure/axes subclasses and explicit artist styling remain authoritative.
 
 ## Testing and maturity
 

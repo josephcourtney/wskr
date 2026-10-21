@@ -1,87 +1,79 @@
-"""Dark mode detection utilities for Matplotlib backends.
-
-The detection logic is implemented as a chain of strategies.  Each strategy
-attempts to determine whether the terminal is using a dark colour scheme.  The
-default order is environment-variable detection followed by an OSC 11 query.
-"""
+"""Terminal dark/light determination with explicit ownership and true fallback."""
 
 from __future__ import annotations
 
 import logging
 import os
-import re
 from typing import TYPE_CHECKING, Protocol
 
 from wskr.core.config import OSC_TIMEOUT_S
-from wskr.terminal.osc import query_tty
+from wskr.terminal.color import parse_osc_color
+from wskr.terminal.query import query_osc
 
 try:
     import darkdetect  # type: ignore[import-not-found]
-except Exception:  # ruff: ignore[blind-except]  pragma: no cover - optional dependency
-    darkdetect = None  # type: ignore[assignment]
+except ImportError:  # pragma: no cover - optional OS appearance fallback
+    darkdetect = None
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
 logger = logging.getLogger(__name__)
-
-# Threshold for deciding “dark” in $COLORFGBG (0-15 scale)
 _ENV_BG_THRESHOLD = 8
-# Luminance threshold below which we consider the background dark
-_LUMINANCE_THRESHOLD = 0.5
-
-# OSC sequence to query the terminal's background color.
 _OSC_BG_QUERY = b"\033]11;?\007"
-_OSC_BG_RESP_RE = re.compile(rb"\]11;rgb:([0-9A-Fa-f]{4})/([0-9A-Fa-f]{4})/([0-9A-Fa-f]{4})")
 
 
 class DarkModeStrategy(Protocol):
-    """Protocol for dark-mode detection strategies."""
-
-    def detect(self) -> bool:
-        """Return ``True`` if the strategy determines the background is dark."""
+    def detect(self) -> bool: ...
 
 
 class EnvColorStrategy:
-    """Detect dark mode using the ``COLORFGBG`` environment variable."""
-
-    def detect(self) -> bool:  # ruff: ignore[no-self-use] - simple protocol implementation
-        val = os.getenv("COLORFGBG", "")
-        if ";" not in val:
+    def detect(self) -> bool:  # ruff: ignore[no-self-use] - strategy protocol method
+        value = os.getenv("COLORFGBG", "")
+        if ";" not in value:
             msg = "COLORFGBG not set or invalid"
             raise KeyError(msg)
-        _, bg = val.split(";", 1)
-        return int(bg) < _ENV_BG_THRESHOLD
+        return int(value.rsplit(";", 1)[-1]) < _ENV_BG_THRESHOLD
 
 
 class OscQueryStrategy:
-    """Detect dark mode by querying the terminal via OSC 11."""
+    """Use a guarded query, or an explicitly provided test/query callback."""
 
-    def __init__(self, timeout: float | None = None) -> None:
+    def __init__(
+        self,
+        timeout: float | None = None,
+        *,
+        owns_input: bool = False,
+        on_unmatched: Callable[[bytes], None] | None = None,
+        query: Callable[..., bytes] | None = None,
+    ) -> None:
         self._timeout = timeout if timeout is not None else OSC_TIMEOUT_S
+        self._owns_input = owns_input
+        self._on_unmatched = on_unmatched
+        self._query = query
 
     def detect(self) -> bool:
-        resp = query_tty(
-            _OSC_BG_QUERY,
-            more=lambda data: not data.endswith(b"\007"),
-            timeout=self._timeout,
-        )
-        if not resp:
+        if self._query is not None:
+            response = self._query(
+                _OSC_BG_QUERY,
+                more=lambda data: not data.endswith((b"\x07", b"\x1b\\")),
+                timeout=self._timeout,
+            )
+        else:
+            response = query_osc(
+                _OSC_BG_QUERY,
+                owns_input=self._owns_input,
+                on_unmatched=self._on_unmatched,
+                timeout=self._timeout,
+            )
+        if not response:
             msg = "No ANSI background-color response"
             raise RuntimeError(msg)
-        m = _OSC_BG_RESP_RE.search(resp)
-        if not m:
-            msg = f"Unexpected response: {resp!r}"
-            raise ValueError(msg)
-        rgb = [int(g, 16) / 0xFFFF for g in m.groups()]
-        lum = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
-        return lum < _LUMINANCE_THRESHOLD
+        return parse_osc_color(response, 11).is_dark
 
 
 class DarkDetectStrategy:
-    """Detect dark mode using the optional ``darkdetect`` library."""
-
-    def detect(self) -> bool:  # ruff: ignore[no-self-use] - protocol implementation
+    def detect(self) -> bool:  # ruff: ignore[no-self-use] - strategy protocol method
         if darkdetect is None:
             msg = "darkdetect not available"
             raise RuntimeError(msg)
@@ -92,30 +84,35 @@ class DarkDetectStrategy:
         return mode.lower() == "dark"
 
 
-DEFAULT_STRATEGIES: list[DarkModeStrategy] = [
-    EnvColorStrategy(),
-    OscQueryStrategy(),
-    DarkDetectStrategy(),
-]
-
-
 def detect_dark_mode(
     strategies: Sequence[DarkModeStrategy] | None = None,
+    *,
+    owns_input: bool = False,
+    on_unmatched: Callable[[bytes], None] | None = None,
 ) -> bool:
-    """Return ``True`` when any strategy reports a dark background.
+    """First valid result is definitive, including a light/False result.
 
-    ``WSKR_DARK_MODE`` acts as an override.  If unset, the configured
-    strategies are tried in order until one succeeds.
+    Default probing never consumes a shared TTY: the OSC strategy raises before
+    opening a terminal unless a caller explicitly owns and can forward input.
     """
     override = os.getenv("WSKR_DARK_MODE")
     if override is not None:
         return override.lower() in {"1", "true", "yes", "on"}
-    for strat in strategies or DEFAULT_STRATEGIES:
+
+    candidates = (
+        strategies
+        if strategies is not None
+        else [
+            OscQueryStrategy(owns_input=owns_input, on_unmatched=on_unmatched),
+            EnvColorStrategy(),
+            DarkDetectStrategy(),
+        ]
+    )
+    for strategy in candidates:
         try:
-            if strat.detect():
-                return True
-        except (KeyError, RuntimeError, ValueError, OSError) as e:
-            logger.debug("%s failed: %s", strat.__class__.__name__, e)
+            return strategy.detect()
+        except (KeyError, RuntimeError, ValueError, OSError, TimeoutError) as exc:
+            logger.debug("%s failed: %s", type(strategy).__name__, exc)
     return False
 
 

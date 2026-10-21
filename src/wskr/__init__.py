@@ -1,12 +1,5 @@
-# ruff: file-ignore[non-empty-init-module]  # pre-migration compatibility hook; PLAN P1 removes import side effects
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-
+# ruff: file-ignore[non-empty-init-module]  # explicit configuration API only
 from .core import config as _config
-
-# Make *absolutely sure* we never try to invoke TeX during draw or savefig,
-# which would hang under test timeouts.
-mpl.rcParams["text.usetex"] = False
 
 
 def init(*, style: str | None = None, **config_overrides: object) -> None:
@@ -14,6 +7,8 @@ def init(*, style: str | None = None, **config_overrides: object) -> None:
     if config_overrides:
         _config.configure(**config_overrides)
     if style == "auto-dark":
+        import matplotlib.pyplot as plt  # ruff: ignore[import-outside-top-level]
+
         from .render.matplotlib.utils import detect_dark_mode  # ruff: ignore[import-outside-top-level]
 
         if detect_dark_mode():
