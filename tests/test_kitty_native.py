@@ -49,10 +49,10 @@ def test_small_display_and_validated_identity() -> None:
 
 
 def test_scoped_placement_and_deletion_frames() -> None:
-    assert placement(4, 11, 30, 5) == b"\x1b_Ga=p,i=4,p=11,c=30,r=5,C=1,q=2;\x1b\\"
-    assert placement(4, 11, 30, 5, virtual=True) == b"\x1b_Ga=p,i=4,p=11,c=30,r=5,U=1,q=2;\x1b\\"
-    assert delete(4, placement_id=11) == b"\x1b_Ga=d,d=i,i=4,p=11,q=2;\x1b\\"
-    assert delete(4, free=True) == b"\x1b_Ga=d,d=I,i=4,q=2;\x1b\\"
+    assert placement(4, 11, 30, 5) == b"\x1b_Ga=p,i=4,p=11,c=30,r=5,C=1,q=2\x1b\\"
+    assert placement(4, 11, 30, 5, virtual=True) == b"\x1b_Ga=p,i=4,p=11,c=30,r=5,U=1,q=2\x1b\\"
+    assert delete(4, placement_id=11) == b"\x1b_Ga=d,d=i,i=4,p=11,q=2\x1b\\"
+    assert delete(4, free=True) == b"\x1b_Ga=d,d=I,i=4,q=2\x1b\\"
     assert b"a=d" not in command(a="p", i=1)
     with pytest.raises(ValueError, match="dimensions"):
         placement(1, 1, 0, 2)
