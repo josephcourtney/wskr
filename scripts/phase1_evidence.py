@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
-CHECKS = ("check", "phase1", "test-tty", "test-kitty")
+CHECKS = ("check", "phase1", "phase2", "test-tty", "test-kitty")
 SCENARIOS = ("matplotlib", "rich", "noop")
 RCPARAM_KEYS = (
     "figure.figsize",
