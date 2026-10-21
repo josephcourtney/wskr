@@ -38,9 +38,7 @@ def _require_tty(mode: str) -> None:
     if not sys.stdout.isatty():
         msg = "Visual checks require a foreground terminal; do not pipe or redirect output."
         raise SystemExit(msg)
-    if mode != "noop" and not (
-        "kitty" in os.getenv("TERM", "").lower() or os.getenv("KITTY_WINDOW_ID")
-    ):
+    if mode != "noop" and "kitty" not in os.getenv("TERM", "").lower() and not os.getenv("KITTY_WINDOW_ID"):
         msg = "Graphical smoke checks require a Kitty session (TERM=xterm-kitty)."
         raise SystemExit(msg)
 
