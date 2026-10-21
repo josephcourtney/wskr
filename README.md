@@ -6,17 +6,16 @@ wskr currently uses Matplotlib's Agg renderer to produce images for a graphical 
 
 ## What works today
 
-- A `wskr_kitty` Matplotlib backend based on `FigureCanvasAgg`/`FigureManagerBase`.
-- A Kitty transport that runs the external `kitty +kitten icat` command to size/display PNGs.
-- A protocol registry, terminal-size helpers and an OSC-based dark-mode detection utility.
-- `RichPlot` and `RichImage` renderable implementations for Rich.
-- An experimental direct Kitty transport implementation (not a production-ready substitute for `icat`).
+- Phase 1's immutable terminal profile, safe optional OSC queries and figure-local default styling are merged and validated.
+- On the **Phase 2 feature branch only**, `wskr_kitty` and `WSKR_PROTOCOL=kitty` use a direct Kitty `f=100` PNG codec with bounded Base64 framing. The code is **awaiting macOS/Kitty acceptance**, not yet a validated release.
+- The native image manager provides uploads, physical and virtual placements, scoped deletion, and an explicitly input-owned capability probe. The former external `kitty +kitten icat` transport is available as `kitty_legacy` for comparison.
+- `RichPlot` and `RichImage` retain safe text fallbacks. Actual inline graphics are **not yet implemented**; protocol-level Unicode placeholder encoding is prepared for Phase 4.
 
-**Limitations:** direct Kitty PNG encoding is incomplete, terminal sizing uses heuristics, theme matching is not automatic at default figure creation, and live resizing/managed placements are not established. `wskr_sixel` and `wskr_iterm2` are **stubs, not supported backends**, even though names are registered. The current generic backend can select a warning/no-op transport; do not use it as proof of graphics support. See [STATUS.md](STATUS.md).
+**Limitations:** viewport fitting, lifecycle redraw/resize and terminal-dependent contrast are Phase 3 work. Rich virtual placeholder composition and ConsoleOptions sizing are Phase 4 work. `wskr_sixel` and `wskr_iterm2` remain unsupported stubs. See [STATUS.md](STATUS.md).
 
 ## Requirements and local installation
 
-This repository declares **Python >=3.13,<3.15**, Matplotlib >=3.10.1 and the dependencies in [pyproject.toml](pyproject.toml). A Kitty terminal **and the `kitty` executable on PATH** are currently required for the primary graphics transport.
+This repository declares **Python >=3.13,<3.15**, Matplotlib >=3.10.1 and the dependencies in [pyproject.toml](pyproject.toml). The Phase 2 native implementation requires a directly attached `xterm-kitty` TTY for output; it no longer invokes `kitty icat` for the primary display path. The legacy comparison transport still requires the `kitty` executable on PATH.
 
 From a checkout:
 
@@ -26,7 +25,7 @@ uv sync
 
 Run the installed development environment with `uv run` (or activate its environment). The `justfile` provides wskr-specific checks and smoke tests. Runtime success still requires validation in your environment; consult [STATUS.md](STATUS.md).
 
-## Terminal discovery (Phase 1, under validation)
+## Terminal discovery (Phase 1, accepted)
 
 The development branch introduces immutable `TerminalProfile` measurements and pure default styling. Kernel geometry is read from an attached terminal without escape sequences; unknown font, physical DPI and colors remain explicitly unavailable. Live OSC color interrogation requires **exclusive ownership of terminal input** and a callback that routes any unrelated bytes back to the application. Importing `wskr` no longer changes global Matplotlib `text.usetex`.
 
@@ -78,7 +77,7 @@ ax.plot([0, 1, 2], [2, 3, 1])
 Console().print(RichPlot(fig, desired_width=40, desired_height=10))
 ```
 
-The current default protocol registry uses `noop` unless a transport is requested or configured. Without an image transport, `RichPlot` now displays a visible text fallback, not an image. Setting `WSKR_PROTOCOL=kitty` now selects the built-in Kitty transport when its executable is available, but **Rich inline graphics remain unavailable**: the old upload/placement path is known to be unsafe and incomplete. Rich shows an in-layout diagnostic instead of sending unsupported inline graphics. Actual Kitty-backed Rich plots require the Phase 2 codec and Phase 4 placement implementation. Do not use it for an unattended production dashboard yet.
+The current default protocol registry uses `noop` unless a transport is requested or configured. Without an image transport, `RichPlot` now displays a visible text fallback, not an image. Setting `WSKR_PROTOCOL=kitty` on the Phase 2 branch selects the direct native transport when a Kitty TTY is available. **Rich inline graphics remain unavailable** by design: the adapter still displays an explicit diagnostic instead of emitting unverified placeholders. The Phase 2 manager and placeholder encoder are prepared for Phase 4's actual Rich placement implementation. Do not use it for an unattended production dashboard yet.
 
 ## Extending transports
 
@@ -117,7 +116,7 @@ The Phase 1 figure-local defaults apply when terminal measurements are available
 
 ## Testing and maturity
 
-Test files exist under `tests/`, including unit and PTY cases and opt-in Kitty screenshot work. A full successful test run **has not been established for the current repository state**; Phase 0 adds diagnostic checks and installed-wheel probes but they still require execution in a local environment. Core local checks should use the wskr-specific `uv` environment; the existing `justfile` currently contains unrelated Cwide settings.
+Phase 1 acceptance succeeded at `5e35aa6`: full `just check` (200 passed, 3 skipped), Phase 1 (55 passed, 1 skipped), PTY (35 passed), and live Kitty (5 passed). The subsequent Phase 2 code has **not yet passed** those checks and needs its own real Kitty evidence. Execute `just check`, `just phase2`, and `just evidence`, then inspect the captured screens. See [Phase 2 validation](docs/phase2-validation.md).
 
 Development should not be declared complete based on unit or simulated terminal tests alone. Real Kitty appearance, image placement, cleanup and resize/theme behavior have distinct acceptance criteria in [PLAN.md](PLAN.md).
 
