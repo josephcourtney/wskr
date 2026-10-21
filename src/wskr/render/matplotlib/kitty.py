@@ -4,9 +4,8 @@ from matplotlib import _api, interactive  # ruff: ignore[import-private-name]
 from matplotlib.backend_bases import _Backend  # ruff: ignore[import-private-name]
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
-from wskr.protocol.kitty import KittyTransport
+from wskr.protocol.kitty_native import NativeKittyTransport
 from wskr.render.matplotlib.core import BaseFigureManager, TerminalBackend
-from wskr.terminal.kitty.capabilities import KittyCapabilities
 
 if sys.flags.interactive:
     interactive(b=True)
@@ -14,7 +13,7 @@ if sys.flags.interactive:
 
 class KittyFigureManager(BaseFigureManager):
     def __init__(self, canvas: FigureCanvasAgg, num: int = 1):
-        super().__init__(canvas, num, KittyTransport, caps=KittyCapabilities())
+        super().__init__(canvas, num, NativeKittyTransport)
 
 
 class KittyFigureCanvas(FigureCanvasAgg):
