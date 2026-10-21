@@ -35,14 +35,16 @@ class KittyImageManager:
 
     def _ensure_open(self) -> None:
         if self._closed:
-            raise TransportRuntimeError("Kitty image manager has been closed")
+            msg = "Kitty image manager has been closed"
+            raise TransportRuntimeError(msg)
 
     def _id(self, occupied: set[int], *, limit: int = MAX_ID) -> int:
         for _ in range(64):
             candidate = secrets.randbelow(limit) + 1
             if candidate not in occupied:
                 return candidate
-        raise TransportRuntimeError("Unable to allocate a fresh Kitty graphics identifier")
+        msg = "Unable to allocate a fresh Kitty graphics identifier"
+        raise TransportRuntimeError(msg)
 
     def upload(self, png: bytes) -> int:
         """Upload PNG data without creating a visible placement."""
@@ -73,10 +75,12 @@ class KittyImageManager:
         """Create or replace a placement; virtual placements are Rich-ready."""
         self._ensure_open()
         if image_id not in self._images:
-            raise TransportRuntimeError("Image is not owned by this Kitty manager")
+            msg = "Image is not owned by this Kitty manager"
+            raise TransportRuntimeError(msg)
         occupied = self._images[image_id]
         if virtual and placement_id is not None and not 1 <= placement_id <= MAX_VIRTUAL_PLACEMENT_ID:
-            raise ValueError("Virtual placement IDs must fit into a 24-bit underline color")
+            msg = "Virtual placement IDs must fit into a 24-bit underline color"
+            raise ValueError(msg)
         limit = MAX_VIRTUAL_PLACEMENT_ID if virtual else MAX_ID
         pid = placement_id if placement_id is not None else self._id(occupied, limit=limit)
         self._writer((placement(image_id, pid, columns, rows, virtual=virtual),))
@@ -87,7 +91,8 @@ class KittyImageManager:
         """Delete one owned placement without invalidating the image upload."""
         self._ensure_open()
         if placement_id not in self._images.get(image_id, set()):
-            raise TransportRuntimeError("Placement is not owned by this Kitty manager")
+            msg = "Placement is not owned by this Kitty manager"
+            raise TransportRuntimeError(msg)
         self._writer((delete(image_id, placement_id=placement_id),))
         self._images[image_id].remove(placement_id)
 
@@ -95,7 +100,8 @@ class KittyImageManager:
         """Free only the image and placements owned by this manager."""
         self._ensure_open()
         if image_id not in self._images:
-            raise TransportRuntimeError("Image is not owned by this Kitty manager")
+            msg = "Image is not owned by this Kitty manager"
+            raise TransportRuntimeError(msg)
         self._writer((delete(image_id, free=True),))
         del self._images[image_id]
 
@@ -124,9 +130,11 @@ class NativeKittyTransport(ImageProtocol):
     def __init__(self, writer: WriteFrames | None = None) -> None:
         if writer is None:
             if sys.stdout is None or not sys.stdout.isatty():
-                raise TransportUnavailableError("Native Kitty graphics requires a foreground TTY")
+                msg = "Native Kitty graphics requires a foreground TTY"
+                raise TransportUnavailableError(msg)
             if os.getenv("TERM") != "xterm-kitty":
-                raise TransportUnavailableError("Native Kitty graphics requires direct xterm-kitty terminal access")
+                msg = "Native Kitty graphics requires direct xterm-kitty terminal access"
+                raise TransportUnavailableError(msg)
         self.manager = KittyImageManager(writer or send_frames)
         self.confirmed: bool | None = None
 
@@ -152,7 +160,8 @@ class NativeKittyTransport(ImageProtocol):
         """Return measured terminal pixels rather than fabricated monitor DPI."""
         geometry = read_geometry()
         if geometry is None or geometry.width_px <= 0 or geometry.height_px <= 0:
-            raise TransportUnavailableError("Terminal pixel dimensions are not available")
+            msg = "Terminal pixel dimensions are not available"
+            raise TransportUnavailableError(msg)
         return geometry.width_px, geometry.height_px
 
     def send_image(self, png_bytes: bytes) -> None:
