@@ -149,6 +149,33 @@ def _validate_png(path: Path) -> tuple[int, int]:
         return image.size
 
 
+def _capture_rendered_window(
+    marker: Path,
+    process: subprocess.Popen,
+    title: str,
+    screenshot: Path,
+    *,
+    timeout: float,
+) -> tuple[int, int, int]:
+    """Capture an owned window after its renderer reports completion."""
+    _wait_for_render(marker, process, timeout=timeout)
+    window = _find_window(title, timeout=timeout)
+    # Allow the compositor a frame after terminal rendering finishes.
+    time.sleep(0.6)
+    result = subprocess.run(
+        ["/usr/sbin/screencapture", "-x", "-o", "-l", str(window), str(screenshot)],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=20,
+    )
+    if result.returncode != 0 or not screenshot.is_file():
+        msg = f"screencapture failed (exit {result.returncode}): {result.stderr.strip()}"
+        raise RuntimeError(msg)
+    width, height = _validate_png(screenshot)
+    return window, width, height
+
+
 def _capture_scenario(name: str, run_id: str, directory: Path, *, timeout: float) -> dict:
     """Render and capture one independently owned Kitty GUI window."""
     kitty = shutil.which("kitty")
@@ -185,21 +212,7 @@ def _capture_scenario(name: str, run_id: str, directory: Path, *, timeout: float
     try:
         with launch_log.open("wb") as stream:
             process = subprocess.Popen(cmd, cwd=ROOT, env=env, stdout=stream, stderr=subprocess.STDOUT)
-        _wait_for_render(marker, process, timeout=timeout)
-        window = _find_window(token, timeout=timeout)
-        # A compositor frame is needed after the renderer has returned.
-        time.sleep(0.6)
-        result = subprocess.run(
-            ["/usr/sbin/screencapture", "-x", "-o", "-l", str(window), str(screenshot)],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=20,
-        )
-        if result.returncode != 0 or not screenshot.is_file():
-            msg = f"screencapture failed (exit {result.returncode}): {result.stderr.strip()}"
-            raise RuntimeError(msg)
-        width, height = _validate_png(screenshot)
+        window, width, height = _capture_rendered_window(marker, process, token, screenshot, timeout=timeout)
         print(f"[capture] {name}: captured {width}x{height} (visual content unreviewed)", flush=True)
         return {
             "status": "captured_unreviewed",
@@ -243,7 +256,7 @@ def _zip_run(directory: Path) -> Path:
 
 
 def collect(output_root: Path, *, checks: bool = True, gui: bool = True, timeout: float = 45) -> tuple[Path, dict]:
-    """Always produce a run-specific archive, even after failed validation."""
+    """Produce a run-specific archive even after failed validation."""
     started = datetime.now(UTC)
     sha = _short_git("rev-parse", "--short=10", "HEAD") or "unknown"
     run_id = f"{started:%Y%m%dT%H%M%S%fZ}-{sha}-{uuid.uuid4().hex[:6]}"
