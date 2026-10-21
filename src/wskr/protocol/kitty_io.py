@@ -130,7 +130,11 @@ def query_support(
     if not 0 < timeout <= _MAX_QUERY_TIMEOUT:
         msg = "Kitty query deadline must be in (0, 5]"
         raise ValueError(msg)
-    if not request.startswith(b"\x1b_Ga=q,") or not request.endswith(b"\x1b\\") or len(request) > _MAX_QUERY_REQUEST_BYTES:
+    if (
+        not request.startswith(b"\x1b_Ga=q,")
+        or not request.endswith(b"\x1b\\")
+        or len(request) > _MAX_QUERY_REQUEST_BYTES
+    ):
         msg = "Only bounded Kitty graphics capability queries are permitted"
         raise ValueError(msg)
     with _TTY_LOCK:
