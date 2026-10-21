@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 from wskr.core.errors import TransportRuntimeError, TransportUnavailableError
 from wskr.protocol.base import ImageProtocol
 from wskr.protocol.kitty_codec import MAX_ID, delete, placement, probe_request, transmit
+from wskr.protocol.kitty_placeholders import MAX_VIRTUAL_PLACEMENT_ID
 from wskr.protocol.kitty_io import query_support, send_frames
 from wskr.terminal.profile import read_geometry
 
@@ -36,9 +37,9 @@ class KittyImageManager:
         if self._closed:
             raise TransportRuntimeError("Kitty image manager has been closed")
 
-    def _id(self, occupied: set[int]) -> int:
+    def _id(self, occupied: set[int], *, limit: int = MAX_ID) -> int:
         for _ in range(64):
-            candidate = secrets.randbelow(MAX_ID) + 1
+            candidate = secrets.randbelow(limit) + 1
             if candidate not in occupied:
                 return candidate
         raise TransportRuntimeError("Unable to allocate a fresh Kitty graphics identifier")
@@ -74,7 +75,10 @@ class KittyImageManager:
         if image_id not in self._images:
             raise TransportRuntimeError("Image is not owned by this Kitty manager")
         occupied = self._images[image_id]
-        pid = placement_id if placement_id is not None else self._id(occupied)
+        if virtual and placement_id is not None and not 1 <= placement_id <= MAX_VIRTUAL_PLACEMENT_ID:
+            raise ValueError("Virtual placement IDs must fit into a 24-bit underline color")
+        limit = MAX_VIRTUAL_PLACEMENT_ID if virtual else MAX_ID
+        pid = placement_id if placement_id is not None else self._id(occupied, limit=limit)
         self._writer((placement(image_id, pid, columns, rows, virtual=virtual),))
         occupied.add(pid)
         return pid
