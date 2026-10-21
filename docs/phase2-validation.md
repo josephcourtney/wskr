@@ -25,20 +25,34 @@ Phase 3 handles interactive `show()` lifecycle, figure/user style ownership at d
 
 ## Independent portable validation — October 21, 2026
 
-The Phase 2 native implementation was reconstructed in the available Linux environment and four **exact source modules** plus the original combining-character table were verified against the GitHub blob SHA of the Phase 2 branch:
+**Scope and environment.** Python 3.13.5, Linux x86-64, glibc 2.41. A narrow package harness reconstructed the exact GitHub versions of the native codec, TTY I/O, image manager, Unicode placeholder encoder, diacritic resource, GUI smoke script and smoke tests. Local dependency stubs provide `ImageProtocol`, structured transport errors and terminal-geometry lookup, because the complete GitHub checkout and dev toolchain are unavailable. Those stubs are not evidence for the corresponding real package modules.
 
-| Source file | Verified Git blob SHA |
+| Git-verified source | Blob SHA |
 | --- | --- |
-| `src/wskr/protocol/kitty_codec.py` | `afd31301aaf939cb8539f6cb17b8695308040762` |
-| `src/wskr/protocol/kitty_io.py` | `b88998edade088d7b9d68e4d864e5087a038528b` |
-| `src/wskr/protocol/kitty_native.py` | `2d0db2313b5ce387fef7e17b205e409b9f638045` |
-| `src/wskr/protocol/kitty_placeholders.py` | `81df4b5250161e2c81138fc2133332010a1d30c1` |
+| `src/wskr/protocol/kitty_codec.py` | `ea22a4c85f315e17639a697921bd070481a09899` |
+| `src/wskr/protocol/kitty_io.py` | `de9c57eb6866db15444f9559c2d1eeb2a59275df` |
+| `src/wskr/protocol/kitty_native.py` | `c242af6339cead2aa6e397bc48b572b8dd4979f9` |
+| `src/wskr/protocol/kitty_placeholders.py` | `d6db7fa0d876b805937ab3edf7b2caaf59cc88e7` |
 | `src/wskr/protocol/rowcolumn-diacritics.txt` | `abe6f665b454208e291a977d2eb3128a07414e61` |
+| `scripts/phase2_visual_smoke.py` | `d9e7caa633353de0eccf3c01f51a499d19a7075d` |
+| `tests/test_phase2_visual_smoke.py` | `a2e20b8a0ce2197642d977e54befa667d100b2b8` |
+| `tests/test_kitty_native_pty_integration.py` | `039b7349e04d94068d242db0d45a85a0c123d789` |
 
-**Environment:** Python 3.13.5, Linux x86-64, glibc 2.41, pytest and Pillow installed. These modules used narrowly scoped dependency stubs for `ImageProtocol`, the geometry reader, the placeholder ID constant and transport exceptions. No substitution of codec, I/O, image manager, placeholder source or the 297-character diacritic table occurred. The isolated harness is distinct from the repository's configured `just check`.
+**Executed (portable isolated harness):**
 
-**Executed:** `PYTHONPATH=src pytest -q -p no:cacheprovider tests/test_isolated_codec_io.py tests/test_isolated_manager.py` → **19 passed in 0.15s**; `python -m compileall -q src tests` → **exit 0**. Specific cases covered PNG Base64 roundtrips on two lengths, chunk bounds, `f=100` headers and scoped physical/virtual/delete framing; a real Linux PTY writer, stdout TTY binding, foreign ACK/unmatched input forwarding, positive and negative ACKs, interrupted/incomplete-response deadline handling and exact termios restoration; image upload, replacement, scoped deletion, failed-writer rollback, 24-bit virtual ID bounds, direct display, managed transport ownership and injected capability probe; plus four cross-range virtual-placeholder color/coordinate cases and invalid placeholder boundaries.
+```sh
+PYTHONPATH=src:. pytest -q -p no:cacheprovider \
+  -o 'markers=small: small; medium: medium' \
+  tests/test_isolated_codec_io.py tests/test_isolated_manager.py \
+  tests/test_isolated_placeholders.py tests/test_phase2_visual_smoke.py \
+  tests/test_kitty_native_pty_integration.py
+python -m compileall -q src scripts tests
+```
 
-The newly committed `tests/test_kitty_pty_transactions.py` incorporates the corresponding portable PTY regressions, and `just phase2` includes that file. The exact repository tests have **not** been executed here because the full GitHub checkout/dev toolchain cannot be retrieved; the isolated tests above are not a substitute for a full `just check`. Ruff and `ty` are unavailable in this environment, and no Kitty emulator/GUI is present. The source-code branch therefore remains in **draft PR #18**, without a false P2 signoff. The former user-host validation request is not required for continued implementation work.
+The configured local pytest marker override simply registered the `small` and `medium` names; it was not the repository's original `pyproject.toml` configuration. **23 passed in 0.47 seconds; compilation exited 0.** The first three `test_isolated_*.py` files are a disposable local harness, not committed repository tests. The last two are exact GitHub test files. A separately committed real-PTY regression suite, `tests/test_kitty_pty_transactions.py`, has not been executed verbatim in this environment, although equivalent kernel-PTY behaviors have been covered by the local harness.
 
-An additional repository fix binds graphics I/O to the actual stdout TTY path (`os.ttyname(sys.stdout.fileno())`) instead of opening a potentially different `/dev/tty`. The portable PTY test verifies that behavior on Linux. The implementation was also compared to upstream Kitty protocol documentation for `f=100`, `m`, `a=q`, `a=p`, `U=1`, `a=d`, ACKs and explicit row/column Unicode placeholders.
+**Covered:** PNG/Base64 roundtrip and 4096-byte chunk limits; valid `f=100` and `a=p`/`a=d` framing; partial and negative ACKs; forwarding foreign TTY bytes and restoring termios; stdout-bound TTY selection; no binary PNG leakage; managed image upload, placement, replacement and scoped disposal; image/placement collision bounds; virtual placeholders with 32-bit image and 24-bit placement IDs; and GUI-smoke script reference/ready-marker behavior under a fake transport. The new exact `tests/test_kitty_native_pty_integration.py` generated a valid Pillow PNG, sent native transport bytes through an actual Linux PTY, reconstructed and decoded the upload, and checked `U=1` placement and `a=d` cleanup without a GUI.
+
+**Additional code review/fix:** New exception raises were normalized to use message variables, matching the repository's strict `EM` lint selection. After the changes, all four updated source files passed Git blob identity verification and all 23 portable tests were rerun. The writer was fixed to use the actual stdout TTY path rather than potentially targeting an unrelated controlling terminal.
+
+**Not executed:** `just check` over the complete repository, Ruff format/lint, `ty`, all original tests, real Kitty/GUI screenshots or actual emulator image placement. No P2 signoff is claimed; [draft PR #18](https://github.com/josephcourtney/wskr/pull/18) remains unmerged. The former user-machine validation requirement does not block additional independent development.
