@@ -241,3 +241,30 @@ def test_failed_placement_does_not_claim_owned_placement(dummy_png, monkeypatch)
     with pytest.raises(OSError, match="placement failed"):
         manager.place(image, columns=2, rows=1, virtual=True)
     assert manager._images[image] == set()
+
+
+@pytest.mark.parametrize(
+    ("image_id", "placement_id", "columns", "rows"),
+    [
+        (42, 7, 2, 2),
+        (0xFFFFFFFF, 0xFFFFFF, 4, 3),
+        (1, 1, 1, 1),
+        (33554474, 150, 7, 3),
+    ],
+)
+def test_placeholder_colors_and_coordinates_for_full_id_range(image_id, placement_id, columns, rows) -> None:
+    """Encode every placeholder cell with explicit high-ID and cell coordinates."""
+    from wskr.protocol.kitty_placeholders import diacritics, placeholder_rows
+
+    table = diacritics()
+    rendered = placeholder_rows(image_id, placement_id, columns=columns, rows=rows)
+    assert len(rendered) == rows
+    high = image_id >> 24
+    fg = f"\x1b[38;2;{(image_id >> 16) & 255};{(image_id >> 8) & 255};{image_id & 255}m"
+    ul = f"\x1b[58;2;{(placement_id >> 16) & 255};{(placement_id >> 8) & 255};{placement_id & 255}m"
+    for row, text in enumerate(rendered):
+        assert text.startswith(fg + ul)
+        assert text.endswith("\x1b[39;59m")
+        assert text.count(chr(0x10EEEE)) == columns
+        for column in range(columns):
+            assert chr(0x10EEEE) + table[row] + table[column] + (table[high] if high else "") in text
