@@ -169,3 +169,25 @@ The five `ty` errors involving dynamic `RcParams` string keys have been resolved
 Following the ninth passing quality gate, the feature branch added `scripts/phase1_evidence.py` (`just evidence`) and `scripts/find_kitty_window.swift`. The collector runs the existing four gates, takes dedicated-window macOS screenshots of Matplotlib, explicitly selected Kitty-backed Rich diagnostic, and noop Rich fallback, saves reference rasters/configuration and logs, and produces a run-specific ZIP and SHA-256 manifest even on partial failures. It does not interpret a captured screenshot as a visually correct graph.
 
 **Validation status:** implementation and mocked regression tests are committed, but neither the updated `just check` nor an actual GUI evidence collection has been observed. Results from `ab3ad41` do not qualify the new scripts. When the collector is run, record its exact revision and attach the ZIP; keep distinct states for passed checks, failed/missing screenshots, and captured-but-unreviewed images.
+
+## Tenth macOS run — October 21, 2026, `2dbb65f`: first full evidence ZIP
+
+**Archive:** `20261021T144324145972Z-2dbb65f558-a36430.zip`, recorded at 2026-10-21T14:43:24Z. The caller launched `just evidence`; the command exited 1 because its quality gate failed. The archive was still generated successfully and includes `manifest.json`, all command logs, reference PNGs and three independent Kitty window captures with SHA-256 hashes.
+
+| Component | Observed outcome |
+| --- | --- |
+| `just check` | **FAIL** at `ruff format --check`: unformatted `scripts/phase1_evidence.py:55:29` and `tests/test_phase1_evidence.py:48:1`. Ruff lint, `ty`, full pytest were not reached |
+| `just phase1` | **PASS — 54 passed, 1 skipped**; size distribution advisory, 33 small/22 medium |
+| `just test-tty` | **PASS**, legacy size-marker warnings |
+| `just test-kitty` | **PASS**, legacy size-marker warnings |
+| GUI screenshots | **3/3 captured**, each 553×1381 pixels; visual content separately inspected |
+| `matplotlib-screen.png` | Sine/cosine image genuinely visible with no obvious cropped data; axes interior/legend legible. **Title, tick labels and axis labels have nearly zero contrast** on the dark outside margin |
+| `rich-screen.png` | Proper `Kitty inline placement unavailable` diagnostic, contained by both Rich panel and table; no image expected or shown |
+| `noop-screen.png` | Proper `image unavailable (no graphics protocol)` diagnostic in the panel and table; no border damage |
+| `matplotlib-rcparams.log` | **PASS**; establishes nondefault 6×6 inch `figure.figsize`, 300 DPI, transparent figure background and transparent exports |
+
+Recorded Matplotlib values: `figure.figsize=[6.0,6.0]` vs default `[6.4,4.8]`; `figure.dpi=300` vs `100`; `figure.facecolor=none` vs `white`; `axes.facecolor=white`; `text.color=black`; `axes.labelcolor=black`; `savefig.transparent=True` vs `False`. This is **configured user styling**, so the backend must not silently replace it to improve screenshot contrast or size. The image transport did display a graph.
+
+The screenshots were saved in a uniquely titled, dedicated Kitty window identified through CoreGraphics. A zero screenshot error code was not itself treated as proof; the actual screenshot PNGs were inspected after upload. The archive is not a clean pass because `just check` failed.
+
+**Subsequent branch correction (not verified on macOS):** normalized Ruff formatting in the two reported files; validation of lint, `ty`, and the evidence-runner regression tests remains pending. No changes were made to Kitty image transmission or figure rendering.

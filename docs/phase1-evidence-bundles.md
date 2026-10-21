@@ -70,3 +70,7 @@ ZIPs can contain screenshots of terminal window content and subprocess output. *
 - screenshots: recorded pixels, **not** automated semantic acceptance.
 
 Comparison of actual graphics with reference PNGs, future dynamic theme/geometry testing and Phase 2/4 Kitty inline graphics are separate acceptance steps.
+
+## First collected run
+
+The first observed full run (`2dbb65f`, 2026-10-21) produced all three scoped screenshots, log files and the ZIP even though `just check` failed on formatting. The screenshots confirm real Matplotlib graphics and the two expected Rich diagnostics. The Matplotlib reference records user-configured 6×6 inches, 300 DPI and a transparent figure background, which leave default black labels unreadable against the dark terminal margin. This is not a graphics transport failure; do not silently override user rcParams. Full check acceptance remains pending after the Ruff formatting correction.

@@ -4,28 +4,28 @@ Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 
 
 ## Current focus
 
-**Phase 1 validation passes, but automated evidence capture and final visual/profile acceptance remain open.** Feature branch `feature/phase1-terminal-profile-20261020`; `main` unchanged.
+**The automated evidence capture works; a formatting-only quality failure was reported and repaired, but the updated branch is not yet validated.** Feature branch `feature/phase1-terminal-profile-20261020`; `main` unchanged.
 
-## Verified on macOS — October 21, 2026, `ab3ad41`
+## Latest macOS evidence — October 21, 2026, `2dbb65f`
 
-- `just check`: **PASS** — compileall, Ruff format/lint, `ty`, full pytest **194 passed, 3 skipped**, 137 legacy size-marker warnings.
-- `just phase1`: **54 passed, 1 skipped**. Previously, `just test-tty` **35 passed** and `just test-kitty` **5 passed**.
-- Real Kitty image transmission works; prior screenshot shows normal plotting but low text contrast against a dark margin. Default Rich `noop` fallback is visible, while Rich Kitty inline graphics remain unsupported.
+- `just evidence` generated a complete run-specific ZIP and **3/3 separate, scoped Kitty screenshots** (553 × 1381 pixels); manifest marks captures `captured_unreviewed`.
+- `just check` **FAILED** at Ruff format: `scripts/phase1_evidence.py` and `tests/test_phase1_evidence.py`. Lint, `ty`, full pytest not reached.
+- `just phase1`: **54 passed, 1 skipped**. `just test-tty` and `just test-kitty`: **passed**.
+- Matplotlib screenshot: sine/cosine figure renders, but dark text on transparent dark margins is nearly invisible; legend and axes interior remain legible.
+- Rich Kitty: correct unsupported-inline diagnostic in panel/table. Rich noop: correct in-layout text fallback.
 
-## New implementation — unverified on macOS
+## Matplotlib configuration established by bundle
 
-- `just evidence` runs all four validation suites and launches a dedicated Kitty window for each Matplotlib/Rich/noop visual scenario.
-- Exact-title CoreGraphics lookup and window-only macOS `screencapture` collect isolated screen PNGs, reference PNGs and command logs; failures are recorded rather than replaced by unrelated desktop captures.
-- Run-specific manifest records git state, timestamps, return codes, screenshots, rcParams and file SHA-256; a matching ZIP is generated even on partial failure.
-- Five deterministic runner tests cover archives, errors, skipped modes and scoped screenshots.
+- User `rcParams`: `figure.figsize=[6,6]` (default `[6.4,4.8]`), `figure.dpi=300` (default `100`), `figure.facecolor=none`, `savefig.transparent=True`.
+- `axes.facecolor=white`, `text.color=black`, `axes.labelcolor=black`. Do not override these user-owned settings without explicit opt-in.
+- Observed visual contrast is problematic, but it is **not** evidence of a broken terminal PNG transport.
 
-## Remaining acceptance
+## Recent fix and remaining gates
 
-- Execute `just check` and `just evidence` on the new branch in macOS/Kitty. The new capture/ZIP workflow has **not** yet been run there.
-- Visually inspect captured plotting pixels and theme/size behavior; screenshot presence alone is not a visual pass.
-- Profile unknown terminal colors and other capabilities only with safely owned input; do not override user rcParams.
-- Legacy test-size warnings remain; Rich Kitty graphics require Phase 2/4.
+- Ruff formatting normalized for evidence collector and regression test; **no new local check has been run** against that commit.
+- Rerun `just check` or `just evidence` at latest branch head. Preserve further logs/screenshots and any new failures.
+- Missing owned-input live color negotiation, Rich inline graphics (Phase 2/4), later display-time resize behavior, and legacy size-marker warnings remain open.
 
 ## Handoff
 
-Do not merge or declare Phase 1 complete until new code passes macOS checks and the ZIP/screenshots are inspected.
+Do not merge or count screenshot capture as image-quality acceptance. The failed run ZIP is valid and retained.
