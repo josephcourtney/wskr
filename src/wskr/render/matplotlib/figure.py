@@ -32,17 +32,17 @@ class TerminalAxes(Axes):
         else:
             yield
 
-    def legend(self, *args: Any, **kwargs: Any) -> Any:
+    def legend(self, *args: Any, **kwargs: Any):
         """Create legends with the owner's currently applicable text style."""
         with self._owner_defaults():
             return super().legend(*args, **kwargs)
 
-    def text(self, *args: Any, **kwargs: Any) -> Any:
+    def text(self, *args: Any, **kwargs: Any):
         """Create axes text without altering global rcParams."""
         with self._owner_defaults():
             return super().text(*args, **kwargs)
 
-    def annotate(self, *args: Any, **kwargs: Any) -> Any:
+    def annotate(self, *args: Any, **kwargs: Any):
         """Create annotations with figure-local defaults."""
         with self._owner_defaults():
             return super().annotate(*args, **kwargs)
@@ -85,22 +85,22 @@ class TerminalFigure(Figure):
             return {**kwargs, "axes_class": TerminalAxes}
         return kwargs
 
-    def add_subplot(self, *args: Any, **kwargs: Any) -> Any:
+    def add_subplot(self, *args: Any, **kwargs: Any):
         """Construct axes using the figure's owned defaults."""
         with self._creation_defaults():
             return super().add_subplot(*args, **self._axes_options(args, kwargs))
 
-    def add_axes(self, *args: Any, **kwargs: Any) -> Any:
+    def add_axes(self, *args: Any, **kwargs: Any):
         """Construct manually positioned axes using owned defaults."""
         with self._creation_defaults():
             return super().add_axes(*args, **self._axes_options(args, kwargs))
 
-    def text(self, *args: Any, **kwargs: Any) -> Any:
+    def text(self, *args: Any, **kwargs: Any):
         """Construct figure-level text without affecting other figures."""
         with self._creation_defaults():
             return super().text(*args, **kwargs)
 
-    def suptitle(self, t: str, **kwargs: Any) -> Any:
+    def suptitle(self, t: str, **kwargs: Any):
         """Construct a supertitle with backend-owned text defaults."""
         with self._creation_defaults():
             return super().suptitle(t, **kwargs)

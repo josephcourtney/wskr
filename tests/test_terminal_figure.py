@@ -113,7 +113,8 @@ def test_user_figure_arguments_and_artist_edits_win(monkeypatch):
         ax.set_title("Specific color", color="cyan")
         assert ax.title.get_color() == "cyan"
         assert ax.text(0.5, 0.5, "explicit text", color="red").get_color() == "red"
-        assert ax.legend(labelcolor="blue").get_texts()[0].get_color() == "blue"
+        label_color = ax.legend(labelcolor="blue").get_texts()[0].get_color()
+        assert tuple(label_color) == pytest.approx(mpl.colors.to_rgba("blue"))
     finally:
         manager.destroy()
 
