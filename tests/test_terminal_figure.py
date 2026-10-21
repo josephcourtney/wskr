@@ -19,6 +19,14 @@ from wskr.terminal.profile import Geometry, probe_profile
 pytestmark = pytest.mark.medium
 
 
+@pytest.fixture(autouse=True)
+def _isolated_rc_defaults():
+    """Make style ownership tests independent of unrelated pyplot tests."""
+    with mpl.rc_context():
+        mpl.rcdefaults()
+        yield
+
+
 def _profile(*, background: str = "0000", foreground: str = "ffff"):
     palette = (
         "ffff/ffff/ffff",
