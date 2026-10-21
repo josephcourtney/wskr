@@ -20,7 +20,7 @@ RCD: str = _rcd_path.read_text(encoding="utf-8")
 class RichImage:
     """Rich renderable: upload PNG once (init_image) then paint it cell-by-cell."""
 
-    __slots__ = ("_fallback_sent", "_png", "desired_height", "desired_width", "image_id", "transport")
+    __slots__ = ("_fallback_sent", "_inline_unavailable", "_png", "desired_height", "desired_width", "image_id", "transport")
 
     image_number = 0
 
@@ -42,8 +42,10 @@ class RichImage:
             png = Path(image_path).read_bytes()
         self._png = png
 
-        if isinstance(self.transport, NoOpProtocol):
-            # A no-op transport must not attempt upload or print outside Rich.
+        self._inline_unavailable = not getattr(self.transport, "supports_inline_placement", True)
+        if isinstance(self.transport, NoOpProtocol) or self._inline_unavailable:
+            # Neither noop nor the legacy Kitty icat transport supports Rich
+            # inline placement; never trigger the unsafe old query/framing path.
             self.image_id = -1
         else:
             try:
@@ -59,6 +61,10 @@ class RichImage:
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:  # ruff: ignore[undocumented-magic-method]
         if isinstance(self.transport, NoOpProtocol):
             yield Text("[wskr: image unavailable (no graphics protocol)]", style="dim")
+            return
+
+        if self._inline_unavailable:
+            yield Text("[wskr: Kitty inline placement unavailable (experimental transport)]", style="dim")
             return
 
         if self.image_id == -1:

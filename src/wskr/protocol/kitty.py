@@ -60,6 +60,10 @@ class KittyChunkParser:
 
 
 class KittyTransport(ImageProtocol):
+    # This legacy transport supports icat display, not Rich virtual placement.
+    # init_image still uses the pre-Phase-2 experimental protocol path.
+    supports_inline_placement = False
+
     __slots__ = ("_cache_time", "_cached_size", "_kitty", "_next_img", "_runner")
 
     def __init__(self) -> None:
