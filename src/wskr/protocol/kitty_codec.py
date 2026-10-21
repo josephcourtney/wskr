@@ -39,7 +39,7 @@ def _dimension(value: int) -> int:
 
 def command(**fields: str | int) -> bytes:
     """Frame a control-only Kitty graphics command."""
-    return APC + ",".join(f"{key}={value}" for key, value in fields.items()).encode("ascii") + b";" + ST
+    return APC + ",".join(f"{key}={value}" for key, value in fields.items()).encode("ascii") + ST
 
 
 def transmit(
