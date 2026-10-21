@@ -78,7 +78,7 @@ ax.plot([0, 1, 2], [2, 3, 1])
 Console().print(RichPlot(fig, desired_width=40, desired_height=10))
 ```
 
-The current default protocol registry uses `noop` unless a transport is requested or configured. Without an image transport, `RichPlot` now displays a visible text fallback, not an image. For **experimental** Kitty-backed Rich testing, set `WSKR_PROTOCOL=kitty` in the environment in a real Kitty session, with Kitty's executable available. The legacy Rich image upload/Unicode placeholder implementation still requires protocol and visual verification; selecting Kitty does not guarantee correct panel placement. Do not use it for an unattended production dashboard yet.
+The current default protocol registry uses `noop` unless a transport is requested or configured. Without an image transport, `RichPlot` now displays a visible text fallback, not an image. Setting `WSKR_PROTOCOL=kitty` now selects the built-in Kitty transport when its executable is available, but **Rich inline graphics remain unavailable**: the old upload/placement path is known to be unsafe and incomplete. Rich shows an in-layout diagnostic instead of sending unsupported inline graphics. Actual Kitty-backed Rich plots require the Phase 2 codec and Phase 4 placement implementation. Do not use it for an unattended production dashboard yet.
 
 ## Extending transports
 
