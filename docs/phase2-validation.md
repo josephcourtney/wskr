@@ -13,7 +13,7 @@
 ## Required macOS qualification
 
 1. Check out the latest branch in a clean macOS Kitty environment; run `uv sync`, `just check`, `just phase2` and `just test-tty`. Full `ty`, Ruff and pytest must pass.
-2. Run `just evidence`. It now collects `just check`, `just phase1`, `just phase2`, `just test-tty`, `just test-kitty`, and three independent window-scoped screenshots. Preserve the complete ZIP even on failure.
+2. Run `just evidence`. It now collects `just check`, `just phase1`, `just phase2`, `just test-tty`, `just test-kitty`, and five independent window-scoped screenshots. Preserve the complete ZIP even on failure.
 3. Confirm the standard Matplotlib window is drawing with **direct** `f=100` packets (not external `icat`), and that the two Rich modes still show their correct explicit fallback messages. Compare live output to reference PNGs and inspect clipping, contrast and image placement. A screenshot's existence alone is not proof of correct graphics.
 4. Test the ACK and negative-ACK paths on an exclusively owned PTY/foreground Kitty session. A normal REPL must not have bytes stolen or receive raw ACK sequences when ownership cannot be established.
 5. Verify redirect and non-Kitty terminal refusal; test placement replacement and scoped deletion in a real terminal. Simulated ACKs alone do not prove terminal semantics.
