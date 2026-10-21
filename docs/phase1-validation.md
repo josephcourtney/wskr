@@ -191,3 +191,24 @@ Recorded Matplotlib values: `figure.figsize=[6.0,6.0]` vs default `[6.4,4.8]`; `
 The screenshots were saved in a uniquely titled, dedicated Kitty window identified through CoreGraphics. A zero screenshot error code was not itself treated as proof; the actual screenshot PNGs were inspected after upload. The archive is not a clean pass because `just check` failed.
 
 **Subsequent branch correction (not verified on macOS):** normalized Ruff formatting in the two reported files; validation of lint, `ty`, and the evidence-runner regression tests remains pending. No changes were made to Kitty image transmission or figure rendering.
+
+## Eleventh macOS run — October 21, 2026, `a1a722e`: scoped screenshots, formatter gate
+
+**Archive:** `20261021T172402727215Z-a1a722ecea-640427.zip`, recorded starting 2026-10-21T17:24:02Z from a clean `feature/phase1-terminal-profile-20261020` checkout (Python 3.14.0, macOS arm64, `TERM=xterm-kitty`). The user supplied the complete ZIP; all **14 recorded SHA-256 file hashes matched** the actual archive entries. `just evidence` exited 1 because its full quality gate failed.
+
+| Component | Observed outcome |
+| --- | --- |
+| `uv sync` | **PASS** — 57 packages resolved, 43 checked |
+| `just check` | **FAIL** at Ruff format: `scripts/phase1_evidence.py:290:23`. Compileall passed; lint, `ty`, full pytest were **not reached** |
+| `just phase1` | **PASS — 55 passed, 1 skipped** (new transparent-style regression included); 33 small/23 medium advisory |
+| `just test-tty` | **PASS — 35 passed**, 26 nonfatal legacy marker warnings |
+| `just test-kitty` | **PASS — 5 passed**, 5 nonfatal marker warnings, real Kitty image/screenshot test |
+| Screenshots | **3/3 captured and visually reviewed**, separate 1272×1381 RGBA Kitty window captures; manifest still says `captured_unreviewed` because classification occurs outside the collector |
+| `matplotlib-screen.png` | Real sine/cosine raster, axis grid, line colors and legend; no missing graphics. The black title, outside labels and tick text have poor contrast on transparent dark margins. The unusually large figure fills much of the viewport; no claim of legible default appearance |
+| `rich-screen.png` | Correct **inline placement unavailable** diagnostic in both the Rich panel and table, with intact borders and no graphical upload expected |
+| `noop-screen.png` | Correct **no graphics protocol** in-layout text fallback in panel and table, with intact borders |
+| `matplotlib-rcparams.log` | **PASS** — retains user-configured 6×6-inch figure, 300 DPI, `figure.facecolor=none`, black labels/text, white axes and `savefig.transparent=True` |
+
+Both Rich modes behaved as designed for Phase 1. The Matplotlib PNG transport visibly worked; readability is limited by explicit/user-owned style. As adopted in ADR-002, do not silently recolor that output. The Kitty stderr logs contain warnings about unsupported *user Kitty config keys* `clear_all_in_scrollback` and `hide_single_tab`; these did not prevent capture and are unrelated to the Python quality-gate failure.
+
+**Follow-up commit, not yet locally tested:** `fd8be4f` replaced the collector's formatter-sensitive multiline conditional with an ordinary `if gui` branch, preserving `--no-gui` semantics. The full quality gate must be rerun because the previous failure stopped before Ruff lint, `ty` and full pytest. No terminal transport or Matplotlib behavior was changed. Keep the Phase 1 PR in draft until the post-fix evidence passes.
