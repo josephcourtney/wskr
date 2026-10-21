@@ -21,6 +21,7 @@ ST = ESC + b"\\"
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 MAX_CHUNK = 4096
 MAX_ID = 0xFFFFFFFF
+MAX_PLACEMENT_CELLS = 65535
 _ACK = re.compile(rb"^\x1b_G([^;]{1,160});([^\x1b]{1,512})\x1b\\$")
 
 
@@ -31,7 +32,7 @@ def _identifier(value: int) -> int:
 
 
 def _dimension(value: int) -> int:
-    if not isinstance(value, int) or isinstance(value, bool) or not 1 <= value <= 65535:
+    if not isinstance(value, int) or isinstance(value, bool) or not 1 <= value <= MAX_PLACEMENT_CELLS:
         raise ValueError("Kitty placement dimensions must be in [1, 65535]")
     return value
 
