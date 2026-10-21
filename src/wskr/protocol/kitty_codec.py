@@ -27,13 +27,15 @@ _ACK = re.compile(rb"^\x1b_G([^;]{1,160});([^\x1b]{1,512})\x1b\\$")
 
 def _identifier(value: int) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or not 1 <= value <= MAX_ID:
-        raise ValueError("Kitty image and placement IDs must be integers from 1 to 2**32-1")
+        msg = "Kitty image and placement IDs must be integers from 1 to 2**32-1"
+        raise ValueError(msg)
     return value
 
 
 def _dimension(value: int) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or not 1 <= value <= MAX_PLACEMENT_CELLS:
-        raise ValueError("Kitty placement dimensions must be in [1, 65535]")
+        msg = "Kitty placement dimensions must be in [1, 65535]"
+        raise ValueError(msg)
     return value
 
 
@@ -57,13 +59,16 @@ def transmit(
     """
     _identifier(image_id)
     if not png.startswith(PNG_SIGNATURE):
-        raise ValueError("Kitty PNG upload requires PNG signature")
+        msg = "Kitty PNG upload requires PNG signature"
+        raise ValueError(msg)
     if placement_id is not None:
         _identifier(placement_id)
         if not display:
-            raise ValueError("A placement ID requires display=True")
+            msg = "A placement ID requires display=True"
+            raise ValueError(msg)
     if quiet not in (0, 1, 2):
-        raise ValueError("Invalid Kitty quiet mode")
+        msg = "Invalid Kitty quiet mode"
+        raise ValueError(msg)
     payload = base64.b64encode(png)
     chunks = [payload[i : i + MAX_CHUNK] for i in range(0, len(payload), MAX_CHUNK)]
     for i, chunk in enumerate(chunks):
@@ -99,7 +104,8 @@ def placement(
     _dimension(columns)
     _dimension(rows)
     if quiet not in (0, 1, 2):
-        raise ValueError("Invalid Kitty quiet mode")
+        msg = "Invalid Kitty quiet mode"
+        raise ValueError(msg)
     fields: dict[str, str | int] = {
         "a": "p",
         "i": image_id,
@@ -140,23 +146,28 @@ def parse_response(reply: bytes, *, expected_id: int | None = None) -> tuple[int
     """
     match = _ACK.fullmatch(reply)
     if match is None:
-        raise TransportRuntimeError("Malformed or incomplete Kitty graphics acknowledgement")
+        msg = "Malformed or incomplete Kitty graphics acknowledgement"
+        raise TransportRuntimeError(msg)
     fields: dict[bytes, bytes] = {}
     for pair in match.group(1).split(b","):
         if b"=" not in pair:
-            raise TransportRuntimeError("Malformed Kitty graphics acknowledgement field")
+            msg = "Malformed Kitty graphics acknowledgement field"
+            raise TransportRuntimeError(msg)
         key, value = pair.split(b"=", 1)
         fields[key] = value
     try:
         image_id = _identifier(int(fields[b"i"]))
         placement_id = _identifier(int(fields[b"p"])) if b"p" in fields else None
     except (ValueError, KeyError) as exc:
-        raise TransportRuntimeError("Invalid Kitty graphics acknowledgement identity") from exc
+        msg = "Invalid Kitty graphics acknowledgement identity"
+        raise TransportRuntimeError(msg) from exc
     if expected_id is not None and image_id != expected_id:
-        raise TransportRuntimeError("Kitty graphics acknowledgement belongs to another image")
+        msg = "Kitty graphics acknowledgement belongs to another image"
+        raise TransportRuntimeError(msg)
     if match.group(2) != b"OK":
         detail = match.group(2).decode("ascii", errors="replace")
-        raise TransportRuntimeError(f"Kitty graphics operation rejected: {detail}")
+        msg = f"Kitty graphics operation rejected: {detail}"
+        raise TransportRuntimeError(msg)
     return image_id, placement_id
 
 
