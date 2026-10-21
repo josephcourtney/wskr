@@ -59,9 +59,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     transport = NativeKittyTransport()
     print(f"Scenario: {args.mode} | direct f=100 upload | {_COLUMNS} columns x {_ROWS} rows")
     image_id = transport.init_image(data)
-    placement_id = transport.place_image(
-        image_id, columns=_COLUMNS, rows=_ROWS, virtual=args.mode == "native-virtual"
-    )
+    placement_id = transport.place_image(image_id, columns=_COLUMNS, rows=_ROWS, virtual=args.mode == "native-virtual")
     if args.mode == "native-virtual":
         for line in placeholder_rows(image_id, placement_id, columns=_COLUMNS, rows=_ROWS):
             print(line)
@@ -72,7 +70,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     print(f"Kitty image id: {image_id}; placement id: {placement_id}; inspect reference PNG.")
     sys.stdout.flush()
     if args.ready_file is not None:
-        args.ready_file.write_text("render-complete\\n", encoding="utf-8")
+        args.ready_file.write_text("render-complete" + chr(10), encoding="utf-8")
     if args.pause:
         input("Inspect/capture this owned Kitty window, then press Enter to exit: ")
 
