@@ -11,11 +11,41 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import matplotlib as mpl
+from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 if TYPE_CHECKING:
     from collections.abc import Generator
     from typing import Any
+
+
+class TerminalAxes(Axes):
+    """Use parent-figure styling when legends or text are created later."""
+
+    @contextmanager
+    def _owner_defaults(self) -> Generator[None]:
+        """Obtain scoped defaults from the figure that owns the axes."""
+        owner = getattr(self, "_parent_figure", None)
+        if isinstance(owner, TerminalFigure):
+            with owner._creation_defaults():  # ruff: ignore[SLF001] - closely coupled backend subclasses
+                yield
+        else:
+            yield
+
+    def legend(self, *args: Any, **kwargs: Any) -> Any:
+        """Create legends with the owner's currently applicable text style."""
+        with self._owner_defaults():
+            return super().legend(*args, **kwargs)
+
+    def text(self, *args: Any, **kwargs: Any) -> Any:
+        """Create axes text without altering global rcParams."""
+        with self._owner_defaults():
+            return super().text(*args, **kwargs)
+
+    def annotate(self, *args: Any, **kwargs: Any) -> Any:
+        """Create annotations with figure-local defaults."""
+        with self._owner_defaults():
+            return super().annotate(*args, **kwargs)
 
 
 class TerminalFigure(Figure):
@@ -40,15 +70,30 @@ class TerminalFigure(Figure):
         with mpl.rc_context(rc=active):
             yield
 
+    @staticmethod
+    def _axes_options(args: tuple[Any, ...], kwargs: dict[str, Any]) -> dict[str, Any]:
+        """Wrap only Matplotlib's default rectilinear axes class.
+
+        Explicit user axes classes, projections and existing Axes win.
+        """
+        if (
+            "axes_class" not in kwargs
+            and kwargs.get("projection") is None
+            and not kwargs.get("polar", False)
+            and not (args and isinstance(args[0], Axes))
+        ):
+            return {**kwargs, "axes_class": TerminalAxes}
+        return kwargs
+
     def add_subplot(self, *args: Any, **kwargs: Any) -> Any:
         """Construct axes using the figure's owned defaults."""
         with self._creation_defaults():
-            return super().add_subplot(*args, **kwargs)
+            return super().add_subplot(*args, **self._axes_options(args, kwargs))
 
     def add_axes(self, *args: Any, **kwargs: Any) -> Any:
         """Construct manually positioned axes using owned defaults."""
         with self._creation_defaults():
-            return super().add_axes(*args, **kwargs)
+            return super().add_axes(*args, **self._axes_options(args, kwargs))
 
     def text(self, *args: Any, **kwargs: Any) -> Any:
         """Construct figure-level text without affecting other figures."""
@@ -61,4 +106,4 @@ class TerminalFigure(Figure):
             return super().suptitle(t, **kwargs)
 
 
-__all__ = ["TerminalFigure"]
+__all__ = ["TerminalAxes", "TerminalFigure"]
