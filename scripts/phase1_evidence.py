@@ -285,10 +285,10 @@ def collect(output_root: Path, *, checks: bool = True, gui: bool = True, timeout
             manifest["checks"][name] = result
             print(f"[check] {name}: {result['status']}", flush=True)
         for name in SCENARIOS:
-            manifest["screenshots"][name] = (
-                _capture_scenario(name, run_id, pictures, timeout=timeout)
-                if gui else {"status": "skipped", "reason": "--no-gui"}
-            )
+            if gui:
+                manifest["screenshots"][name] = _capture_scenario(name, run_id, pictures, timeout=timeout)
+            else:
+                manifest["screenshots"][name] = {"status": "skipped", "reason": "--no-gui"}
     finally:
         manifest["finished_utc"] = datetime.now(UTC).isoformat()
         manifest["file_sha256"] = _file_hashes(folder)
