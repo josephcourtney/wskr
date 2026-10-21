@@ -212,3 +212,24 @@ The screenshots were saved in a uniquely titled, dedicated Kitty window identifi
 Both Rich modes behaved as designed for Phase 1. The Matplotlib PNG transport visibly worked; readability is limited by explicit/user-owned style. As adopted in ADR-002, do not silently recolor that output. The Kitty stderr logs contain warnings about unsupported *user Kitty config keys* `clear_all_in_scrollback` and `hide_single_tab`; these did not prevent capture and are unrelated to the Python quality-gate failure.
 
 **Follow-up commit, not yet locally tested:** `fd8be4f` replaced the collector's formatter-sensitive multiline conditional with an ordinary `if gui` branch, preserving `--no-gui` semantics. The full quality gate must be rerun because the previous failure stopped before Ruff lint, `ty` and full pytest. No terminal transport or Matplotlib behavior was changed. Keep the Phase 1 PR in draft until the post-fix evidence passes.
+
+
+## Twelfth macOS run — October 21, 2026, `207005d`: second collector formatting blocker
+
+**Archive:** `20261021T180830128469Z-207005d49f-935f82.zip`, 2026-10-21 18:08:30 UTC. This archive was supplied from a **clean** checkout of `feature/phase1-terminal-profile-20261020`, on macOS 27.0.1 arm64, Python 3.14.0, `TERM=xterm-kitty`. **All 14** manifest SHA-256 file hashes match the archive entries. `uv sync` passed; `just evidence` exited 1.
+
+| Check / capture | Observed result |
+| --- | --- |
+| `just check` | **FAIL** at Ruff formatter: `scripts/phase1_evidence.py:314:13` (one file). Syntax passed; Ruff lint, `ty`, full pytest were **not reached** |
+| `just phase1` | **55 passed, 1 skipped**; categorized distribution 33 small, 23 medium (advisory) |
+| `just test-tty` | **35 passed**, 26 nonfatal legacy size-marker warnings |
+| `just test-kitty` | **5 passed**, 5 nonfatal legacy size-marker warnings |
+| Screenshot capture | **3/3** window-scoped Kitty captures, each **712×619 px**; all reviewed manually after ZIP inspection |
+| Matplotlib | **Real graphics transfer confirmed, but severely clipped at this smaller terminal size**: axes and blue/orange curves visible, title/legend and large parts of the labels or margins offscreen. The reference PNG contains the full plot. This cannot count as a legible complete small-window rendering |
+| Rich Kitty | Correct unsupported-inline-placement message inside panel and table, intact layout; no graph expected |
+| Rich noop | Correct no-graphics text fallback inside panel and table, intact layout |
+| Matplotlib configuration | Nondefault `figure.figsize=[6,6]`, `figure.dpi=300`, `figure.facecolor=none`, `savefig.transparent=True`, black text, white axes; unchanged from previous evidence |
+
+**Interpretation:** This run establishes a *small-window limitation*, not a demonstrated code regression: the previous 1272×1381 capture and this 712×619 capture used the same Matplotlib transport/figure path but different available terminal geometry. Preserve explicitly configured figure properties and do not silently recolor or resize user-owned figures. Display-time terminal fitting, viewport clipping and oversized figure handling belong to Phase 3; the defect is not resolved by a successful PNG transfer or a green unit suite. A separate default-configuration visual baseline will eventually be required to assess terminal-derived figure defaults independently of user rcParams.
+
+**Follow-up (not tested on macOS):** `7e15b47` replaced the formatter-sensitive multi-line failure list comprehension with equivalent, straightforward statements. No change to terminal I/O, transport, figure layout or test outcomes is claimed. Rerun the full `just evidence` quality gate at the new head to establish lint/`ty`/pytest results before closing Phase 1 or merging.
