@@ -27,7 +27,7 @@ Run the installed development environment with `uv run` (or activate its environ
 
 ## Terminal discovery (Phase 1, accepted)
 
-The development branch introduces immutable `TerminalProfile` measurements and pure default styling. Kernel geometry is read from an attached terminal without escape sequences; unknown font, physical DPI and colors remain explicitly unavailable. Live OSC color interrogation requires **exclusive ownership of terminal input** and a callback that routes any unrelated bytes back to the application. Importing `wskr` no longer changes global Matplotlib `text.usetex`.
+Phase 1 introduced immutable `TerminalProfile` measurements and pure default styling, accepted and merged in PR #17. Kernel geometry is read from an attached terminal without escape sequences; unknown font, physical DPI and colors remain explicitly unavailable. Live OSC color interrogation requires **exclusive ownership of terminal input** and a callback that routes any unrelated bytes back to the application. Importing `wskr` no longer changes global Matplotlib `text.usetex`.
 
 ```python
 from wskr.terminal import probe_profile
@@ -38,7 +38,7 @@ defaults = resolve_rc_defaults(profile)
 print(profile.columns.value, profile.cell_width_px.source, defaults)
 ```
 
-Only backend-owned **initial** figure defaults can use measured terminal dimensions. The legacy display path still resizes figures, and unattended automatic OSC color probing is deliberately disabled until input ownership is available. This is not the final live-theme/resize design.
+Only backend-owned **initial** figure defaults can use measured terminal dimensions. The display path still resizes figures, and unattended automatic OSC color probing remains deliberately disabled without input ownership. Phase 3 will address the complete live-theme/resize and figure-lifecycle design.
 
 ## Basic Matplotlib usage
 
