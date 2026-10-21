@@ -49,7 +49,7 @@ phase1:
 
 # Phase 2: PNG framing, image lifecycle, virtual placement, ACK/query safety.
 phase2:
-  uv run pytest -q tests/test_kitty_native.py tests/test_tty_kitty.py
+  uv run pytest -q tests/test_kitty_native.py tests/test_phase2_visual_smoke.py tests/test_tty_kitty.py
 
 # Manual visual smoke run, inside Kitty. For Rich, set WSKR_PROTOCOL=kitty.
 visual-smoke mode="matplotlib":
