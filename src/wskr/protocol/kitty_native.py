@@ -21,7 +21,7 @@ from wskr.terminal.profile import read_geometry
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
-WriteFrames = Callable[[Iterable[bytes]], None]
+type WriteFrames = Callable[[Iterable[bytes]], None]
 
 
 class KittyImageManager:
