@@ -66,7 +66,7 @@ def transmit(
         if not display:
             msg = "A placement ID requires display=True"
             raise ValueError(msg)
-    if quiet not in (0, 1, 2):
+    if quiet not in {0, 1, 2}:
         msg = "Invalid Kitty quiet mode"
         raise ValueError(msg)
     payload = base64.b64encode(png)
@@ -103,7 +103,7 @@ def placement(
     _identifier(placement_id)
     _dimension(columns)
     _dimension(rows)
-    if quiet not in (0, 1, 2):
+    if quiet not in {0, 1, 2}:
         msg = "Invalid Kitty quiet mode"
         raise ValueError(msg)
     fields: dict[str, str | int] = {
