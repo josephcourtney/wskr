@@ -173,9 +173,7 @@ def test_owned_query_forwards_foreign_replies_and_restores_tty(monkeypatch) -> N
     monkeypatch.setattr(kitty_io.termios, "tcsetattr", lambda _fd, _how, attrs: restored.append(attrs))
     monkeypatch.setattr(kitty_io.os, "close", closed.append)
 
-    assert kitty_io.query_support(
-        probe_request(9), expected_id=9, owns_input=True, on_unmatched=handled.append
-    )
+    assert kitty_io.query_support(probe_request(9), expected_id=9, owns_input=True, on_unmatched=handled.append)
     assert requests == [probe_request(9)]
     assert handled == [response(8)]
     assert closed == [11]
