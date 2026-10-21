@@ -20,8 +20,8 @@ if TYPE_CHECKING:
 
 def _plot() -> Figure:
     """Build a stable multi-line Matplotlib graph with text and a legend."""
-    import matplotlib.pyplot as plt  # ruff: ignore[PLC0415]
-    import numpy as np  # ruff: ignore[PLC0415]
+    import matplotlib.pyplot as plt  # ruff: ignore[import-outside-top-level]
+    import numpy as np  # ruff: ignore[import-outside-top-level]
 
     x = np.linspace(0, 4 * np.pi, 400)
     fig, ax = plt.subplots()
@@ -45,10 +45,10 @@ def _require_tty(mode: str) -> None:
 
 def _run_matplotlib(reference: Path | None) -> None:
     """Exercise the stock Matplotlib terminal backend, not the Rich adapter."""
-    import matplotlib  # ruff: ignore[PLC0415]
+    import matplotlib as mpl  # ruff: ignore[import-outside-top-level]
 
-    matplotlib.use("module://wskr.render.matplotlib.kitty")
-    import matplotlib.pyplot as plt  # ruff: ignore[PLC0415]
+    mpl.use("module://wskr.render.matplotlib.kitty")
+    import matplotlib.pyplot as plt  # ruff: ignore[import-outside-top-level]
 
     fig = _plot()
     if reference is not None:
@@ -68,14 +68,14 @@ def _run_rich(reference: Path | None, *, fallback: bool) -> None:
         msg = "To test actual Kitty-backed Rich rendering, run: WSKR_PROTOCOL=kitty just visual-smoke rich"
         raise SystemExit(msg)
 
-    import matplotlib  # ruff: ignore[PLC0415]
+    import matplotlib as mpl  # ruff: ignore[import-outside-top-level]
 
-    matplotlib.use("Agg")
-    from rich.console import Console  # ruff: ignore[PLC0415]
-    from rich.panel import Panel  # ruff: ignore[PLC0415]
-    from rich.table import Table  # ruff: ignore[PLC0415]
+    mpl.use("Agg")
+    from rich.console import Console  # ruff: ignore[import-outside-top-level]
+    from rich.panel import Panel  # ruff: ignore[import-outside-top-level]
+    from rich.table import Table  # ruff: ignore[import-outside-top-level]
 
-    from wskr.render.rich.plt import RichPlot  # ruff: ignore[PLC0415]
+    from wskr.render.rich.plt import RichPlot  # ruff: ignore[import-outside-top-level]
 
     fig = _plot()
     if reference is not None:

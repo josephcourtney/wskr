@@ -20,7 +20,15 @@ RCD: str = _rcd_path.read_text(encoding="utf-8")
 class RichImage:
     """Rich renderable: upload PNG once (init_image) then paint it cell-by-cell."""
 
-    __slots__ = ("_fallback_sent", "_inline_unavailable", "_png", "desired_height", "desired_width", "image_id", "transport")
+    __slots__ = (
+        "_fallback_sent",
+        "_inline_unavailable",
+        "_png",
+        "desired_height",
+        "desired_width",
+        "image_id",
+        "transport",
+    )
 
     image_number = 0
 
