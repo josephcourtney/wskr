@@ -75,7 +75,7 @@ def _ensure_requested_kitty(name: str) -> None:
     """Register Kitty only when selected, without opening a TTY at import."""
     if name not in {"kitty", "kitty_py"}:
         return
-    from .kitty import KittyPyTransport, KittyTransport  # ruff: ignore[PLC0415] - lazy built-in registration
+    from .kitty import KittyPyTransport, KittyTransport  # ruff: ignore[import-outside-top-level] - lazy built-ins
 
     if "kitty" not in _IMAGE_PROTOCOLS:
         register_image_protocol("kitty", KittyTransport)
