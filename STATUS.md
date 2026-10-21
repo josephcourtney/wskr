@@ -4,21 +4,21 @@ Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 
 
 ## Current focus
 
-**Phase 1 targeted tests pass; final macOS quality gate is still blocked by Ruff formatting.** Work remains on `feature/phase1-terminal-profile-20261020`, [draft PR #17](https://github.com/josephcourtney/wskr/pull/17); Phase 0 is on `main`.
+**Phase 1 focused tests and Kitty transmission are evidenced, but final quality qualification remains open.** Changes are on `feature/phase1-terminal-profile-20261020` in [draft PR #17](https://github.com/josephcourtney/wskr/pull/17); Phase 0 is merged into `main`.
 
-## Latest macOS evidence — October 21, 2026, `207005d`
+## Latest macOS check — October 21, 2026, `11343a1`
 
-- Clean checkout, `uv sync` passed, and `just evidence` generated a valid ZIP with all **14 file hashes verified**.
-- `just check` **FAILED** at `scripts/phase1_evidence.py:314:13` (Ruff format); lint, `ty` and full pytest **did not run**.
-- `just phase1`: **55 passed, 1 skipped**; `just test-tty`: **35 passed**; `just test-kitty`: **5 passed**.
-- Three real 712×619 Kitty captures reviewed. Rich Kitty reports inline placement unavailable; Rich noop shows an intact text fallback. Matplotlib PNG transfer works, but **the standard plot is severely clipped**: title, legend and labels are out of view in this small window, whereas the reference PNG is complete.
+- `just syntax`: **PASS**. `just format`: **PASS**, 87 files already formatted.
+- `just lint`: **FAIL**, three `scripts/phase1_evidence.py` findings (oversized try block, raise within try, imperative docstring); `ty` and full pytest were **not reached**.
+- Refactored the Kitty screenshot path into a bounded helper and corrected the docstring in `adeeec4`; **this code has not yet been locally checked**.
 
-## Recent correction / blockers
+## Earlier macOS evidence — `207005d`
 
-- Rewrote the formatter-sensitive failure aggregation in `scripts/phase1_evidence.py` after this run; **no post-fix macOS check has been supplied**.
-- The clipping is a known smaller-viewport limitation with user-owned 6×6-inch/300-DPI and transparent/black-text Matplotlib settings, not evidence that Kitty failed to transmit the image. ADR-002 prohibits silently overriding explicit styling. Documented as Phase 3 display work.
-- Live OSC foreground/background acquisition is caller-owned/opt-in. Direct native Kitty encoding, real Rich inline graphics and managed resize are later phases; legacy size-marker warnings are advisory.
+- `just phase1`: **55 passed, 1 skipped**; `just test-tty`: **35 passed**; `just test-kitty`: **5 passed**. `just evidence` produced a ZIP with 14 verified hashes and 3/3 scoped real Kitty screenshots.
+- At **712×619**, normal Matplotlib PNG output is **severely clipped** (title/legend and portions of axes/labels offscreen). The reference PNG is complete. Rich Kitty and noop fallbacks appear correctly.
+- User-owned nondefault 6×6-inch, 300-DPI, transparent background/black text settings must not be silently overridden. Display fitting and resize behavior remain Phase 3 concerns.
 
-## Handoff
+## Known limits and next action
 
-Run `just evidence` at a clean new branch head to complete Ruff, `ty` and full pytest qualification. Compare three captures, explicitly noting size and clipping. **Do not mark PR #17 ready or merge until Phase 1's quality acceptance is evidenced.**
+- Caller-owned OSC probing exists but unattended live color negotiation is not complete; native Kitty codec, Rich inline graphics and interactive display lifecycle remain in Phases 2–4.
+- **Run `just check` on the latest branch head**; if green, run `just evidence` and review three real screenshots. Preserve unverified/failing outcomes and do not merge until Phase 1 qualification is evidenced. See [TODO.md](TODO.md).
