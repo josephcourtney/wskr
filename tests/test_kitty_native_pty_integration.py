@@ -75,7 +75,7 @@ def test_native_upload_virtual_place_and_dispose_across_real_pty(monkeypatch) ->
     assert not reader.is_alive()
     assert not errors
     raw = b"".join(fragments)
-    assert not source in raw  # PNG data must be Base64, not binary bytes.
+    assert source not in raw  # PNG data must be Base64, not binary bytes.
     frames = raw.split(_ST)
     assert frames[-1] == b""
     assert len(frames) == 5
