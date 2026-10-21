@@ -82,3 +82,51 @@ def test_screenshot_safety_never_uses_non_macos_desktop(monkeypatch, tmp_path):
     result = evidence._capture_scenario("rich", "abc", tmp_path, timeout=1)
     assert result["status"] == "failed"
     assert "macOS" in result["error"]
+
+
+def test_capture_uses_only_titled_kitty_window_and_scoped_screencapture(monkeypatch, tmp_path):
+    """The runner must not capture the desktop or another Kitty session."""
+    from pathlib import Path
+
+    monkeypatch.setattr(evidence.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(evidence.shutil, "which", lambda name: "/usr/local/bin/kitty" if name == "kitty" else None)
+    monkeypatch.setattr(evidence, "_find_window", lambda title, *, timeout: 42)
+    monkeypatch.setattr(evidence.time, "sleep", lambda _seconds: None)
+    processes = []
+
+    class OwnedKitty:
+        def __init__(self):
+            self.terminated = False
+
+        def poll(self):
+            return None
+
+        def terminate(self):
+            self.terminated = True
+
+        def wait(self, *, timeout):
+            return 0
+
+    def fake_popen(command, **kwargs):
+        assert command[0] == "/usr/local/bin/kitty"
+        assert "--title" in command
+        marker = Path(command[command.index("--ready-file") + 1])
+        marker.write_text("render-complete\n", encoding="utf-8")
+        process = OwnedKitty()
+        processes.append(process)
+        return process
+
+    def fake_run(command, **kwargs):
+        assert command[:4] == ["/usr/sbin/screencapture", "-x", "-o", "-l"]
+        assert command[4] == "42"
+        Path(command[-1]).write_bytes(b"mock PNG data; verified separately")
+        return type("Result", (), {"returncode": 0, "stderr": ""})()
+
+    monkeypatch.setattr(evidence.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(evidence.subprocess, "run", fake_run)
+    monkeypatch.setattr(evidence, "_validate_png", lambda _path: (320, 240))
+    result = evidence._capture_scenario("matplotlib", "abcdef", tmp_path, timeout=1)
+    assert result["status"] == "captured_unreviewed"
+    assert result["size_px"] == [320, 240]
+    assert all(proc.terminated for proc in processes)
+    assert not (tmp_path / "matplotlib.ready").exists()
