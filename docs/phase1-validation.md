@@ -249,3 +249,19 @@ The user ran `git pull --ff-only; just check` from a **clean** macOS arm64 check
 Exact lint findings: `too-many-statements-in-try-clause` at 185:5 (11 vs limit 5); `raise-within-try` at 201:13; `non-imperative-mood` at 246:5. No evidence of a new runtime regression is established by this lint-only failure. Preserve earlier focused Kitty/PTY and graphical observations at `207005d` as historical evidence, not passing checks at the newer SHA.
 
 **Unverified follow-up:** `adeeec4` extracted bounded screenshot acquisition into `_capture_rendered_window` outside the owned process's cleanup `try` block and changed the docstring to an imperative. The helper retains `_wait_for_render`, exact title lookup, the compositor delay, scoped `screencapture -l`, screenshot presence/error checks and PNG verification; the original `finally` cleanup remains intact. The patch has **not** received local Ruff, typing, pytest or GUI validation. Rerun `just check` first, then `just evidence` if successful.
+
+## Fourteenth macOS run — October 21, 2026, `9912c5f`: import-mode collection blocker
+
+The user ran `git pull --ff-only; just check` from a clean macOS arm64 checkout at `9912c5f40113f4420590de595f4fb956c9e9dfcc` (Python 3.14.0). This run exited 2 without taking new Kitty screenshots.
+
+| Gate | Observed result |
+| --- | --- |
+| `just syntax` | **PASS** — compileall |
+| `just format` | **PASS** — 87 files already formatted |
+| `just lint` | **PASS** — all checks passed |
+| `just typecheck` | **PASS** — `ty check src tests scripts` |
+| Full `pytest -q` | **FAILED DURING COLLECTION** — `tests/test_phase1_evidence.py:10` could not `from scripts import phase1_evidence as evidence`, reporting `ModuleNotFoundError: No module named 'scripts'`. No test execution; 137 advisory missing size-marker warnings |
+
+The repository already contains `scripts/__init__.py` but pytest is configured with `--import-mode=importlib`; the source root was not present on the import search path when `uv run pytest` executed. No evidence that the collector's behavior or GUI implementation failed is established by this import error.
+
+**Follow-up, not yet verified on macOS:** commit `f962bac` sets `pythonpath = ["."]` under `[tool.pytest.ini_options]`, allowing tests to import the repository-local `scripts` package without making it part of the shipped `wskr` wheel. A minimal standalone reproduction using pytest 9.0.2, `--import-mode=importlib`, and the same configuration passed (1 test); the actual `wskr` suite is **not yet confirmed**. Rerun `just check` at the latest branch head before any Phase 1 merge decision.
