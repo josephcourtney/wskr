@@ -155,6 +155,38 @@ def test_new_global_style_after_figure_creation_is_authoritative(monkeypatch):
         manager.destroy()
 
 
+
+def test_geometry_only_preserves_transparent_user_matplotlib_style(monkeypatch):
+    """Poor contrast under explicit rcParams is not permission to recolor it."""
+    monkeypatch.setattr(
+        core,
+        "probe_profile",
+        lambda: probe_profile(geometry=Geometry(30, 100, 1000, 600)),
+    )
+    monkeypatch.setitem(mpl.rcParams, "figure.figsize", [6, 6])
+    monkeypatch.setitem(mpl.rcParams, "figure.dpi", 300)
+    monkeypatch.setitem(mpl.rcParams, "figure.facecolor", "none")
+    monkeypatch.setitem(mpl.rcParams, "savefig.transparent", True)
+    monkeypatch.setitem(mpl.rcParams, "axes.facecolor", "white")
+    monkeypatch.setitem(mpl.rcParams, "text.color", "black")
+    monkeypatch.setitem(mpl.rcParams, "axes.labelcolor", "black")
+
+    manager = core._BackendTermAgg.new_figure_manager(1007)
+    try:
+        fig = manager.canvas.figure
+        ax = fig.add_subplot(111)
+        ax.set(xlabel="Time", title="User-owned black text")
+        assert tuple(fig.get_size_inches()) == (6, 6)
+        assert fig.dpi == 300
+        assert fig.get_facecolor() == mpl.colors.to_rgba("none")
+        assert ax.get_facecolor() == mpl.colors.to_rgba("white")
+        assert ax.xaxis.label.get_color() == "black"
+        assert ax.title.get_color() == "black"
+        assert mpl.rcParams["savefig.transparent"] is True
+    finally:
+        manager.destroy()
+
+
 def test_unknown_background_cannot_choose_contrast_checked_palette():
     profile = probe_profile(geometry=Geometry(25, 80, 800, 500))
     assert "axes.prop_cycle" not in resolve_rc_defaults(profile)
