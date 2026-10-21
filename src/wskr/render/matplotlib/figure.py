@@ -27,7 +27,7 @@ class TerminalAxes(Axes):
         """Obtain scoped defaults from the figure that owns the axes."""
         owner = getattr(self, "_parent_figure", None)
         if isinstance(owner, TerminalFigure):
-            with owner._creation_defaults():  # ruff: ignore[SLF001] - closely coupled backend subclasses
+            with owner._creation_defaults():  # ruff: ignore[private-member-access] - closely coupled backend subclasses
                 yield
         else:
             yield
@@ -62,8 +62,12 @@ class TerminalFigure(Figure):
 
         A style changed after this figure's construction takes precedence.
         """
+        # Use Matplotlib's typed rc key set to rule out arbitrary string keys.
+        # This also keeps rc_context's mapping key type precise for ty.
         active = {
-            key: value for key, value in self._wskr_defaults.items() if mpl.rcParams[key] == mpl.rcParamsDefault[key]
+            key: self._wskr_defaults[key]
+            for key in mpl.rcParams
+            if key in self._wskr_defaults and mpl.rcParams[key] == mpl.rcParamsDefault[key]
         }
         with mpl.rc_context(rc=active):
             yield
@@ -77,7 +81,7 @@ class TerminalFigure(Figure):
         if (
             "axes_class" not in kwargs
             and kwargs.get("projection") is None
-            and not kwargs.get("polar", False)
+            and not kwargs.get("polar")
             and not (args and isinstance(args[0], Axes))
         ):
             return {**kwargs, "axes_class": TerminalAxes}

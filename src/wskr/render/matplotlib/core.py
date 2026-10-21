@@ -9,8 +9,8 @@ import matplotlib as mpl
 from matplotlib import _api, interactive, is_interactive  # ruff: ignore[import-private-name]
 from matplotlib._pylab_helpers import Gcf  # ruff: ignore[import-private-name]
 from matplotlib.backend_bases import FigureManagerBase, _Backend  # ruff: ignore[import-private-name]
-from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.figure import Figure
 
 from wskr.protocol import ImageProtocol, get_image_protocol
 from wskr.render.matplotlib.figure import TerminalFigure
@@ -152,7 +152,13 @@ class TerminalBackend(_Backend):
         user_dpi = kwargs.get("dpi")
         dpi = float(mpl.rcParams["figure.dpi"] if user_dpi is None else user_dpi)
         defaults = resolve_rc_defaults(probe_profile(), dpi=dpi)
-        backend_owned = {key: value for key, value in defaults.items() if mpl.rcParams[key] == mpl.rcParamsDefault[key]}
+        # Iterating rcParams gives Matplotlib's statically valid configuration
+        # keys. An arbitrary string returned by the resolver is not such a key.
+        backend_owned = {
+            key: defaults[key]
+            for key in mpl.rcParams
+            if key in defaults and mpl.rcParams[key] == mpl.rcParamsDefault[key]
+        }
 
         # pyplot always supplies FigureClass=Figure and figsize=None. None
         # means unspecified; only non-None arguments are user-owned.
