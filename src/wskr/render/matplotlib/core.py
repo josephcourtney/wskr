@@ -145,6 +145,10 @@ class TerminalBackend(_Backend):
         terminal interrogation.
         """
         kwargs = dict(kwargs)
+        if kwargs.get("FigureClass", Figure) is not Figure:
+            # A custom Figure class may implement its own sizing/style policy.
+            return super().new_figure_manager(num, *args, **kwargs)
+
         user_dpi = kwargs.get("dpi")
         dpi = float(mpl.rcParams["figure.dpi"] if user_dpi is None else user_dpi)
         defaults = resolve_rc_defaults(probe_profile(), dpi=dpi)
