@@ -197,7 +197,7 @@ class KittyPyTransport(ImageProtocol):
 
 
 # Register default protocols by name
-register_image_protocol("kitty", KittyTransport)
+register_image_protocol("kitty_legacy", KittyTransport)
 register_image_protocol("kitty_py", KittyPyTransport)
 
 
