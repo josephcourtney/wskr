@@ -13,6 +13,7 @@ from pathlib import Path
 
 from wskr.protocol.kitty_codec import MAX_ID
 
+MAX_VIRTUAL_PLACEMENT_ID = 0xFFFFFF
 _PLACEHOLDER = "\U0010EEEE"
 _TABLE = Path(__file__).with_name("rowcolumn-diacritics.txt")
 
@@ -44,8 +45,10 @@ def placeholder_rows(
     Explicit row and column diacritics avoid inheritance errors in layouts
     with scrolling, wrapping or overlapping images.
     """
-    if not 1 <= image_id <= MAX_ID or not 1 <= placement_id <= MAX_ID:
-        raise ValueError("Kitty placeholder image and placement IDs must be positive 32-bit integers")
+    if not 1 <= image_id <= MAX_ID:
+        raise ValueError("Kitty placeholder image IDs must be positive 32-bit integers")
+    if not 1 <= placement_id <= MAX_VIRTUAL_PLACEMENT_ID:
+        raise ValueError("Kitty placeholder placement IDs must fit in 24-bit underline color")
     table = diacritics()
     if not 1 <= columns <= len(table) or not 1 <= rows <= len(table):
         raise ValueError("Kitty placeholder rows/columns exceed the diacritic table")
@@ -58,4 +61,4 @@ def placeholder_rows(
     )
 
 
-__all__ = ["diacritics", "placeholder_rows"]
+__all__ = ["MAX_VIRTUAL_PLACEMENT_ID", "diacritics", "placeholder_rows"]
