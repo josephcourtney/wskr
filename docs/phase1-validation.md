@@ -265,3 +265,23 @@ The user ran `git pull --ff-only; just check` from a clean macOS arm64 checkout 
 The repository already contains `scripts/__init__.py` but pytest is configured with `--import-mode=importlib`; the source root was not present on the import search path when `uv run pytest` executed. No evidence that the collector's behavior or GUI implementation failed is established by this import error.
 
 **Follow-up, not yet verified on macOS:** commit `f962bac` sets `pythonpath = ["."]` under `[tool.pytest.ini_options]`, allowing tests to import the repository-local `scripts` package without making it part of the shipped `wskr` wheel. A minimal standalone reproduction using pytest 9.0.2, `--import-mode=importlib`, and the same configuration passed (1 test); the actual `wskr` suite is **not yet confirmed**. Rerun `just check` at the latest branch head before any Phase 1 merge decision.
+
+## Fifteenth macOS run — October 21, 2026, `5e35aa6`: complete Phase 1 acceptance
+
+**Acceptance archive:** `20261021T202749061910Z-5e35aa6e9a-f0056e.zip`, generated 2026-10-21 20:27:49–20:28:28 UTC. Complete archive supplied and independently inspected. Evidence records a **clean**, exact `5e35aa6e9ae101aff0f30b82a19bd4cf26de2fb7` checkout of `feature/phase1-terminal-profile-20261020`, macOS 27.0.1 arm64, Python 3.14.0, `TERM=xterm-kitty`, `COLORTERM=truecolor`. **All 14 SHA-256 hashes match the corresponding ZIP members**; no manifest-referenced files are missing.
+
+| Validation component | Verified outcome |
+| --- | --- |
+| `just check` | **PASS (exit 0):** syntax, Ruff format (87 files), Ruff lint, `ty`, full `pytest -q`: **200 passed, 3 skipped, 137 nonfatal legacy size-marker warnings** |
+| `just phase1` | **PASS (exit 0): 55 passed, 1 skipped**, skipped test requires opt-in TTY; advisory test-size distribution |
+| `just test-tty` | **PASS (exit 0): 35 passed**, 26 legacy size-marker warnings |
+| `just test-kitty` | **PASS (exit 0): 5 passed** with opt-in TTY and E2E enabled; 5 legacy size-marker warnings |
+| Matplotlib rcParams snapshot | **PASS**: observed configured 6×6 inch, 300 DPI, transparent background/export, white axes and black labels/text; differs from factory defaults for size, DPI and transparency |
+| Screenshots | **3/3** separately title-scoped Kitty windows captured at **1272×1381 px**, source images individually verified as real PNGs and visually reviewed; screenshot manifest status remains `captured_unreviewed` by design, because review is external |
+| Matplotlib actual screen | **Graphics visibly transmitted:** blue sine and orange cosine lines, full data curves, white axes, grid and legend. **Presentation limitation persists:** black title on dark transparent margin has very poor contrast, and leftmost leading digits of y-axis tick labels are off the viewport. This is *not* a fully readable/correctly placed plot, despite verified transfer |
+| Rich Kitty actual screen | **PASS for current scope:** explicit `Kitty inline placement unavailable (experimental transport)` text contained in the Rich panel and table; border/layout integrity retained; graphical inline placement is not claimed |
+| Rich noop actual screen | **PASS for current scope:** explicit `image unavailable (no graphics protocol)` text contained in the panel and table; border/layout integrity retained |
+
+**Phase 1 signoff rationale:** `PLAN.md` Gate P1 requires deterministic unit and PTY evidence of safe probing, no import-time TTY I/O, correct fallbacks and explicit user-style precedence. All associated code/quality/test gates passed on the clean code head; real Kitty screenshots additionally verify transmission and truthful fallbacks. ADR-002 explicitly forbids silently rewriting user-owned sizes/colors/transparency. The screenshot's poor contrast and viewport-edge clipping remain **known limitations**, not fixed or accepted as desirable rendering; viewport-aware sizing/placement, resize and optional opt-in contrast assistance are tracked with Phase 3. Phase 2 must implement standards-correct native Kitty graphics and later Phase 4 must implement genuine Rich inline placement.
+
+**Disposition:** Phase 1 is accepted on tested **code** commit `5e35aa6` with the above visual limitations; subsequent commits that merely record this acceptance in Markdown do not imply a second test run on the documentation-only head. The acceptance archive's exact source SHA remains `5e35aa6e9ae101aff0f30b82a19bd4cf26de2fb7`. Merge PR #17 only if the feature remains conflict-free and the follow-up commits do not modify executable behavior.
