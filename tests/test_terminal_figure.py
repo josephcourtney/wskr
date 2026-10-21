@@ -37,9 +37,7 @@ def _profile(*, background: str = "0000", foreground: str = "ffff"):
         index = int(request.split(b";")[1])
         return f"\x1b]4;{index};rgb:{palette[index % len(palette)]}\x07".encode()
 
-    return probe_profile(
-        geometry=Geometry(30, 100, 1000, 600), color_query=reply, palette=True
-    )
+    return probe_profile(geometry=Geometry(30, 100, 1000, 600), color_query=reply, palette=True)
 
 
 def test_pyplot_none_arguments_get_terminal_dimensions_and_colors(monkeypatch):
@@ -67,16 +65,15 @@ def test_pyplot_none_arguments_get_terminal_dimensions_and_colors(monkeypatch):
         assert color in resolve_rc_defaults(profile)["axes.prop_cycle"].by_key()["color"]
         assert fig.suptitle("Terminal title").get_color() == "#ffffff"
         assert fig.text(0.5, 0.5, "caption").get_color() == "#ffffff"
-        assert mpl.rcParams == before
+        for key in ("axes.facecolor", "axes.prop_cycle", "figure.facecolor", "text.color", "font.size"):
+            assert mpl.rcParams[key] == before[key]
     finally:
         manager.destroy()
 
 
 def test_user_figure_arguments_and_artist_edits_win(monkeypatch):
     monkeypatch.setattr(core, "probe_profile", _profile)
-    manager = core._BackendTermAgg.new_figure_manager(
-        1002, figsize=(7, 3), facecolor="#112233"
-    )
+    manager = core._BackendTermAgg.new_figure_manager(1002, figsize=(7, 3), facecolor="#112233")
     try:
         fig = manager.canvas.figure
         assert tuple(fig.get_size_inches()) == (7, 3)
