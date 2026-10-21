@@ -147,6 +147,8 @@ def test_placeholder_encoding_and_boundaries() -> None:
     assert table[2] in high[0]
     with pytest.raises(ValueError, match="diacritic"):
         placeholder_rows(42, 7, columns=298, rows=1)
+    with pytest.raises(ValueError, match="24-bit"):
+        placeholder_rows(42, 0x1000000, columns=1, rows=1)
 
 
 def test_owned_query_forwards_foreign_replies_and_restores_tty(monkeypatch) -> None:
@@ -190,3 +192,22 @@ def test_native_request_does_not_silently_fall_back_to_noop(monkeypatch) -> None
     monkeypatch.setattr(sys, "stdout", Pipe())
     with pytest.raises(TransportUnavailableError, match="TTY"):
         get_image_protocol("kitty")
+
+
+def test_virtual_placement_allocates_encodable_id(monkeypatch) -> None:
+    bounds: list[int] = []
+
+    def fake_randbelow(bound: int) -> int:
+        bounds.append(bound)
+        return bound - 1
+
+    monkeypatch.setattr("wskr.protocol.kitty_native.secrets.randbelow", fake_randbelow)
+    frames: list[bytes] = []
+    manager = KittyImageManager(lambda chunks: frames.extend(chunks))
+    image = manager.upload(PNG)
+    virtual = manager.place(image, columns=1, rows=1, virtual=True)
+    assert image == 0xFFFFFFFF
+    assert virtual == 0xFFFFFF
+    assert bounds == [0xFFFFFFFF, 0xFFFFFF]
+    with pytest.raises(ValueError, match="24-bit"):
+        manager.place(image, placement_id=0x1000000, columns=1, rows=1, virtual=True)
