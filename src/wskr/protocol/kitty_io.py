@@ -134,7 +134,7 @@ def query_support(
             while True:
                 response = _read_reply(fd, deadline, unmatched, pending)
                 try:
-                    header = response.split(b";", 1)[0]
+                    header = response.removeprefix(b"\x1b_G").split(b";", 1)[0]
                     identities = [part[2:] for part in header.split(b",") if part.startswith(b"i=")]
                     image_id = int(identities[0])
                 except (IndexError, ValueError):
