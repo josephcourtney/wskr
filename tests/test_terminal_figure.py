@@ -6,6 +6,7 @@ The tests never send OSC or Kitty escape traffic and do not depend on a GUI.
 from __future__ import annotations
 
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 import pytest
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -76,6 +77,20 @@ def test_pyplot_none_arguments_get_terminal_dimensions_and_colors(monkeypatch):
         manager.destroy()
 
 
+def test_actual_pyplot_subplots_installs_terminal_defaults(monkeypatch):
+    monkeypatch.setattr(core, "probe_profile", _profile)
+    monkeypatch.setattr(plt, "new_figure_manager", core._BackendTermAgg.new_figure_manager)
+    with plt.ioff():
+        fig, ax = plt.subplots()
+        try:
+            assert isinstance(fig, TerminalFigure)
+            assert isinstance(ax, TerminalAxes)
+            assert tuple(fig.get_size_inches()) == pytest.approx((9, 1.98))
+            assert ax.get_facecolor() == mpl.colors.to_rgba("#000000")
+        finally:
+            plt.close(fig)
+
+
 def test_user_figure_arguments_and_artist_edits_win(monkeypatch):
     monkeypatch.setattr(core, "probe_profile", _profile)
     manager = core._BackendTermAgg.new_figure_manager(1002, figsize=(7, 3), facecolor="#112233")
@@ -97,12 +112,15 @@ def test_user_figure_arguments_and_artist_edits_win(monkeypatch):
 
 def test_custom_figure_subclass_never_replaced(monkeypatch):
     class CustomFigure(Figure):
-        pass
+        def __init__(self, *args, **kwargs):
+            kwargs["facecolor"] = "#445566"
+            super().__init__(*args, **kwargs)
 
     monkeypatch.setattr(core, "probe_profile", _profile)
     manager = core._BackendTermAgg.new_figure_manager(1003, FigureClass=CustomFigure)
     try:
         assert type(manager.canvas.figure) is CustomFigure
+        assert manager.canvas.figure.get_facecolor() == mpl.colors.to_rgba("#445566")
     finally:
         manager.destroy()
 
