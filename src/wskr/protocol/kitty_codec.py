@@ -8,9 +8,12 @@ from __future__ import annotations
 
 import base64
 import re
-from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
 from wskr.core.errors import TransportRuntimeError
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 ESC = b"\x1b"
 APC = ESC + b"_G"
