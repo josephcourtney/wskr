@@ -155,7 +155,6 @@ def test_new_global_style_after_figure_creation_is_authoritative(monkeypatch):
         manager.destroy()
 
 
-
 def test_geometry_only_preserves_transparent_user_matplotlib_style(monkeypatch):
     """Poor contrast under explicit rcParams is not permission to recolor it."""
     monkeypatch.setattr(
