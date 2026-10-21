@@ -1,9 +1,10 @@
 # wskr — Immediate Tasks
 
-See [Phase 1 validation](docs/phase1-validation.md) and [automated evidence capture](docs/phase1-evidence-bundles.md).
+Phase 1 closeout; see [validation history](docs/phase1-validation.md), [evidence collector](docs/phase1-evidence-bundles.md) and [contrast decision](docs/adr/0002-terminal-measured-defaults.md).
 
-- [ ] Fetch the feature branch and run `just check` after the evidence-runner formatting correction. If successful, rerun `just evidence` for one fully green run-specific ZIP.
-- [ ] If `just check` reveals lint/`ty`/pytest errors previously hidden by formatting, preserve the complete failure log from the ZIP and repair those specific issues.
-- [ ] Decide whether a dark terminal with explicit `figure.facecolor=none`, black text and `savefig.transparent=True` should receive only an opt-in contrast adaptation. Never silently override user `rcParams`.
-- [ ] Implement safe caller-owned runtime terminal-color and optional graphics capability discovery; keep unavailable measurements explicit.
-- [ ] Defer real Rich Kitty inline graphics/placement to Phase 2/4. Classify legacy pytest test-size warnings truthfully.
+- [ ] From a clean checkout of `feature/phase1-terminal-profile-20261020` on macOS with Kitty, run `uv sync && just evidence`; record commit, exit status and ZIP path.
+- [ ] Confirm `just check` (including the new transparent-style regression), `just phase1`, `just test-tty` and `just test-kitty` results in that single ZIP; repair any errors without substituting older passing logs.
+- [ ] Inspect all three **actual** window screenshots: stock Matplotlib image/labels/bounds; expected Rich Kitty inline-unavailable diagnostic; and Rich noop in-layout fallback. Record clipping, legibility and artifacts separately from command exit codes.
+- [ ] If all Phase 1 acceptance conditions pass, record exact validated commit in `docs/phase1-validation.md` and update `STATUS.md`; then merge the feature branch to `main`. If not, retain the branch and the failed evidence.
+- [ ] Treat the poor contrast of explicit transparent/black-text figures as faithfully rendered user settings, not a Phase 1 transport failure. Do not silently adapt; any requested opt-in display-only contrast assistance is deferred to Phase 3.
+- [ ] Keep caller-owned OSC colors optional and distinguish unavailable values from measurements; implement deeper graphics negotiation with the Phase 2 transport. Classify legacy pytest size warnings separately from Phase 1 acceptance.
