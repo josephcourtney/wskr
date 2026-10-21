@@ -21,7 +21,6 @@ from wskr.protocol.kitty_codec import probe_request
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pytest import MonkeyPatch
 
 pytestmark = pytest.mark.medium
 
@@ -38,7 +37,7 @@ class _TtyOutput:
 
 
 @pytest.fixture
-def owned_pty(monkeypatch: MonkeyPatch) -> Iterator[tuple[int, int]]:
+def owned_pty(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[int, int]]:
     master, slave = os.openpty()
     monkeypatch.setattr(kitty_io, "_require_tty", lambda: None)
     monkeypatch.setattr(kitty_io, "_open", lambda: os.dup(slave))
@@ -53,7 +52,7 @@ def _reply(image_id: int, status: bytes = b"OK") -> bytes:
     return b"\x1b_Gi=" + str(image_id).encode() + b";" + status + b"\x1b\\"
 
 
-def test_bound_image_writer_uses_stdout_tty(monkeypatch: MonkeyPatch) -> None:
+def test_bound_image_writer_uses_stdout_tty(monkeypatch: pytest.MonkeyPatch) -> None:
     """A writer must target the terminal attached to stdout, never another TTY."""
     master, slave = os.openpty()
     try:
