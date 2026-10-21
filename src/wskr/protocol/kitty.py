@@ -198,7 +198,11 @@ class KittyPyTransport(ImageProtocol):
 
 # Register default protocols by name
 register_image_protocol("kitty_legacy", KittyTransport)
-register_image_protocol("kitty_py", KittyPyTransport)
+# The old experimental KittyPyTransport remains importable for migration,
+# but is no longer selectable: it emitted invalid raw-PNG chunks.
+from wskr.protocol.kitty_native import NativeKittyTransport  # ruff: ignore[wrong-import-position] - legacy registry
+
+register_image_protocol("kitty_py", NativeKittyTransport)
 
 
 __all__ = ["KittyChunkParser", "KittyPyTransport", "KittyTransport"]
