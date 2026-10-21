@@ -1,25 +1,24 @@
 # wskr — Current Status
 
-Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 1 validation](docs/phase1-validation.md), [evidence instructions](docs/phase1-evidence-bundles.md).
+Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 1 validation](docs/phase1-validation.md).
 
 ## Current focus
 
-**Phase 1 code is implemented and the targeted checks pass, but the latest full quality gate failed formatting.** Phase 0 is merged into `main`; Phase 1 remains on `feature/phase1-terminal-profile-20261020` in [draft PR #17](https://github.com/josephcourtney/wskr/pull/17).
+**Phase 1 targeted tests pass; final macOS quality gate is still blocked by Ruff formatting.** Work remains on `feature/phase1-terminal-profile-20261020`, [draft PR #17](https://github.com/josephcourtney/wskr/pull/17); Phase 0 is on `main`.
 
-## Latest macOS evidence — October 21, 2026, `a1a722e`
+## Latest macOS evidence — October 21, 2026, `207005d`
 
-- `just evidence` from a clean checkout generated a complete ZIP; 14/14 artifact checksums matched.
-- `just check` **FAILED at Ruff format** (`scripts/phase1_evidence.py:290:23`); lint, `ty` and full pytest were not reached.
+- Clean checkout, `uv sync` passed, and `just evidence` generated a valid ZIP with all **14 file hashes verified**.
+- `just check` **FAILED** at `scripts/phase1_evidence.py:314:13` (Ruff format); lint, `ty` and full pytest **did not run**.
 - `just phase1`: **55 passed, 1 skipped**; `just test-tty`: **35 passed**; `just test-kitty`: **5 passed**.
-- All three real Kitty screenshots were captured and reviewed at 1272×1381. Standard Matplotlib lines/grid/legend render; dark transparent margins make black title/labels difficult to read. Rich Kitty shows the expected inline-unavailable diagnostic; Rich noop displays the in-layout fallback.
+- Three real 712×619 Kitty captures reviewed. Rich Kitty reports inline placement unavailable; Rich noop shows an intact text fallback. Matplotlib PNG transfer works, but **the standard plot is severely clipped**: title, legend and labels are out of view in this small window, whereas the reference PNG is complete.
 
-## Latest changes — unverified on macOS
+## Recent correction / blockers
 
-- Replaced the collector's multiline conditional with explicit branches to remove the observed Ruff formatter failure. This is not yet a passing `just check` result.
-- ADR-002 preserves explicit user styling; the new transparent/300-DPI regression passed within `just phase1`.
-- Prior fully passing `just check`: `ab3ad41` (194 passed, 3 skipped). This is **not** evidence for the latest head.
+- Rewrote the formatter-sensitive failure aggregation in `scripts/phase1_evidence.py` after this run; **no post-fix macOS check has been supplied**.
+- The clipping is a known smaller-viewport limitation with user-owned 6×6-inch/300-DPI and transparent/black-text Matplotlib settings, not evidence that Kitty failed to transmit the image. ADR-002 prohibits silently overriding explicit styling. Documented as Phase 3 display work.
+- Live OSC foreground/background acquisition is caller-owned/opt-in. Direct native Kitty encoding, real Rich inline graphics and managed resize are later phases; legacy size-marker warnings are advisory.
 
-## Known limits and next action
+## Handoff
 
-- Automatic safe live OSC color discovery, native Kitty graphics, Rich inline placement and display-time resizing remain unimplemented or deferred to later phases.
-- Run `just evidence` on the latest clean feature head, review all command results and captured screenshots, and record the exact tested commit. **Do not merge until the full gate is green.** See [TODO.md](TODO.md).
+Run `just evidence` at a clean new branch head to complete Ruff, `ty` and full pytest qualification. Compare three captures, explicitly noting size and clipping. **Do not mark PR #17 ready or merge until Phase 1's quality acceptance is evidenced.**
