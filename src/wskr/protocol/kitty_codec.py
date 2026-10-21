@@ -70,8 +70,11 @@ def transmit(
         m = int(i < len(chunks) - 1)
         if i == 0:
             fields: dict[str, str | int] = {
-                "a": "T" if display else "t", "f": 100, "t": "d",
-                "i": image_id, "q": quiet,
+                "a": "T" if display else "t",
+                "f": 100,
+                "t": "d",
+                "i": image_id,
+                "q": quiet,
             }
             if placement_id is not None:
                 fields["p"] = placement_id
@@ -98,8 +101,11 @@ def placement(
     if quiet not in (0, 1, 2):
         raise ValueError("Invalid Kitty quiet mode")
     fields: dict[str, str | int] = {
-        "a": "p", "i": image_id, "p": placement_id,
-        "c": columns, "r": rows,
+        "a": "p",
+        "i": image_id,
+        "p": placement_id,
+        "c": columns,
+        "r": rows,
     }
     if virtual:
         fields["U"] = 1
@@ -155,6 +161,12 @@ def parse_response(reply: bytes, *, expected_id: int | None = None) -> tuple[int
 
 
 __all__ = [
-    "MAX_CHUNK", "MAX_ID", "command", "delete", "parse_response", "placement",
-    "probe_request", "transmit",
+    "MAX_CHUNK",
+    "MAX_ID",
+    "command",
+    "delete",
+    "parse_response",
+    "placement",
+    "probe_request",
+    "transmit",
 ]
