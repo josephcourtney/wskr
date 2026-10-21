@@ -52,9 +52,7 @@ def _short_git(*args: str) -> str | None:
     git = shutil.which("git")
     if git is None:
         return None
-    result = subprocess.run(
-        [git, *args], cwd=ROOT, capture_output=True, text=True, check=False, timeout=10
-    )
+    result = subprocess.run([git, *args], cwd=ROOT, capture_output=True, text=True, check=False, timeout=10)
     return result.stdout.strip() if result.returncode == 0 else None
 
 
@@ -64,15 +62,28 @@ def _run_logged(command: list[str], log_path: Path, *, timeout: float) -> dict:
     try:
         with log_path.open("wb") as stream:
             completed = subprocess.run(
-                command, cwd=ROOT, stdout=stream, stderr=subprocess.STDOUT, check=False, timeout=timeout
+                command,
+                cwd=ROOT,
+                stdout=stream,
+                stderr=subprocess.STDOUT,
+                check=False,
+                timeout=timeout,
             )
-        return {"status": "passed" if completed.returncode == 0 else "failed", "exit_code": completed.returncode,
-                "duration_s": round(time.monotonic() - started, 3), "log": str(log_path.name)}
+        return {
+            "status": "passed" if completed.returncode == 0 else "failed",
+            "exit_code": completed.returncode,
+            "duration_s": round(time.monotonic() - started, 3),
+            "log": str(log_path.name),
+        }
     except (OSError, subprocess.TimeoutExpired) as exc:
         with log_path.open("ab") as stream:
             stream.write(f"\nEvidence runner error: {exc}\n".encode())
-        return {"status": "failed", "error": str(exc), "duration_s": round(time.monotonic() - started, 3),
-                "log": str(log_path.name)}
+        return {
+            "status": "failed",
+            "error": str(exc),
+            "duration_s": round(time.monotonic() - started, 3),
+            "log": str(log_path.name),
+        }
 
 
 def _find_window(title: str, *, timeout: float) -> int:
@@ -83,7 +94,11 @@ def _find_window(title: str, *, timeout: float) -> int:
         raise RuntimeError(msg)
     result = subprocess.run(
         [swift, str(ROOT / "scripts" / "find_kitty_window.swift"), title, str(timeout)],
-        cwd=ROOT, capture_output=True, text=True, check=False, timeout=timeout + 20
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=timeout + 20,
     )
     if result.returncode != 0:
         msg = f"Kitty window lookup failed: {result.stderr.strip() or result.stdout.strip()}"
@@ -149,9 +164,21 @@ def _capture_scenario(name: str, run_id: str, directory: Path, *, timeout: float
     env = dict(os.environ)
     env["WSKR_PROTOCOL"] = "kitty" if name == "rich" else "noop"
     cmd = [
-        kitty, "--title", token, "--directory", str(ROOT), "--hold",
-        sys.executable, str(ROOT / "scripts" / "phase1_visual_smoke.py"),
-        "--mode", name, "--reference", str(reference), "--ready-file", str(marker), "--pause",
+        kitty,
+        "--title",
+        token,
+        "--directory",
+        str(ROOT),
+        "--hold",
+        sys.executable,
+        str(ROOT / "scripts" / "phase1_visual_smoke.py"),
+        "--mode",
+        name,
+        "--reference",
+        str(reference),
+        "--ready-file",
+        str(marker),
+        "--pause",
     ]
     print(f"[capture] {name}: starting dedicated Kitty window", flush=True)
     process = None
@@ -164,20 +191,30 @@ def _capture_scenario(name: str, run_id: str, directory: Path, *, timeout: float
         time.sleep(0.6)
         result = subprocess.run(
             ["/usr/sbin/screencapture", "-x", "-o", "-l", str(window), str(screenshot)],
-            capture_output=True, text=True, check=False, timeout=20
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=20,
         )
         if result.returncode != 0 or not screenshot.is_file():
             msg = f"screencapture failed (exit {result.returncode}): {result.stderr.strip()}"
             raise RuntimeError(msg)
         width, height = _validate_png(screenshot)
         print(f"[capture] {name}: captured {width}x{height} (visual content unreviewed)", flush=True)
-        return {"status": "captured_unreviewed", "window_id": window,
-                "screenshot": screenshot.name, "reference": reference.name if reference.is_file() else None,
-                "size_px": [width, height]}
+        return {
+            "status": "captured_unreviewed",
+            "window_id": window,
+            "screenshot": screenshot.name,
+            "reference": reference.name if reference.is_file() else None,
+            "size_px": [width, height],
+        }
     except (OSError, ValueError, RuntimeError, TimeoutError, subprocess.SubprocessError) as exc:
         print(f"[capture] {name}: FAILED: {exc}", flush=True)
-        return {"status": "failed", "error": str(exc),
-                "reference": reference.name if reference.is_file() else None}
+        return {
+            "status": "failed",
+            "error": str(exc),
+            "reference": reference.name if reference.is_file() else None,
+        }
     finally:
         try:
             if process is not None:
@@ -205,9 +242,7 @@ def _zip_run(directory: Path) -> Path:
     return dest
 
 
-def collect(
-    output_root: Path, *, checks: bool = True, gui: bool = True, timeout: float = 45
-) -> tuple[Path, dict]:
+def collect(output_root: Path, *, checks: bool = True, gui: bool = True, timeout: float = 45) -> tuple[Path, dict]:
     """Always produce a run-specific archive, even after failed validation."""
     started = datetime.now(UTC)
     sha = _short_git("rev-parse", "--short=10", "HEAD") or "unknown"
@@ -219,14 +254,22 @@ def collect(
     pictures = folder / "screenshots"
     pictures.mkdir()
     manifest: dict = {
-        "run_id": run_id, "started_utc": started.isoformat(),
-        "git": {"sha": _short_git("rev-parse", "HEAD"),
-                "branch": _short_git("branch", "--show-current"),
-                "status_porcelain": _short_git("status", "--porcelain")},
-        "environment": {"os": platform.platform(), "python": sys.version.split()[0],
-                        "TERM": os.getenv("TERM"), "COLORTERM": os.getenv("COLORTERM"),
-                        "WSKR_PROTOCOL": os.getenv("WSKR_PROTOCOL")},
-        "checks": {}, "screenshots": {},
+        "run_id": run_id,
+        "started_utc": started.isoformat(),
+        "git": {
+            "sha": _short_git("rev-parse", "HEAD"),
+            "branch": _short_git("branch", "--show-current"),
+            "status_porcelain": _short_git("status", "--porcelain"),
+        },
+        "environment": {
+            "os": platform.platform(),
+            "python": sys.version.split()[0],
+            "TERM": os.getenv("TERM"),
+            "COLORTERM": os.getenv("COLORTERM"),
+            "WSKR_PROTOCOL": os.getenv("WSKR_PROTOCOL"),
+        },
+        "checks": {},
+        "screenshots": {},
     }
     try:
         config = _run_logged([sys.executable, "-c", RCPARAM_CODE], logs / "matplotlib-rcparams.log", timeout=30)

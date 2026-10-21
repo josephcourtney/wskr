@@ -45,13 +45,16 @@ def test_run_bundle_is_unique_and_contains_manifest_and_all_logs(monkeypatch, tm
 
 def test_failed_capture_preserved_and_does_not_claim_visual_success(monkeypatch, tmp_path):
     monkeypatch.setattr(evidence, "_short_git", lambda *_args: "localhead")
+
     def fake_run(command, path, *, timeout):
         path.write_text("check output", encoding="utf-8")
         return {"status": "passed", "exit_code": 0}
+
     monkeypatch.setattr(evidence, "_run_logged", fake_run)
     monkeypatch.setattr(
-        evidence, "_capture_scenario",
-        lambda *_args, **_kwargs: {"status": "failed", "error": "Screen Recording permission absent"}
+        evidence,
+        "_capture_scenario",
+        lambda *_args, **_kwargs: {"status": "failed", "error": "Screen Recording permission absent"},
     )
     archive, result = evidence.collect(tmp_path)
     assert all(item["status"] == "failed" for item in result["screenshots"].values())
