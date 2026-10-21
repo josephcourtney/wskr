@@ -163,3 +163,9 @@ The five `ty` errors involving dynamic `RcParams` string keys have been resolved
 **What this validates:** deterministic terminal-profile, safe-query and style-precedence code, full static checks, and the registered-Kitty Rich diagnostic tests. It does **not** demonstrate new on-screen visuals or collection of live terminal colors with safely owned input. Existing screenshots remain the seventh-run baseline.
 
 **Next evidence:** record current/default Matplotlib rcParams and capture actual Kitty screenshots on the current styling implementation before deciding whether the oversized figure and low-contrast labels can be corrected without overriding explicit user-owned style. Full Rich Kitty graphics remain Phase 2/4.
+
+## New automated evidence collector (not yet exercised on macOS)
+
+Following the ninth passing quality gate, the feature branch added `scripts/phase1_evidence.py` (`just evidence`) and `scripts/find_kitty_window.swift`. The collector runs the existing four gates, takes dedicated-window macOS screenshots of Matplotlib, explicitly selected Kitty-backed Rich diagnostic, and noop Rich fallback, saves reference rasters/configuration and logs, and produces a run-specific ZIP and SHA-256 manifest even on partial failures. It does not interpret a captured screenshot as a visually correct graph.
+
+**Validation status:** implementation and mocked regression tests are committed, but neither the updated `just check` nor an actual GUI evidence collection has been observed. Results from `ab3ad41` do not qualify the new scripts. When the collector is run, record its exact revision and attach the ZIP; keep distinct states for passed checks, failed/missing screenshots, and captured-but-unreviewed images.

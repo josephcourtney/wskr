@@ -99,6 +99,16 @@ A transport is not considered supported merely because it is registered. The fut
 | [POLICY.md](POLICY.md) | Authoritative document/history policy |
 | [AGENTS.md](AGENTS.md) | Contributor instructions specific to wskr |
 
+## Automated run-specific evidence
+
+For one reproducible output containing validation logs, Matplotlib and Rich screenshots, reference PNGs, a manifest and SHA-256 hashes:
+
+```sh
+just evidence
+```
+
+The command prints the generated `artifacts/evidence/<run-id>.zip` path. It launches uniquely titled Kitty windows and captures each using macOS's window-scoped screenshot facility. Captures require a GUI session and appropriate macOS permissions. Missing screenshots remain explicit failures; captured screenshots must still be reviewed. See the [complete guide](docs/phase1-evidence-bundles.md).
+
 ## Phase 1 visual checks (experimental)
 
 Use `just visual-smoke matplotlib` inside Kitty to exercise ordinary pyplot, `WSKR_PROTOCOL=kitty just visual-smoke rich` to examine a Rich panel and table, and `just visual-smoke noop` to verify the intentional text-only fallback. These are manual tests: a zero exit status does not guarantee that an image was displayed. [Detailed screenshot procedure](docs/phase1-visual-procedure.md).

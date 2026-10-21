@@ -1,5 +1,7 @@
 # Phase 1 — Real-Kitty visual verification
 
+The preferred way to **collect** this evidence is now `just evidence`, which runs checks, launches owned Kitty windows, captures screenshots and archives the whole run. See [the bundle procedure](phase1-evidence-bundles.md). The manual commands below remain useful for investigating failed captures and interpreting screenshots.
+
 This is a **manual graphical test**, not a replacement for `just check` or a proof obtained from exit status. Run the commands inside an actual Kitty terminal, not inside a pipe, screen recorder's text log, or a terminal emulator without Kitty graphics.
 
 ## Prepare
