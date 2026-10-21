@@ -128,3 +128,20 @@ The Matplotlib figure's 6-inch size and 300 DPI may originate from nondefault us
 **Code corrections after the screenshots (unverified locally):** compare the legend's RGBA value elementwise; avoid forbidden `Any` override signatures; explicitly register built-in Kitty protocols at lookup while preventing the known-incomplete inline transport from uploading/querying. A later `WSKR_PROTOCOL=kitty` Rich run should report that inline placement is unavailable, **not display a graph**. Real Rich graphics require Phase 2/4 protocol work and separate screenshot evidence.
 
 The original screenshots were supplied in chat; no screenshot image assets were committed into Git.
+
+## Eighth macOS run — October 21, 2026, `55f217a` + local `just fix`
+
+The user preserved earlier local Ruff autofixes in a stash, fetched/pulled the updated feature branch, and ran all four automated gate commands. The checkout became dirty again when `just fix` applied three additional local corrections.
+
+| Command | Actual result |
+| --- | --- |
+| `just check` (first attempt) | **FAIL at Ruff lint** — three autofixable findings (core import ordering, figure private-member rule name and falsy `dict.get` default) |
+| `just fix` | **PASS** — zero remaining Ruff lint findings |
+| `just check` (after autofix) | **FAIL at ty** — five invalid-argument-type diagnostics in `core.py` and `figure.py`, for string-keyed `RcParams` and `rc_context` expecting keys narrowed to Matplotlib's declared literals. Full pytest not run |
+| `just phase1` | **54 passed, 1 skipped**; size distribution advisory (33 small/22 medium) |
+| `just test-tty` | **35 passed, 26 size-marker warnings** |
+| `just test-kitty` | **5 passed, 5 size-marker warnings** |
+
+**Correction committed after this run, not locally revalidated:** backend and figure styling now enumerate Matplotlib's typed `RcParams` keys to determine eligible backend-owned defaults, rather than using arbitrary resolver string keys to index `RcParams`; the resulting scoped style mapping also has a statically valid key type for `rc_context`. The branch incorporates the three observed Ruff autofixes. There were no changes to low-level TTY/Kitty graphics transport.
+
+**Next evidence needed:** a fresh `just check` and `just phase1` on the corrected commit. Previous TTY and Kitty passes can be retained as evidence for unchanged transport code. The user's stashed changes remain in their local Git stash and were not deleted or modified remotely.

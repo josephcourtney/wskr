@@ -4,28 +4,28 @@ Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 
 
 ## Current focus
 
-**Phase 1 figure/axes defaults need fresh macOS validation.** Work remains on `feature/phase1-terminal-profile-20261020`; `main` is unchanged.
+**Phase 1 automated quality gate is blocked pending revalidation of the rcParams typing fix.** Work remains on `feature/phase1-terminal-profile-20261020`; `main` is unchanged.
 
-## Local evidence — October 21, 2026, `0ab5b47` plus local autofixes
+## Local evidence — October 21, 2026, `55f217a` plus local Ruff autofixes
 
-- `just check`: stopped at Ruff format; `just fix` reformatted three files and left seven `Any` annotation violations.
-- `just phase1`: **53 passed, 1 failed, 1 skipped**. The failure was a NumPy RGBA array compared to a string for explicit legend label color, not a rendered legend regression.
-- `just test-tty`: **35 passed**; `just test-kitty`: **5 passed**.
-- **Real Kitty screenshot:** stock Matplotlib figure is visible with sine/cosine lines, but black title/ticks/labels have poor contrast against the dark transparent margin; figure reports `6 × 6` inches at `300 DPI`, likely user rcParams rather than terminal-derived values. Display-time sizing remains Phase 3.
-- **Rich screenshot:** explicit `WSKR_PROTOCOL=kitty` was **unknown** because the module was not loaded into the registry. The `noop` in-panel message is visibly correct in both panel and table.
+- `just check`: compileall, formatting and lint **pass after `just fix`**; `ty` reports **five invalid-argument-type errors** when string keys index Matplotlib's typed `RcParams` and are passed to `rc_context`. Full pytest was not reached.
+- `just phase1`: **54 passed, 1 skipped** (test-size distribution advisory).
+- `just test-tty`: **35 passed**; `just test-kitty`: **5 passed**. Both have legacy test-size warnings.
+- Prior real-Kitty screenshots prove visible Matplotlib plotting, with poor dark-margin text contrast and reported 6 × 6 inches / 300 DPI. The default Rich `noop` fallback appears correctly in panel/table.
+- Direct Rich inline graphics are not available; the Kitty transport is recognized but its unsafe placement path remains disabled.
 
-## Subsequent fixes — not locally verified
+## Subsequent code correction — unverified locally
 
-- Match explicit legend color using RGBA, not scalar string equality. Remove annotated `Any` from overridden Matplotlib convenience methods.
-- Lazily register selected built-in Kitty transport; Rich now reports inline placement unavailable without calling the known-broken raw PNG upload / shared-TTY query. Kitty `icat` Matplotlib output is unchanged.
-- Added regression cases for recognized Kitty selection, no unsafe Rich upload and unknown protocol behavior.
+- Iterate valid Matplotlib `RcParams` keys when filtering backend-owned defaults and creating scoped `rc_context` values, eliminating arbitrary-string indexing without ignores or casts.
+- Incorporated observed import sorting, private-member suppression naming and falsy dictionary-get fixes from the local `just fix`.
+- No TTY transport or Kitty codec changes in this correction.
 
-## Remaining
+## Remaining acceptance
 
-- Run `just check`, `just phase1`, `just test-tty`, `just test-kitty` on the new branch head.
-- Determine requested vs backend-owned figure/axis colors and geometry from actual rcParams, and characterize contrast for transparent margins; do not override explicit style.
-- Actual Rich inline graphics/placement is Phase 2/4; it is **not** working or validated. Legacy test-size warnings remain.
+- Preserve any new uncommitted `just fix` edits; then update from the feature branch and run `just check` followed by `just phase1`.
+- Inspect actual rcParams/defaults before changing dark-theme contrast or 6 × 6 inch figure sizing. Do not override explicit user style.
+- Rich inline upload/placement belongs to Phase 2/4. Legacy test-size classification remains unfinished.
 
 ## Handoff
 
-Do not merge until new macOS gates pass. Preserve uncommitted local `just fix` changes while updating the worktree.
+Do not merge before the corrected branch passes the full macOS quality gate. Record results against the exact tested commit.
