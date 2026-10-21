@@ -84,3 +84,21 @@ The user fetched the Rich fallback change and ran the four quality and terminal 
 | `just test-kitty` | **5 passed, 5 warnings** | Live Kitty transport checks remain green |
 
 The lone formatting issue was repaired in a subsequent commit by removing the trailing blank line. **No rerun on that repaired commit has been provided.** The new Rich no-op regression test was not included in the focused `just phase1` recipe and thus remains unverified until the full pytest suite runs. Actual standard Matplotlib and Kitty-backed Rich screenshots remain outstanding.
+
+## Sixth macOS run — October 20, 2026, `8430014`
+
+The user fetched the formatting correction and ran `just check` from a clean local feature-branch checkout.
+
+| Gate | Observed result |
+| --- | --- |
+| `python -m compileall -q src tests scripts` | **PASS** |
+| `ruff format --check src tests scripts` | **PASS — 81 files already formatted** |
+| `ruff check --no-fix src tests scripts` | **PASS** |
+| `ty check src tests scripts` | **PASS** |
+| Full `pytest -q` | **PASS — 182 passed, 3 skipped, 137 warnings, 11.90 s** |
+
+The three skips were the opt-in dark-mode TTY test and two opt-in Kitty E2E tests. Test-size warnings remain advisory; the measured distribution was 35 small and 13 medium categorized cases, with a distribution warning. The newly added `tests/test_rich_noop_fallback.py` test was executed and passed, raising the passing count from 181 to 182.
+
+This completes the full automated quality gate for the `8430014` source tree. The immediately preceding local run at `5e3396a` established `just phase1` (45 passed, one skip), `just test-tty` (35 passed) and `just test-kitty` (5 passed). Since those focused runs, the only implementation-file change was a trailing-blank-line formatting correction to a regression test.
+
+**Still not demonstrated:** visual stock Matplotlib rendering; Rich with `WSKR_PROTOCOL=kitty`; terminal-derived font, palette and artist defaults being installed without overriding explicit user choices. These remain Phase 1 acceptance work, not quality-gate failures.

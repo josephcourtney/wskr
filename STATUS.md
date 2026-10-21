@@ -4,29 +4,27 @@ Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 
 
 ## Current focus
 
-**Phase 1 safety and quality checks pass locally; actual plotting integration is not yet visually accepted.** Work remains on `feature/phase1-terminal-profile-20261020`.
+**Phase 1 automated validation is green; terminal-aware styling and actual plotting visuals remain unaccepted.** Work remains on `feature/phase1-terminal-profile-20261020`; `main` is unchanged.
 
-## Verified on macOS — October 20, 2026, `d9b1e32`
+## Verified on macOS — October 20, 2026
 
-- `just check`: syntax, Ruff and `ty` passed; full pytest **181 passed, 3 skipped**, **137 size-marker warnings**.
-- `just phase1`: **45 passed, 1 opt-in skip**.
-- `just test-tty`: **35 passed** without the earlier `tcdrain` hang.
-- `just test-kitty`: **5 passed**, verifying live Kitty image submission and logo detection.
-- Ordinary `MPLBACKEND=wskr_kitty` `plt.show()` exited 0 with no captured text. **On-screen image presence is unknown** without a screenshot/observation.
-- `RichPlot` with the default `noop` protocol produced an empty panel and warning text; **actual image display failed** for this configuration.
+- At `8430014`, `just check` **passed end-to-end**: compileall, Ruff format (81 files), Ruff lint, `ty`, full pytest **182 passed, 3 skipped**. **137 nonfatal legacy size-marker warnings**.
+- At `5e3396a`, `just phase1` **45 passed, 1 opt-in skip**; `just test-tty` **35 passed**; `just test-kitty` **5 passed**.
+- The Rich `NoOpProtocol` fallback regression is now covered by the passing full suite at `8430014`; actual in-terminal appearance of the fallback remains unobserved.
+- Stock `MPLBACKEND=wskr_kitty` `plt.show()` exited 0 without errors or textual output. No screenshot establishes whether the plot appeared.
+- Rich with unset `WSKR_PROTOCOL` previously produced an empty panel because `noop` was selected. Explicit `WSKR_PROTOCOL=kitty` rendering is unverified.
 
-## Subsequent remedy (not yet fully validated)
+## Implemented
 
-- A `noop` Rich transport now yields a visible in-panel text fallback without printing out-of-band warnings; a regression test was added.
-- The October 20 late-night run passed `just phase1` (**45/1 skipped**), `just test-tty` (**35**), and `just test-kitty` (**5**). `just check` stopped on one surplus trailing newline in the Rich test; that whitespace was committed as a fix.
-- **The updated full `just check` has not been run** after the formatting repair. The Rich fallback test was not exercised by the focused Phase 1 suite.
+- Immutable provenance-aware terminal profile, bounded caller-owned OSC queries, color parsing, light/dark precedence, pure default resolver, initial figure pixel sizing and import-side-effect removal.
+- Rich text fallback when no graphics transport is configured, with regression coverage.
 
 ## Remaining acceptance
 
-- Test the new fallback and complete terminal-owned figure/artist defaults while preserving explicit user rcParams/style.
-- Inspect stock pyplot and Rich output in a real Kitty window. Rich rendering requires an explicitly selected transport; its Kitty virtual placement remains experimental.
-- Display-time size, resize and Rich placeholder/protocol lifecycle work is planned for later phases.
+- Apply terminal-derived font, palette and artist defaults only to backend-owned values; preserve explicit Matplotlib styling.
+- Verify actual Kitty screenshot/placement of a stock Matplotlib figure and an explicitly Kitty-backed Rich panel.
+- Classify outstanding legacy test sizes without masking warnings. Display-time resize and direct protocol remain later phases.
 
 ## Handoff
 
-Repeat `just check`, `just test-tty` and `just test-kitty` after changes. Do not merge or call Phase 1 complete solely from the successful logo-based Kitty suite.
+No code-quality failures are outstanding. Complete the integration/visual gates, rerun checks if code changes, and only then consider merging Phase 1.
