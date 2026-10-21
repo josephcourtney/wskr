@@ -1,10 +1,9 @@
 # wskr — Immediate Tasks
 
-Phase 1 closeout; see [validation history](docs/phase1-validation.md), [evidence collector](docs/phase1-evidence-bundles.md) and [contrast decision](docs/adr/0002-terminal-measured-defaults.md).
+See [latest observed validation](docs/phase1-validation.md), [evidence procedure](docs/phase1-evidence-bundles.md) and [contrast policy](docs/adr/0002-terminal-measured-defaults.md).
 
-- [ ] From a clean checkout of `feature/phase1-terminal-profile-20261020` on macOS with Kitty, run `uv sync && just evidence`; record commit, exit status and ZIP path.
-- [ ] Confirm `just check` (including the new transparent-style regression), `just phase1`, `just test-tty` and `just test-kitty` results in that single ZIP; repair any errors without substituting older passing logs.
-- [ ] Inspect all three **actual** window screenshots: stock Matplotlib image/labels/bounds; expected Rich Kitty inline-unavailable diagnostic; and Rich noop in-layout fallback. Record clipping, legibility and artifacts separately from command exit codes.
-- [ ] If all Phase 1 acceptance conditions pass, record exact validated commit in `docs/phase1-validation.md` and update `STATUS.md`; then merge the feature branch to `main`. If not, retain the branch and the failed evidence.
-- [ ] Treat the poor contrast of explicit transparent/black-text figures as faithfully rendered user settings, not a Phase 1 transport failure. Do not silently adapt; any requested opt-in display-only contrast assistance is deferred to Phase 3.
-- [ ] Keep caller-owned OSC colors optional and distinguish unavailable values from measurements; implement deeper graphics negotiation with the Phase 2 transport. Classify legacy pytest size warnings separately from Phase 1 acceptance.
+- [ ] Fetch the latest `feature/phase1-terminal-profile-20261020` commit in a clean macOS Kitty checkout and rerun `uv sync && just evidence`. The last run at `a1a722e` failed only at Ruff format, but lint/`ty`/full pytest were not reached.
+- [ ] Verify the new run's `just check` (including all newly added regressions), `just phase1`, `just test-tty` and `just test-kitty`; preserve the complete ZIP even if any gate fails.
+- [ ] Compare the new Kitty screenshots with the reviewed `a1a722e` baseline: visible Matplotlib raster and known low-contrast user styling; expected Rich Kitty inline-unavailable and Rich noop fallback text; intact layout. Treat contrast of explicitly black text on transparent dark margins as user-owned, not an automatic recoloring target.
+- [ ] If the full gate passes and screenshots have no new regressions, record the exact validated commit in `docs/phase1-validation.md`, finalize `STATUS.md`, mark [draft PR #17](https://github.com/josephcourtney/wskr/pull/17) ready, and merge to `main`. Otherwise repair and retest.
+- [ ] Defer opt-in contrast assistance/display-time resizing to Phase 3, native Kitty transport/capability negotiation to Phase 2, and real Rich inline placement to Phase 4. Legacy test-size warnings remain advisory; classify them separately.
