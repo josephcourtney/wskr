@@ -30,7 +30,8 @@ _MAX_APC_BYTES = 1024
 
 def _require_tty() -> None:
     if sys.stdout is None or not sys.stdout.isatty():
-        raise TransportUnavailableError("Native Kitty graphics requires TTY stdout; redirects are unsupported")
+        msg = "Native Kitty graphics requires TTY stdout; redirects are unsupported"
+        raise TransportUnavailableError(msg)
 
 
 def _open() -> int:
@@ -39,7 +40,8 @@ def _open() -> int:
         name = os.ttyname(sys.stdout.fileno())
         return os.open(name, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
     except (AttributeError, OSError, ValueError) as exc:
-        raise TransportUnavailableError("Cannot open the terminal attached to stdout") from exc
+        msg = "Cannot open the terminal attached to stdout"
+        raise TransportUnavailableError(msg) from exc
 
 
 def _send(fd: int, frame: bytes, deadline: float) -> None:
@@ -47,13 +49,15 @@ def _send(fd: int, frame: bytes, deadline: float) -> None:
     while remaining:
         left = deadline - monotonic()
         if left <= 0 or not select.select([], [fd], [], left)[1]:
-            raise TimeoutError("Kitty graphics write deadline expired")
+            msg = "Kitty graphics write deadline expired"
+            raise TimeoutError(msg)
         try:
             count = os.write(fd, remaining)
         except BlockingIOError:
             continue
         if count <= 0:
-            raise TransportRuntimeError("Kitty graphics write made no progress")
+            msg = "Kitty graphics write made no progress"
+            raise TransportRuntimeError(msg)
         remaining = remaining[count:]
 
 
@@ -61,7 +65,8 @@ def send_frames(frames: Iterable[bytes], *, timeout: float = 5.0) -> None:
     """Write a complete frame sequence atomically relative to other wskr writers."""
     _require_tty()
     if not 0 < timeout <= _MAX_WRITE_TIMEOUT:
-        raise ValueError("Kitty write deadline must be in (0, 30]")
+        msg = "Kitty write deadline must be in (0, 30]"
+        raise ValueError(msg)
     with _TTY_LOCK:
         fd = _open()
         try:
@@ -78,7 +83,8 @@ def _read_reply(fd: int, deadline: float, unmatched: bytearray, pending: bytearr
     while consumed < _MAX_QUERY_BYTES:
         left = deadline - monotonic()
         if left <= 0 or not select.select([fd], [], [], left)[0]:
-            raise TimeoutError("Kitty graphics query timed out")
+            msg = "Kitty graphics query timed out"
+            raise TimeoutError(msg)
         try:
             ch = os.read(fd, 1)
         except BlockingIOError:
@@ -100,7 +106,8 @@ def _read_reply(fd: int, deadline: float, unmatched: bytearray, pending: bytearr
     if pending:
         unmatched.extend(pending)
         pending.clear()
-    raise TransportRuntimeError("Kitty graphics reply exceeded bounded input limit")
+    msg = "Kitty graphics reply exceeded bounded input limit"
+    raise TransportRuntimeError(msg)
 
 
 def query_support(
@@ -117,12 +124,15 @@ def query_support(
     unrelated bytes. No query occurs by default.
     """
     if not owns_input or on_unmatched is None:
-        raise TransportUnavailableError("Kitty probing requires exclusive input ownership and a byte handler")
+        msg = "Kitty probing requires exclusive input ownership and a byte handler"
+        raise TransportUnavailableError(msg)
     _require_tty()
     if not 0 < timeout <= _MAX_QUERY_TIMEOUT:
-        raise ValueError("Kitty query deadline must be in (0, 5]")
+        msg = "Kitty query deadline must be in (0, 5]"
+        raise ValueError(msg)
     if not request.startswith(b"\x1b_Ga=q,") or not request.endswith(b"\x1b\\") or len(request) > _MAX_QUERY_REQUEST_BYTES:
-        raise ValueError("Only bounded Kitty graphics capability queries are permitted")
+        msg = "Only bounded Kitty graphics capability queries are permitted"
+        raise ValueError(msg)
     with _TTY_LOCK:
         fd = _open()
         previous = None
