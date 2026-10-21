@@ -42,7 +42,21 @@ Phase 3 handles interactive `show()` lifecycle, figure/user style ownership at d
 
 ```sh
 PYTHONPATH=src:. pytest -q -p no:cacheprovider \
-  -o 'markers=small: small; medium: medium' \
+  -o  \
+  tests/test_isolated_codec_io.py tests/test_isolated_manager.py \
+  tests/test_isolated_placeholders.py tests/test_phase2_visual_smoke.py \
+  tests/test_kitty_native_pty_integration.py
+python -m compileall -q src scripts tests
+```
+
+The configured local pytest marker override simply registered the `small` and `medium` names; it was not the repository's original `pyproject.toml` configuration. **23 passed in 0.47 seconds; compilation exited 0.** The first three `test_isolated_*.py` files are a disposable local harness, not committed repository tests. The last two are exact GitHub test files. A separately committed real-PTY regression suite, `tests/test_kitty_pty_transactions.py`, has not been executed verbatim in this environment, although equivalent kernel-PTY behaviors have been covered by the local harness.
+
+**Covered:** PNG/Base64 roundtrip and 4096-byte chunk limits; valid `f=100` and `a=p`/`a=d` framing; partial and negative ACKs; forwarding foreign TTY bytes and restoring termios; stdout-bound TTY selection; no binary PNG leakage; managed image upload, placement, replacement and scoped disposal; image/placement collision bounds; virtual placeholders with 32-bit image and 24-bit placement IDs; and GUI-smoke script reference/ready-marker behavior under a fake transport. The new exact `tests/test_kitty_native_pty_integration.py` generated a valid Pillow PNG, sent native transport bytes through an actual Linux PTY, reconstructed and decoded the upload, and checked `U=1` placement and `a=d` cleanup without a GUI.
+
+**Additional code review/fix:** New exception raises were normalized to use message variables, matching the repository's strict `EM` lint selection. After the changes, all four updated source files passed Git blob identity verification and all 23 portable tests were rerun. The writer was fixed to use the actual stdout TTY path rather than potentially targeting an unrelated controlling terminal.
+
+**Not executed:** `just check` over the complete repository, Ruff format/lint, `ty`, all original tests, real Kitty/GUI screenshots or actual emulator image placement. No P2 signoff is claimed; [draft PR #18](https://github.com/josephcourtney/wskr/pull/18) remains unmerged. The former user-machine validation requirement does not block additional independent development.
+markers=small: small\nmedium: medium' \
   tests/test_isolated_codec_io.py tests/test_isolated_manager.py \
   tests/test_isolated_placeholders.py tests/test_phase2_visual_smoke.py \
   tests/test_kitty_native_pty_integration.py
