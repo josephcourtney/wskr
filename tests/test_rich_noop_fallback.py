@@ -27,4 +27,3 @@ def test_noop_renders_visible_status_on_every_print_without_raw_upload(monkeypat
     assert output.count("image unavailable") == 2
     assert "[wskr] Warning" not in capsys.readouterr().out
     assert "\x1b_G" not in output
-
