@@ -33,10 +33,15 @@ def _plot() -> Figure:
     return fig
 
 
-def _require_tty() -> None:
-    """Avoid sending raw terminal graphics into a pipe or captured stdout."""
+def _require_tty(mode: str) -> None:
+    """Refuse graphical probes without an attached, identifiable Kitty TTY."""
     if not sys.stdout.isatty():
         msg = "Visual checks require a foreground terminal; do not pipe or redirect output."
+        raise SystemExit(msg)
+    if mode != "noop" and not (
+        "kitty" in os.getenv("TERM", "").lower() or os.getenv("KITTY_WINDOW_ID")
+    ):
+        msg = "Graphical smoke checks require a Kitty session (TERM=xterm-kitty)."
         raise SystemExit(msg)
 
 
@@ -97,7 +102,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--pause", action="store_true", help="Hold the terminal for an OS screenshot")
     args = parser.parse_args(argv)
 
-    _require_tty()
+    _require_tty(args.mode)
     print(f"Scenario: {args.mode}; TERM={os.getenv('TERM')}; WSKR_PROTOCOL={os.getenv('WSKR_PROTOCOL')}")
     if args.mode == "matplotlib":
         _run_matplotlib(args.reference)
