@@ -81,9 +81,9 @@ def test_native_upload_virtual_place_and_dispose_across_real_pty(monkeypatch) ->
     assert len(frames) == 5
     assert all(part.startswith(_APC) for part in frames[:-1])
 
-    upload, placement, removal, cleanup = frames[:-1]
+    upload, placement, removal = frames[:3]
     assert upload.startswith(f"\x1b_Ga=t,f=100,t=d,i={image_id},q=2,m=0;".encode())
     assert base64.b64decode(upload.split(b";", 1)[1]) == source
     assert f"a=p,i={image_id},p={placement_id},c=5,r=3,U=1,q=2".encode() in placement
     assert f"a=d,d=i,i={image_id},p={placement_id},q=2".encode() in removal
-    assert f"a=d,d=I,i={image_id},q=2".encode() in cleanup
+    assert f"a=d,d=I,i={image_id},q=2".encode() in frames[3]
