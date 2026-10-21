@@ -8,13 +8,14 @@ custom Figure subclasses and explicit artist arguments remain authoritative.
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import matplotlib as mpl
 from matplotlib.figure import Figure
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+    from typing import Any
 
 
 class TerminalFigure(Figure):
