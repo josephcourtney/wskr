@@ -75,7 +75,7 @@ def test_manager_upload_place_reuse_and_scoped_cleanup(monkeypatch) -> None:
     writes: list[bytes] = []
     numbers = iter([13, 9, 17])
     monkeypatch.setattr("wskr.protocol.kitty_native.secrets.randbelow", lambda _bound: next(numbers) - 1)
-    manager = KittyImageManager(lambda frames: writes.extend(frames))
+    manager = KittyImageManager(writes.extend)
     image = manager.upload(PNG)
     physical = manager.place(image, columns=20, rows=4)
     virtual = manager.place(image, columns=18, rows=3, virtual=True)
@@ -93,7 +93,7 @@ def test_manager_upload_place_reuse_and_scoped_cleanup(monkeypatch) -> None:
 
 def test_manager_rejects_foreign_ids_without_writing() -> None:
     writes: list[bytes] = []
-    manager = KittyImageManager(lambda frames: writes.extend(frames))
+    manager = KittyImageManager(writes.extend)
     with pytest.raises(TransportRuntimeError, match="not owned"):
         manager.place(999, columns=1, rows=1)
     with pytest.raises(TransportRuntimeError, match="not owned"):
@@ -104,7 +104,7 @@ def test_manager_rejects_foreign_ids_without_writing() -> None:
 def test_direct_transport_has_rich_ready_placement_but_no_premature_inline_claim(monkeypatch) -> None:
     writes: list[bytes] = []
     monkeypatch.setattr("wskr.protocol.kitty_native.secrets.randbelow", lambda _bound: 100)
-    transport = NativeKittyTransport(writer=lambda frames: writes.extend(frames))
+    transport = NativeKittyTransport(writer=writes.extend)
     assert transport.supports_virtual_placement
     assert not transport.supports_inline_placement
     image = transport.init_image(PNG)
@@ -201,7 +201,7 @@ def test_virtual_placement_allocates_encodable_id(monkeypatch) -> None:
 
     monkeypatch.setattr("wskr.protocol.kitty_native.secrets.randbelow", fake_randbelow)
     frames: list[bytes] = []
-    manager = KittyImageManager(lambda chunks: frames.extend(chunks))
+    manager = KittyImageManager(frames.extend)
     image = manager.upload(PNG)
     virtual = manager.place(image, columns=1, rows=1, virtual=True)
     assert image == 0xFFFFFFFF
@@ -216,7 +216,8 @@ def test_failed_upload_does_not_claim_owned_image(dummy_png) -> None:
 
     def fail(frames) -> None:
         list(frames)
-        raise OSError("simulated terminal write failure")
+        msg = "simulated terminal write failure"
+        raise OSError(msg)
 
     manager = KittyImageManager(fail)
     with pytest.raises(OSError, match="write failure"):
@@ -233,7 +234,8 @@ def test_failed_placement_does_not_claim_owned_placement(dummy_png, monkeypatch)
         calls += 1
         list(frames)
         if calls == 2:
-            raise OSError("placement failed")
+            msg = "placement failed"
+            raise OSError(msg)
 
     monkeypatch.setattr("wskr.protocol.kitty_native.secrets.randbelow", lambda _bound: 8)
     manager = KittyImageManager(write)
