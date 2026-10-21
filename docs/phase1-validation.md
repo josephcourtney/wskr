@@ -71,3 +71,16 @@ The user ran all four local verification commands and two proposed visual smoke 
 **Code follow-up:** A safe Rich fallback now shows an in-panel message when `NoOpProtocol` is used, without issuing an invalid image upload or corrupting surrounding layout. A focused regression test was added. This change was **not** included in the fourth local run and must be validated independently.
 
 **Visual evidence still missing:** actual on-screen screenshots or a direct observation for stock Matplotlib and explicitly configured Kitty-backed Rich layouts; captured stdout and a passing Kitty-logo E2E test are insufficient.
+
+## Fifth macOS run — October 20, 2026, `5e3396a`
+
+The user fetched the Rich fallback change and ran the four quality and terminal gates from a clean checkout.
+
+| Command | Result | Notes |
+| --- | --- | --- |
+| `just check` | **FAIL at Ruff format** | `tests/test_rich_noop_fallback.py:30:1` had one surplus trailing blank line. Compileall passed, but Ruff lint, `ty` and full pytest were not reached |
+| `just phase1` | **45 passed, 1 skipped** | Medium-size distribution warning remains advisory |
+| `just test-tty` | **35 passed, 26 warnings** | No regressions detected |
+| `just test-kitty` | **5 passed, 5 warnings** | Live Kitty transport checks remain green |
+
+The lone formatting issue was repaired in a subsequent commit by removing the trailing blank line. **No rerun on that repaired commit has been provided.** The new Rich no-op regression test was not included in the focused `just phase1` recipe and thus remains unverified until the full pytest suite runs. Actual standard Matplotlib and Kitty-backed Rich screenshots remain outstanding.
