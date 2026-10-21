@@ -1,3 +1,4 @@
+# ruff: file-ignore[subprocess-without-shell-equals-true]  # bounded owned GUI and validation children
 """Run-specific validation evidence: commands, Kitty screenshots, manifest, ZIP.
 
 Screen images are captured from uniquely titled, newly launched Kitty windows.
@@ -48,8 +49,11 @@ RCPARAM_CODE = (
 
 def _short_git(*args: str) -> str | None:
     """Read nonsecret repository metadata without inheriting Git subprocess errors."""
+    git = shutil.which("git")
+    if git is None:
+        return None
     result = subprocess.run(
-        ["git", *args], cwd=ROOT, capture_output=True, text=True, check=False, timeout=10
+        [git, *args], cwd=ROOT, capture_output=True, text=True, check=False, timeout=10
     )
     return result.stdout.strip() if result.returncode == 0 else None
 
@@ -109,12 +113,15 @@ def _stop_owned_process(process: subprocess.Popen) -> None:
     """Close only the dedicated Kitty process launched for this scenario."""
     if process.poll() is not None:
         return
-    process.terminate()
     try:
+        process.terminate()
         process.wait(timeout=4)
     except subprocess.TimeoutExpired:
         process.kill()
         process.wait(timeout=4)
+    except OSError:
+        # The process may already have been reaped or its PID invalidated.
+        return
 
 
 def _validate_png(path: Path) -> tuple[int, int]:
@@ -134,7 +141,7 @@ def _capture_scenario(name: str, run_id: str, directory: Path, *, timeout: float
         return {"status": "failed", "error": "kitty executable missing"}
     if platform.system() != "Darwin":
         return {"status": "failed", "error": "macOS screencapture is required"}
-    token = f"wskr-evidence-{run_id}-{name}"
+    token = f"wskr-{hashlib.sha256(run_id.encode()).hexdigest()[:12]}-{name}"
     marker = directory / f"{name}.ready"
     reference = directory / f"{name}-reference.png"
     screenshot = directory / f"{name}-screen.png"
@@ -172,9 +179,11 @@ def _capture_scenario(name: str, run_id: str, directory: Path, *, timeout: float
         return {"status": "failed", "error": str(exc),
                 "reference": reference.name if reference.is_file() else None}
     finally:
-        if process is not None:
-            _stop_owned_process(process)
-        marker.unlink(missing_ok=True)
+        try:
+            if process is not None:
+                _stop_owned_process(process)
+        finally:
+            marker.unlink(missing_ok=True)
 
 
 def _file_hashes(directory: Path) -> dict[str, str]:
@@ -225,7 +234,9 @@ def collect(
         for name in CHECKS:
             if checks:
                 print(f"[check] just {name}", flush=True)
-                result = _run_logged(["just", name], logs / f"just-{name}.log", timeout=240)
+                just = shutil.which("just")
+                command = [just, name] if just is not None else ["just", name]
+                result = _run_logged(command, logs / f"just-{name}.log", timeout=240)
             else:
                 result = {"status": "skipped", "reason": "--no-checks"}
             manifest["checks"][name] = result
