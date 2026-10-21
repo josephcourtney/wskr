@@ -16,7 +16,7 @@ Current handoff: [DESIGN](DESIGN.md), [PLAN](PLAN.md), [TODO](TODO.md), [Phase 2
 
 ## Verified and outstanding
 
-**Portable local subset passed:** 14 isolated tests and `compileall` on Python 3.13/Linux, testing three exact Git-blob-matched codec/I/O/manager source files. Includes real Linux PTY transactions, positive/negative ACKs, timeouts and image lifecycle. See the exact SHA/evidence matrix in [docs/phase2-validation.md](docs/phase2-validation.md).
+**Portable local subset passed:** 19 isolated tests and `compileall` on Python 3.13/Linux, covering four exact Git-blob-matched codec/I/O/manager/placeholder modules and the original 297-character table. Includes real Linux PTY transactions, positive/negative ACKs, timeouts and image lifecycle. See the exact SHA/evidence matrix in [docs/phase2-validation.md](docs/phase2-validation.md).
 
 **Not verified:** full repository `just check` (Ruff, `ty`, all tests), real Kitty display and screenshots, actual image deletion/virtual placement in an emulator. No macOS run is assumed or requested for the ongoing work. PR #18 stays draft; Gate P2 is **not yet certified**.
 
