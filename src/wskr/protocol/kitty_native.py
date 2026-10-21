@@ -15,8 +15,8 @@ from typing import TYPE_CHECKING
 from wskr.core.errors import TransportRuntimeError, TransportUnavailableError
 from wskr.protocol.base import ImageProtocol
 from wskr.protocol.kitty_codec import MAX_ID, delete, placement, probe_request, transmit
-from wskr.protocol.kitty_placeholders import MAX_VIRTUAL_PLACEMENT_ID
 from wskr.protocol.kitty_io import query_support, send_frames
+from wskr.protocol.kitty_placeholders import MAX_VIRTUAL_PLACEMENT_ID
 from wskr.terminal.profile import read_geometry
 
 if TYPE_CHECKING:
@@ -38,6 +38,7 @@ class KittyImageManager:
             msg = "Kitty image manager has been closed"
             raise TransportRuntimeError(msg)
 
+    @staticmethod
     def _id(self, occupied: set[int], *, limit: int = MAX_ID) -> int:
         for _ in range(64):
             candidate = secrets.randbelow(limit) + 1
@@ -156,7 +157,7 @@ class NativeKittyTransport(ImageProtocol):
         )
         return self.confirmed
 
-    def get_window_size_px(self) -> tuple[int, int]:
+    def get_window_size_px(self) -> tuple[int, int]:  # noqa: PLR6301 - ImageProtocol requires an instance method
         """Return measured terminal pixels rather than fabricated monitor DPI."""
         geometry = read_geometry()
         if geometry is None or geometry.width_px <= 0 or geometry.height_px <= 0:
