@@ -100,7 +100,7 @@ A transport is not considered supported merely because it is registered. The fut
 
 ## Automated run-specific evidence
 
-For one reproducible output containing validation logs, Matplotlib and Rich screenshots, reference PNGs, a manifest and SHA-256 hashes:
+For one reproducible output containing validation logs, Matplotlib, Rich, and native physical/virtual placement screenshots, reference PNGs, a manifest and SHA-256 hashes:
 
 ```sh
 just evidence
