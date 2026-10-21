@@ -39,7 +39,7 @@ class KittyImageManager:
             raise TransportRuntimeError(msg)
 
     @staticmethod
-    def _id(self, occupied: set[int], *, limit: int = MAX_ID) -> int:
+    def _id(occupied: set[int], *, limit: int = MAX_ID) -> int:
         for _ in range(64):
             candidate = secrets.randbelow(limit) + 1
             if candidate not in occupied:
@@ -157,7 +157,7 @@ class NativeKittyTransport(ImageProtocol):
         )
         return self.confirmed
 
-    def get_window_size_px(self) -> tuple[int, int]:  # noqa: PLR6301 - ImageProtocol requires an instance method
+    def get_window_size_px(self) -> tuple[int, int]:  # ruff: ignore[no-self-use] - ImageProtocol instance method
         """Return measured terminal pixels rather than fabricated monitor DPI."""
         geometry = read_geometry()
         if geometry is None or geometry.width_px <= 0 or geometry.height_px <= 0:
