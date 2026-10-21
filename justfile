@@ -47,6 +47,10 @@ test-kitty:
 phase1:
   uv run pytest -q tests/test_terminal_color.py tests/test_terminal_profile.py tests/test_terminal_query.py tests/test_terminal_theme.py tests/test_terminal_figure.py tests/test_backend_profile_defaults.py tests/test_dark_mode.py
 
+# Phase 2: PNG framing, image lifecycle, virtual placement, ACK/query safety.
+phase2:
+  uv run pytest -q tests/test_kitty_native.py tests/test_tty_kitty.py
+
 # Manual visual smoke run, inside Kitty. For Rich, set WSKR_PROTOCOL=kitty.
 visual-smoke mode="matplotlib":
   uv run python scripts/phase1_visual_smoke.py --mode '{{mode}}'
