@@ -98,6 +98,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--mode", choices=("matplotlib", "rich", "noop"), default="matplotlib")
     parser.add_argument("--reference", type=Path, help="Optional reference PNG path")
     parser.add_argument("--pause", action="store_true", help="Hold the terminal for an OS screenshot")
+    parser.add_argument("--ready-file", type=Path, help="Write only after terminal rendering returns")
     args = parser.parse_args(argv)
 
     _require_tty(args.mode)
@@ -106,6 +107,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         _run_matplotlib(args.reference)
     else:
         _run_rich(args.reference, fallback=args.mode == "noop")
+    if args.ready_file is not None:
+        # The evidence runner needs a completion signal without redirecting TTY
+        # stdout (which would disable actual terminal graphics).
+        sys.stdout.flush()
+        args.ready_file.write_text("render-complete\n", encoding="utf-8")
     if args.pause:
         input("Inspect/capture the terminal window, then press Enter to exit: ")
 

@@ -51,6 +51,10 @@ phase1:
 visual-smoke mode="matplotlib":
   uv run python scripts/phase1_visual_smoke.py --mode '{{mode}}'
 
+# Complete validation plus isolated Kitty screenshots and one run-specific ZIP.
+evidence *args:
+  uv run python scripts/phase1_evidence.py {{args}}
+
 # Structured, diagnostic baseline report with no active graphics output.
 baseline:
   uv run python scripts/phase0_baseline.py
