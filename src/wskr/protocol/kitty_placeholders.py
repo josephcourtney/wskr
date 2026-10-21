@@ -46,12 +46,15 @@ def placeholder_rows(
     with scrolling, wrapping or overlapping images.
     """
     if not 1 <= image_id <= MAX_ID:
-        raise ValueError("Kitty placeholder image IDs must be positive 32-bit integers")
+        msg = "Kitty placeholder image IDs must be positive 32-bit integers"
+        raise ValueError(msg)
     if not 1 <= placement_id <= MAX_VIRTUAL_PLACEMENT_ID:
-        raise ValueError("Kitty placeholder placement IDs must fit in 24-bit underline color")
+        msg = "Kitty placeholder placement IDs must fit in 24-bit underline color"
+        raise ValueError(msg)
     table = diacritics()
     if not 1 <= columns <= len(table) or not 1 <= rows <= len(table):
-        raise ValueError("Kitty placeholder rows/columns exceed the diacritic table")
+        msg = "Kitty placeholder rows/columns exceed the diacritic table"
+        raise ValueError(msg)
     high = image_id >> 24
     suffix = table[high] if high else ""
     prefix = _sgr_id(image_id, 38) + _sgr_id(placement_id, 58)
