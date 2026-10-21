@@ -111,6 +111,8 @@ def get_image_protocol(name: str | None = None) -> ImageProtocol:
         else:
             try:
                 return entry.cls()
+            except TransportUnavailableError as exc:
+                err = exc
             except Exception as e:  # ruff: ignore[blind-except] - defensive guard
                 err = TransportInitError(f"Protocol {key!r} failed to initialise: {e}")
     # An explicitly selected native Kitty backend must not silently become
