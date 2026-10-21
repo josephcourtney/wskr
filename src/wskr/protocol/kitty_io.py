@@ -21,6 +21,11 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
 _TTY_LOCK = RLock()
+_MAX_WRITE_TIMEOUT = 30.0
+_MAX_QUERY_TIMEOUT = 5.0
+_MAX_QUERY_REQUEST_BYTES = 512
+_MAX_QUERY_BYTES = 4096
+_MAX_APC_BYTES = 1024
 
 
 def _require_tty() -> None:
@@ -50,7 +55,7 @@ def _send(fd: int, frame: bytes, deadline: float) -> None:
 def send_frames(frames: Iterable[bytes], *, timeout: float = 5.0) -> None:
     """Write a complete frame sequence atomically relative to other wskr writers."""
     _require_tty()
-    if not 0 < timeout <= 30:
+    if not 0 < timeout <= _MAX_WRITE_TIMEOUT:
         raise ValueError("Kitty write deadline must be in (0, 30]")
     with _TTY_LOCK:
         fd = _open()
@@ -65,7 +70,7 @@ def send_frames(frames: Iterable[bytes], *, timeout: float = 5.0) -> None:
 def _read_reply(fd: int, deadline: float, unmatched: bytearray, pending: bytearray) -> bytes:
     """Find one bounded APC reply without swallowing unrelated terminal bytes."""
     consumed = 0
-    while consumed < 4096:
+    while consumed < _MAX_QUERY_BYTES:
         left = deadline - monotonic()
         if left <= 0 or not select.select([fd], [], [], left)[0]:
             raise TimeoutError("Kitty graphics query timed out")
@@ -84,7 +89,7 @@ def _read_reply(fd: int, deadline: float, unmatched: bytearray, pending: bytearr
             response = bytes(pending)
             pending.clear()
             return response
-        elif len(pending) > 1024:
+        elif len(pending) > _MAX_APC_BYTES:
             unmatched.extend(pending)
             pending.clear()
     if pending:
@@ -108,9 +113,9 @@ def query_support(
     if not owns_input or on_unmatched is None:
         raise TransportUnavailableError("Kitty probing requires exclusive input ownership and a byte handler")
     _require_tty()
-    if not 0 < timeout <= 5:
+    if not 0 < timeout <= _MAX_QUERY_TIMEOUT:
         raise ValueError("Kitty query deadline must be in (0, 5]")
-    if not request.startswith(b"\x1b_Ga=q,") or not request.endswith(b"\x1b\\") or len(request) > 512:
+    if not request.startswith(b"\x1b_Ga=q,") or not request.endswith(b"\x1b\\") or len(request) > _MAX_QUERY_REQUEST_BYTES:
         raise ValueError("Only bounded Kitty graphics capability queries are permitted")
     with _TTY_LOCK:
         fd = _open()
