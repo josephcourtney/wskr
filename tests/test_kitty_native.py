@@ -209,3 +209,35 @@ def test_virtual_placement_allocates_encodable_id(monkeypatch) -> None:
     assert bounds == [0xFFFFFFFF, 0xFFFFFF]
     with pytest.raises(ValueError, match="24-bit"):
         manager.place(image, placement_id=0x1000000, columns=1, rows=1, virtual=True)
+
+
+def test_failed_upload_does_not_claim_owned_image(dummy_png) -> None:
+    """A failed writer must not register an upload that Kitty never received."""
+
+    def fail(frames) -> None:
+        list(frames)
+        raise OSError("simulated terminal write failure")
+
+    manager = KittyImageManager(fail)
+    with pytest.raises(OSError, match="write failure"):
+        manager.upload(dummy_png)
+    assert manager._images == {}
+
+
+def test_failed_placement_does_not_claim_owned_placement(dummy_png, monkeypatch) -> None:
+    """Failed placement control must not corrupt the manager's local state."""
+    calls = 0
+
+    def write(frames) -> None:
+        nonlocal calls
+        calls += 1
+        list(frames)
+        if calls == 2:
+            raise OSError("placement failed")
+
+    monkeypatch.setattr("wskr.protocol.kitty_native.secrets.randbelow", lambda _bound: 8)
+    manager = KittyImageManager(write)
+    image = manager.upload(dummy_png)
+    with pytest.raises(OSError, match="placement failed"):
+        manager.place(image, columns=2, rows=1, virtual=True)
+    assert manager._images[image] == set()
