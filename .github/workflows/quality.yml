@@ -42,7 +42,9 @@ jobs:
       - name: Compile Python source
         run: uv run python -m compileall -q src tests scripts
       - name: Check formatting
-        run: uv run ruff format --check src tests scripts
+        run: |
+          uv run ruff format --diff src tests scripts
+          uv run ruff format --check src tests scripts
       - name: Check lint
         run: uv run ruff check --no-fix src tests scripts
       - name: Check types
