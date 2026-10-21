@@ -14,7 +14,7 @@ from pathlib import Path
 from wskr.protocol.kitty_codec import MAX_ID
 
 MAX_VIRTUAL_PLACEMENT_ID = 0xFFFFFF
-_PLACEHOLDER = "\U0010EEEE"
+_PLACEHOLDER = "\U0010eeee"
 _TABLE = Path(__file__).with_name("rowcolumn-diacritics.txt")
 
 
