@@ -7,10 +7,11 @@ from __future__ import annotations
 
 import matplotlib as mpl
 import pytest
+from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 from wskr.render.matplotlib import core
-from wskr.render.matplotlib.figure import TerminalFigure
+from wskr.render.matplotlib.figure import TerminalAxes, TerminalFigure
 from wskr.render.matplotlib.theme import resolve_rc_defaults
 from wskr.terminal.profile import Geometry, probe_profile
 
@@ -58,11 +59,15 @@ def test_pyplot_none_arguments_get_terminal_dimensions_and_colors(monkeypatch):
         assert fig.get_facecolor() == mpl.colors.to_rgba("#000000")
 
         ax = fig.add_subplot(111)
+        assert isinstance(ax, TerminalAxes)
         assert ax.get_facecolor() == mpl.colors.to_rgba("#000000")
         assert ax.xaxis.label.get_color() == "#ffffff"
         assert ax.title.get_color() == "#ffffff"
-        color = ax.plot([0, 1], [1, 2])[0].get_color()
+        ax.plot([0, 1], [1, 2], label="Measured palette")
+        color = ax.lines[0].get_color()
         assert color in resolve_rc_defaults(profile)["axes.prop_cycle"].by_key()["color"]
+        assert ax.legend().get_texts()[0].get_color() == "#ffffff"
+        assert ax.text(0.5, 0.5, "annotation").get_color() == "#ffffff"
         assert fig.suptitle("Terminal title").get_color() == "#ffffff"
         assert fig.text(0.5, 0.5, "caption").get_color() == "#ffffff"
         for key in ("axes.facecolor", "axes.prop_cycle", "figure.facecolor", "text.color", "font.size"):
@@ -80,10 +85,12 @@ def test_user_figure_arguments_and_artist_edits_win(monkeypatch):
         assert fig.get_facecolor() == mpl.colors.to_rgba("#112233")
         ax = fig.add_subplot(111, facecolor="#332211")
         assert ax.get_facecolor() == mpl.colors.to_rgba("#332211")
-        line = ax.plot([0, 1], [1, 2], color="orange")[0]
+        line = ax.plot([0, 1], [1, 2], color="orange", label="explicit")[0]
         assert line.get_color() == "orange"
         ax.set_title("Specific color", color="cyan")
         assert ax.title.get_color() == "cyan"
+        assert ax.text(0.5, 0.5, "explicit text", color="red").get_color() == "red"
+        assert ax.legend(labelcolor="blue").get_texts()[0].get_color() == "blue"
     finally:
         manager.destroy()
 
@@ -134,3 +141,21 @@ def test_contrast_filter_removes_background_color_and_duplicates():
     assert "#ffffff" not in colors
     assert len(colors) == len(set(colors))
     assert "#000000" in colors
+
+
+def test_explicit_axes_class_and_polar_projection_remain_authoritative(monkeypatch):
+    class CustomAxes(Axes):
+        pass
+
+    monkeypatch.setattr(core, "probe_profile", _profile)
+    manager = core._BackendTermAgg.new_figure_manager(1006)
+    try:
+        fig = manager.canvas.figure
+        manual = fig.add_axes((0.1, 0.1, 0.8, 0.8), axes_class=CustomAxes)
+        assert type(manual) is CustomAxes
+        fig.delaxes(manual)
+        polar = fig.add_subplot(111, projection="polar")
+        assert polar.name == "polar"
+        assert not isinstance(polar, TerminalAxes)
+    finally:
+        manager.destroy()
