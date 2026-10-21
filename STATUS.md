@@ -1,24 +1,21 @@
 # wskr — Current Status
 
-Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 1 validation](docs/phase1-validation.md), [ADR-002](docs/adr/0002-terminal-measured-defaults.md).
+Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 2 validation](docs/phase2-validation.md).
 
-## Milestone
+## Active work
 
-**Phase 1 accepted — terminal profiles, safe bounded queries, and Matplotlib default/style precedence.** Validated from a clean macOS Kitty checkout at code SHA `5e35aa6e9ae101aff0f30b82a19bd4cf26de2fb7` in [PR #17](https://github.com/josephcourtney/wskr/pull/17). Phase 0 was previously integrated into `main`.
+**Phase 2 implementation staged on `feature/phase2-native-kitty-20261021`; qualification pending.** Phase 1 was merged into `main` in [PR #17](https://github.com/josephcourtney/wskr/pull/17) after clean macOS validation at code SHA `5e35aa6`.
 
-## Acceptance evidence — October 21, 2026
+## Implemented on the Phase 2 branch
 
-- Complete run `20261021T202749061910Z-5e35aa6e9a-f0056e.zip`, 14/14 matching SHA-256 hashes, clean source tree, macOS arm64/Python 3.14.0.
-- `just check` **passed** syntax, Ruff format/lint, `ty` and full pytest (**200 passed, 3 skipped**).
-- `just phase1`: **55 passed, 1 skipped**; `just test-tty`: **35 passed**; live `just test-kitty`: **5 passed**.
-- Three actual, isolated **1272×1381 Kitty** screenshots reviewed. Matplotlib PNG image transmitted; both Rich modes display the correct in-layout diagnostic fallback. **Matplotlib presentation is still flawed**: black title/labels on the dark transparent margin have poor contrast, and leading y-tick digits clip at the left viewport edge.
-- **137 nonfatal full-suite size-marker warnings** reflect legacy test classification, not a failed gate.
+- Pure Kitty PNG `f=100` Base64/chunk codec, ACK parsing and scoped deletion/placement control.
+- Serialized, deadline-bounded terminal writer and explicit input-owner capability query; raw graphics refused on redirected stdout.
+- Managed random-ID image uploads, physical and virtual placements, replacement and disposal. `kitty` and stock `wskr_kitty` select the native transport; `kitty_legacy` retains `icat` for comparison.
+- Protocol-owned Unicode placeholder/diacritic encoder for eventual Rich rendering; **Rich inline placement remains intentionally unavailable**.
+- Deterministic tests and `just phase2` qualification; integrated collector now includes Phase 2 tests.
 
-## Next phase and known limits
+## Verification and limitations
 
-- **Phase 2:** standards-correct native Kitty protocol codec, negotiated availability, image IDs, placement, cleanup and acknowledgments. Do not treat external `kitty icat` as completed native transmission.
-- **Phase 3:** solve small-window viewport fitting, display placement and clipping; honor explicit user `figsize`, DPI and colors. Any contrast-assistance mechanism must be opt-in and preserve saved exports.
-- **Phase 4:** genuine Rich inline graphics/virtual placement; current diagnostics are intentional.
-- Safe OSC foreground/background responses require caller-owned terminal input; unavailable capabilities remain unknown rather than fabricated.
+**Not verified on macOS or real Kitty at the Phase 2 head.** Run `just check`, `just phase2`, `just test-tty` and `just evidence`, then inspect archive/checksums and screenshots before deciding the merge. Phase 1's 200/55/35/5 pass counts do not apply to this new code.
 
-Gate P1 is accepted on the tested **code** SHA; documentation-only closeout commits are not separate runtime validation runs. Full historical evidence and limitations appear in [docs/phase1-validation.md](docs/phase1-validation.md).
+Terminal `TERM` is a hint, not proof of negotiated graphics; `probe` requires explicit input ownership. Phase 3 retains Matplotlib lifecycle and viewport-clipping/contrast defects. Phase 4 retains Rich's `ConsoleOptions` fitting and true virtual inline placement. See [TODO.md](TODO.md).
