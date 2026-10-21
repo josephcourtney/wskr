@@ -22,3 +22,21 @@
 ## Known deferred limitations
 
 Phase 3 handles interactive `show()` lifecycle, figure/user style ownership at display-time, redraw/replacement across resize, scrollback cleanup, and the existing clipping/contrast defects. Phase 4 will connect the already available upload and virtual-placement primitives to Rich's `ConsoleOptions` sizing and text layout. Do not label current Rich fallback messages as working inline graphics. Runtime Kitty support can be confirmed via explicit `probe(owns_input=True, on_unmatched=...)`; a `TERM=xterm-kitty` hint is not, by itself, a validated capability.
+
+## Independent portable validation — October 21, 2026
+
+The Phase 2 native implementation was reconstructed in the available Linux environment and three **exact source files** were verified against the GitHub blob SHA of the Phase 2 branch:
+
+| Source file | Verified Git blob SHA |
+| --- | --- |
+| `src/wskr/protocol/kitty_codec.py` | `afd31301aaf939cb8539f6cb17b8695308040762` |
+| `src/wskr/protocol/kitty_io.py` | `b88998edade088d7b9d68e4d864e5087a038528b` |
+| `src/wskr/protocol/kitty_native.py` | `2d0db2313b5ce387fef7e17b205e409b9f638045` |
+
+**Environment:** Python 3.13.5, Linux x86-64, glibc 2.41, pytest and Pillow installed. These three modules used narrowly scoped dependency stubs for `ImageProtocol`, the geometry reader, the placeholder ID constant and transport exceptions. No substitution of codec, I/O or image-manager source occurred. The isolated harness is distinct from the repository's configured `just check`.
+
+**Executed:** `PYTHONPATH=src pytest -q -p no:cacheprovider tests/test_isolated_codec_io.py tests/test_isolated_manager.py` → **14 passed in 0.15s**; `python -m compileall -q src tests` → **exit 0**. Specific cases covered PNG Base64 roundtrips on two lengths, chunk bounds, `f=100` headers and scoped physical/virtual/delete framing; a real Linux PTY writer, stdout TTY binding, foreign ACK/unmatched input forwarding, positive and negative ACKs, interrupted/incomplete-response deadline handling and exact termios restoration; image upload, replacement, scoped deletion, failed-writer rollback, 24-bit virtual ID bounds, direct display, managed transport ownership and injected capability probe.
+
+The newly committed `tests/test_kitty_pty_transactions.py` incorporates the corresponding portable PTY regressions, and `just phase2` includes that file. The exact repository tests have **not** been executed here because the full GitHub checkout/dev toolchain cannot be retrieved; the isolated tests above are not a substitute for a full `just check`. Ruff and `ty` are unavailable in this environment, and no Kitty emulator/GUI is present. The source-code branch therefore remains in **draft PR #18**, without a false P2 signoff. The former user-host validation request is not required for continued implementation work.
+
+An additional repository fix binds graphics I/O to the actual stdout TTY path (`os.ttyname(sys.stdout.fileno())`) instead of opening a potentially different `/dev/tty`. The portable PTY test verifies that behavior on Linux. The implementation was also compared to upstream Kitty protocol documentation for `f=100`, `m`, `a=q`, `a=p`, `U=1`, `a=d`, ACKs and explicit row/column Unicode placeholders.
