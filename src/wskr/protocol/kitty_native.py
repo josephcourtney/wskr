@@ -10,13 +10,16 @@ from __future__ import annotations
 import os
 import secrets
 import sys
-from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING
 
 from wskr.core.errors import TransportRuntimeError, TransportUnavailableError
 from wskr.protocol.base import ImageProtocol
 from wskr.protocol.kitty_codec import MAX_ID, delete, placement, probe_request, transmit
 from wskr.protocol.kitty_io import query_support, send_frames
 from wskr.terminal.profile import read_geometry
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 WriteFrames = Callable[[Iterable[bytes]], None]
 
