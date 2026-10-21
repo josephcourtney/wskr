@@ -145,3 +145,21 @@ The user preserved earlier local Ruff autofixes in a stash, fetched/pulled the u
 **Correction committed after this run, not locally revalidated:** backend and figure styling now enumerate Matplotlib's typed `RcParams` keys to determine eligible backend-owned defaults, rather than using arbitrary resolver string keys to index `RcParams`; the resulting scoped style mapping also has a statically valid key type for `rc_context`. The branch incorporates the three observed Ruff autofixes. There were no changes to low-level TTY/Kitty graphics transport.
 
 **Next evidence needed:** a fresh `just check` and `just phase1` on the corrected commit. Previous TTY and Kitty passes can be retained as evidence for unchanged transport code. The user's stashed changes remain in their local Git stash and were not deleted or modified remotely.
+
+## Ninth macOS run — October 21, 2026, `ab3ad41`
+
+The user provided a new copout run on the clean Phase 1 checkout at `ab3ad419f5458226f036e4273829faf8d8fd37d0`. The command returned status 0 after fetching/pulling and executing both requested validation gates. The prior local Ruff changes were preserved in a Git stash.
+
+| Gate | Observed result |
+| --- | --- |
+| `just check` | **PASS** — compileall, Ruff format (85 files), Ruff lint, `ty`, and full pytest |
+| Full pytest | **194 passed, 3 skipped, 137 nonfatal warnings, 9.69 s** |
+| `just phase1` | **54 passed, 1 skipped, 0.79 s** |
+| `just test-tty` | **NOT RERUN** here; prior 35 passed at `55f217a`, with no subsequent TTY implementation changes |
+| `just test-kitty` | **NOT RERUN** here; prior 5 passed at `55f217a`, with no subsequent Kitty transport changes |
+
+The five `ty` errors involving dynamic `RcParams` string keys have been resolved; the full suite now runs. The three default-suite skips remain the opt-in dark-mode TTY check and two opt-in Kitty E2E cases. The 137 warnings relate to missing legacy test-size markers. The categorized Phase 1 subset has 33 small and 22 medium cases, triggering an advisory (medium share 40%).
+
+**What this validates:** deterministic terminal-profile, safe-query and style-precedence code, full static checks, and the registered-Kitty Rich diagnostic tests. It does **not** demonstrate new on-screen visuals or collection of live terminal colors with safely owned input. Existing screenshots remain the seventh-run baseline.
+
+**Next evidence:** record current/default Matplotlib rcParams and capture actual Kitty screenshots on the current styling implementation before deciding whether the oversized figure and low-contrast labels can be corrected without overriding explicit user-owned style. Full Rich Kitty graphics remain Phase 2/4.

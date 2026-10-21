@@ -4,28 +4,28 @@ Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 
 
 ## Current focus
 
-**Phase 1 automated quality gate is blocked pending revalidation of the rcParams typing fix.** Work remains on `feature/phase1-terminal-profile-20261020`; `main` is unchanged.
+**Phase 1 automated gate passes; final terminal-profile integration and visual acceptance remain open.** Feature branch `feature/phase1-terminal-profile-20261020`; `main` unchanged.
 
-## Local evidence — October 21, 2026, `55f217a` plus local Ruff autofixes
+## Verified on macOS — October 21, 2026, `ab3ad41`
 
-- `just check`: compileall, formatting and lint **pass after `just fix`**; `ty` reports **five invalid-argument-type errors** when string keys index Matplotlib's typed `RcParams` and are passed to `rc_context`. Full pytest was not reached.
-- `just phase1`: **54 passed, 1 skipped** (test-size distribution advisory).
-- `just test-tty`: **35 passed**; `just test-kitty`: **5 passed**. Both have legacy test-size warnings.
-- Prior real-Kitty screenshots prove visible Matplotlib plotting, with poor dark-margin text contrast and reported 6 × 6 inches / 300 DPI. The default Rich `noop` fallback appears correctly in panel/table.
-- Direct Rich inline graphics are not available; the Kitty transport is recognized but its unsafe placement path remains disabled.
+- `just check`: **PASS**. Python compileall, Ruff format (**85 files**), Ruff lint, `ty`, and full pytest (**194 passed, 3 skipped, 137 nonfatal size-marker warnings**, 9.69 s).
+- `just phase1`: **54 passed, 1 skipped** (size-distribution advisory: 33 small, 22 medium).
+- Previously verified at `55f217a`: `just test-tty` **35 passed** and `just test-kitty` **5 passed**. No TTY/Kitty implementation changes since that run.
+- Earlier real-Kitty screenshots: stock Matplotlib plot is visible, but dark-terminal margin contrast is poor; it reported 6 × 6 inches / 300 DPI. `noop` Rich fallback displays correctly in panel/table.
 
-## Subsequent code correction — unverified locally
+## Implemented
 
-- Iterate valid Matplotlib `RcParams` keys when filtering backend-owned defaults and creating scoped `rc_context` values, eliminating arbitrary-string indexing without ignores or casts.
-- Incorporated observed import sorting, private-member suppression naming and falsy dictionary-get fixes from the local `just fix`.
-- No TTY transport or Kitty codec changes in this correction.
+- Provenance-aware terminal geometry/color profile, owned and bounded OSC I/O, decisive light/dark results, scoped figure/axes defaults and explicit-style precedence tests.
+- Built-in Kitty transport is selectable; unsafe Rich inline placement remains disabled with an in-layout diagnostic.
+- The five `ty` errors from string-keyed `RcParams` filtering are resolved and tested.
 
 ## Remaining acceptance
 
-- Preserve any new uncommitted `just fix` edits; then update from the feature branch and run `just check` followed by `just phase1`.
-- Inspect actual rcParams/defaults before changing dark-theme contrast or 6 × 6 inch figure sizing. Do not override explicit user style.
-- Rich inline upload/placement belongs to Phase 2/4. Legacy test-size classification remains unfinished.
+- Inspect actual versus default Matplotlib rcParams to establish ownership of sizing, background and text colors before changing visual defaults.
+- Characterize missing runtime terminal colors/font/DPI/graphics capability where safely obtainable with caller-owned input; preserve unknown provenance elsewhere.
+- Confirm post-fix Rich Kitty diagnostic and recheck normal plot contrast with screenshots. Real Rich image placements belong to Phase 2/4.
+- Truthfully classify remaining legacy size markers; keep their warnings visible.
 
 ## Handoff
 
-Do not merge before the corrected branch passes the full macOS quality gate. Record results against the exact tested commit.
+No current automated quality failure. Do not merge or declare all Phase 1 requirements met solely from the green suite; record visual/profile decisions and verify new implementation changes before closure.
