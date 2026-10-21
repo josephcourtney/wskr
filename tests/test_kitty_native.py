@@ -136,12 +136,12 @@ def test_placeholder_encoding_and_boundaries() -> None:
 
     table = diacritics()
     assert len(table) == 297
-    assert table[0] == "\\u0305"
+    assert table[0] == chr(0x0305)
     encoded = placeholder_rows(42, 7, columns=2, rows=2)
     assert len(encoded) == 2
-    assert all(row.count("\\U0010EEEE") == 2 for row in encoded)
-    assert "\\x1b[38;2;0;0;42m" in encoded[0]
-    assert "\\x1b[58;2;0;0;7m" in encoded[0]
+    assert all(row.count(chr(0x10EEEE)) == 2 for row in encoded)
+    assert f"{chr(27)}[38;2;0;0;42m" in encoded[0]
+    assert f"{chr(27)}[58;2;0;0;7m" in encoded[0]
     assert table[0] + table[1] in encoded[0]
     high = placeholder_rows((2 << 24) + 42, 7, columns=1, rows=1)
     assert table[2] in high[0]
