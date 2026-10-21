@@ -310,10 +310,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
     _, manifest = collect(args.out, checks=not args.no_checks, gui=not args.no_gui, timeout=args.timeout)
-    failures = [
-        name for name, result in {**manifest["checks"], **manifest["screenshots"]}.items()
-        if result["status"] == "failed"
-    ]
+    results = {**manifest["checks"], **manifest["screenshots"]}
+    failures = [name for name, result in results.items() if result["status"] == "failed"]
     return 1 if failures or manifest["matplotlib_rcparams"]["status"] == "failed" else 0
 
 
