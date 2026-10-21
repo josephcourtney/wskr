@@ -102,3 +102,9 @@ The three skips were the opt-in dark-mode TTY test and two opt-in Kitty E2E test
 This completes the full automated quality gate for the `8430014` source tree. The immediately preceding local run at `5e3396a` established `just phase1` (45 passed, one skip), `just test-tty` (35 passed) and `just test-kitty` (5 passed). Since those focused runs, the only implementation-file change was a trailing-blank-line formatting correction to a regression test.
 
 **Still not demonstrated:** visual stock Matplotlib rendering; Rich with `WSKR_PROTOCOL=kitty`; terminal-derived font, palette and artist defaults being installed without overriding explicit user choices. These remain Phase 1 acceptance work, not quality-gate failures.
+
+## Phase 1 implementation after the sixth run — awaiting new macOS evidence
+
+New commits add conservative pyplot `None`-argument handling, a figure-local Matplotlib style context and default rectilinear axes class, late legend/text/annotation styling, contrast-filtered palette selection, and deterministic style/precedence tests. `just phase1` now includes the new regression file. `scripts/phase1_visual_smoke.py` / `just visual-smoke` provide standard pyplot, explicit Kitty-backed Rich and text-only fallback scenarios.
+
+**No macOS Ruff, ty, pytest or real-Kitty visual result has yet been supplied for those commits.** The last accepted code quality gate remains `8430014`; do not carry its 182-pass count forward to the newer implementation. Capture real graphics evidence using [phase1-visual-procedure.md](phase1-visual-procedure.md) and report the exact validated commit.

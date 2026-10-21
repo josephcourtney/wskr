@@ -99,6 +99,12 @@ A transport is not considered supported merely because it is registered. The fut
 | [POLICY.md](POLICY.md) | Authoritative document/history policy |
 | [AGENTS.md](AGENTS.md) | Contributor instructions specific to wskr |
 
+## Phase 1 visual checks (experimental)
+
+Use `just visual-smoke matplotlib` inside Kitty to exercise ordinary pyplot, `WSKR_PROTOCOL=kitty just visual-smoke rich` to examine a Rich panel and table, and `just visual-smoke noop` to verify the intentional text-only fallback. These are manual tests: a zero exit status does not guarantee that an image was displayed. [Detailed screenshot procedure](docs/phase1-visual-procedure.md).
+
+The Phase 1 figure-local defaults apply when terminal measurements are available. Color OSC interrogation is opt-in and requires explicitly owned terminal input; unattended pyplot currently obtains geometry but not queried foreground/background colors. Figures using user-selected Figure/axes subclasses and explicit artist styling remain authoritative.
+
 ## Testing and maturity
 
 Test files exist under `tests/`, including unit and PTY cases and opt-in Kitty screenshot work. A full successful test run **has not been established for the current repository state**; Phase 0 adds diagnostic checks and installed-wheel probes but they still require execution in a local environment. Core local checks should use the wskr-specific `uv` environment; the existing `justfile` currently contains unrelated Cwide settings.

@@ -1,9 +1,10 @@
 # wskr — Immediate Tasks
 
-Phase 1 integration tasks; see [PLAN.md](PLAN.md) and [validation evidence](docs/phase1-validation.md).
+Phase 1 acceptance tasks: [PLAN.md](PLAN.md), [visual procedure](docs/phase1-visual-procedure.md).
 
-- [ ] Complete backend-owned terminal-derived foreground, background, palette and font/artist defaults with regression tests for explicit rcParams, styles and artist precedence.
-- [ ] Capture and inspect normal `MPLBACKEND=wskr_kitty` Matplotlib output inside Kitty; record whether a visible graph appears and its extent, clipping and contrast.
-- [ ] Test Rich panel/table inside Kitty with explicit `WSKR_PROTOCOL=kitty` and record errors, clipping and placement. Distinguish this experimental path from the validated `noop` text fallback.
-- [ ] Rerun `just check`, `just phase1`, `just test-tty` and `just test-kitty` on the implementation commit that completes the remaining Phase 1 integration work.
-- [ ] Classify legacy/GUI test sizes truthfully without weakening current quality gates or concealing warnings.
+- [ ] Run `just check`, `just phase1`, `just test-tty`, `just test-kitty` on `feature/phase1-terminal-profile-20261020`; fix observed regressions without muting Ruff or `ty`.
+- [ ] Capture real Kitty Matplotlib graph output with `just visual-smoke matplotlib`; record actual visibility, clipping, text contrast, and viewport placement.
+- [ ] In Kitty run `WSKR_PROTOCOL=kitty just visual-smoke rich`; retain screenshot/output. This old Rich inline transport is experimental and may fail.
+- [ ] Confirm the `just visual-smoke noop` Rich fallback preserves panel/table boundaries; no actual image is expected.
+- [ ] Determine a safe, caller-owned path for obtaining live terminal colors and optional font/graphics capabilities; do not query shared keyboard input automatically.
+- [ ] Classify remaining legacy size-marker warnings truthfully without weakening enforcement policy.
