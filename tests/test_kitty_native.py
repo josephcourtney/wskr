@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import base64
 import sys
-from io import BytesIO
 
 import pytest
 
@@ -130,3 +129,21 @@ def test_no_redirected_raw_output(monkeypatch) -> None:
 def test_input_ownership_required_for_query() -> None:
     with pytest.raises(TransportUnavailableError, match="exclusive"):
         kitty_io.query_support(probe_request(1), expected_id=1)
+
+
+def test_placeholder_encoding_and_boundaries() -> None:
+    from wskr.protocol.kitty_placeholders import diacritics, placeholder_rows
+
+    table = diacritics()
+    assert len(table) == 297
+    assert table[0] == "\\u0305"
+    encoded = placeholder_rows(42, 7, columns=2, rows=2)
+    assert len(encoded) == 2
+    assert all(row.count("\\U0010EEEE") == 2 for row in encoded)
+    assert "\\x1b[38;2;0;0;42m" in encoded[0]
+    assert "\\x1b[58;2;0;0;7m" in encoded[0]
+    assert table[0] + table[1] in encoded[0]
+    high = placeholder_rows((2 << 24) + 42, 7, columns=1, rows=1)
+    assert table[2] in high[0]
+    with pytest.raises(ValueError, match="diacritic"):
+        placeholder_rows(42, 7, columns=298, rows=1)
