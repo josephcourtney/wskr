@@ -98,7 +98,8 @@ def test_rich_unavailable_explicit_kitty_remains_text_fallback(monkeypatch, dumm
     from wskr.core.errors import TransportUnavailableError
 
     def unavailable():
-        raise TransportUnavailableError("not attached to Kitty")
+        msg = "not attached to Kitty"
+        raise TransportUnavailableError(msg)
 
     monkeypatch.setattr("wskr.render.rich.img.get_image_protocol", unavailable)
     rendered = RichImage(io.BytesIO(dummy_png), desired_width=12, desired_height=4)
