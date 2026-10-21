@@ -108,3 +108,23 @@ This completes the full automated quality gate for the `8430014` source tree. Th
 New commits add conservative pyplot `None`-argument handling, a figure-local Matplotlib style context and default rectilinear axes class, late legend/text/annotation styling, contrast-filtered palette selection, and deterministic style/precedence tests. `just phase1` now includes the new regression file. `scripts/phase1_visual_smoke.py` / `just visual-smoke` provide standard pyplot, explicit Kitty-backed Rich and text-only fallback scenarios.
 
 **No macOS Ruff, ty, pytest or real-Kitty visual result has yet been supplied for those commits.** The last accepted code quality gate remains `8430014`; do not carry its 182-pass count forward to the newer implementation. Capture real graphics evidence using [phase1-visual-procedure.md](phase1-visual-procedure.md) and report the exact validated commit.
+
+## Seventh macOS run and three visual captures — October 21, 2026, `0ab5b47` + local `just fix`
+
+The user supplied a terminal log and screenshots of all three `just visual-smoke` modes. The worktree is recorded dirty because `just fix` reformatted and autofixed source; screenshots therefore characterize the local worktree, not a clean commit.
+
+| Gate | Observation |
+| --- | --- |
+| `just check` | **FAIL** at Ruff formatting: `core.py`, `figure.py`, `test_terminal_figure.py` needed formatting. `just fix` reformatted them and autofixed 14 lint errors, leaving seven `any-type` complaints in figure/axes convenience override signatures. `ty` and full pytest not reached |
+| `just phase1` | **53 passed, 1 failed, 1 skipped**. The single failure compares Matplotlib's NumPy-array `legend(labelcolor="blue")` RGBA color with the string `"blue"`; the legend itself was created |
+| `just test-tty` | **35 passed**, 26 legacy size-marker warnings |
+| `just test-kitty` | **5 passed**, 5 legacy size-marker warnings |
+| `just visual-smoke matplotlib` | **IMAGE VISIBLE.** Sine/cosine graph, title, legend and axes are present. Reported `figure.get_size_inches()=(6,6)`, `dpi=300`. Dark terminal background surrounds white plotting axes; black labels/title over dark margins have poor contrast |
+| `WSKR_PROTOCOL=kitty just visual-smoke rich` | **NOT GRAPHICAL.** Registry reports unknown `kitty`, lists only `noop`, shows an in-panel text fallback in panel and table |
+| `just visual-smoke noop` | **TEXT FALLBACK PASS.** In-panel and table-cell explanatory text is legible, with intact borders and no raw graphics escape sequence visible |
+
+The Matplotlib figure's 6-inch size and 300 DPI may originate from nondefault user Matplotlib rcParams; such values are user-owned and should not be silently overwritten to force terminal sizing. This remains to be measured, not guessed. Transparent figure margins and black text make the result poorly matched to the dark terminal even though PNG transport works.
+
+**Code corrections after the screenshots (unverified locally):** compare the legend's RGBA value elementwise; avoid forbidden `Any` override signatures; explicitly register built-in Kitty protocols at lookup while preventing the known-incomplete inline transport from uploading/querying. A later `WSKR_PROTOCOL=kitty` Rich run should report that inline placement is unavailable, **not display a graph**. Real Rich graphics require Phase 2/4 protocol work and separate screenshot evidence.
+
+The original screenshots were supplied in chat; no screenshot image assets were committed into Git.

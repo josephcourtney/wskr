@@ -1,10 +1,9 @@
 # wskr — Immediate Tasks
 
-Phase 1 acceptance tasks: [PLAN.md](PLAN.md), [visual procedure](docs/phase1-visual-procedure.md).
+Phase 1 qualification; see [PLAN.md](PLAN.md) and [validation evidence](docs/phase1-validation.md).
 
-- [ ] Run `just check`, `just phase1`, `just test-tty`, `just test-kitty` on `feature/phase1-terminal-profile-20261020`; fix observed regressions without muting Ruff or `ty`.
-- [ ] Capture real Kitty Matplotlib graph output with `just visual-smoke matplotlib`; record actual visibility, clipping, text contrast, and viewport placement.
-- [ ] In Kitty run `WSKR_PROTOCOL=kitty just visual-smoke rich`; retain screenshot/output. This old Rich inline transport is experimental and may fail.
-- [ ] Confirm the `just visual-smoke noop` Rich fallback preserves panel/table boundaries; no actual image is expected.
-- [ ] Determine a safe, caller-owned path for obtaining live terminal colors and optional font/graphics capabilities; do not query shared keyboard input automatically.
-- [ ] Classify remaining legacy size-marker warnings truthfully without weakening enforcement policy.
+- [ ] Preserve or reconcile local `just fix` changes before pulling the feature branch. Then run `just check` and `just phase1` on the new commit, correcting only observed failures.
+- [ ] Repeat `just test-tty` and `just test-kitty` after the fixes to establish no transport regression.
+- [ ] Re-run the Kitty Matplotlib visual probe with a logged snapshot of `figure.figsize`, `figure.dpi`, `figure.facecolor`, `axes.facecolor`, `text.color` and current background. Decide which are explicitly user-owned before changing display colors or dimensions.
+- [ ] Treat Rich inline graphics/virtual placement as planned Phase 2/4; the Kitty registry now recognizes selection but explicitly refuses the broken inline path.
+- [ ] Classify remaining legacy test sizes truthfully without weakening checks.
