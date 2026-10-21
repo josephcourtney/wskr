@@ -147,3 +147,46 @@ def test_placeholder_encoding_and_boundaries() -> None:
     assert table[2] in high[0]
     with pytest.raises(ValueError, match="diacritic"):
         placeholder_rows(42, 7, columns=298, rows=1)
+
+
+def test_owned_query_forwards_foreign_replies_and_restores_tty(monkeypatch) -> None:
+    requests: list[bytes] = []
+    handled: list[bytes] = []
+    closed: list[int] = []
+    restored: list[object] = []
+
+    def response(image: int) -> bytes:
+        return bytes((27,)) + b"_Gi=" + str(image).encode() + b";OK" + bytes((27, 92))
+
+    replies = iter((response(8), response(9)))
+
+    def fake_attributes(_fd):
+        return [0, 0, 0, 0, 0, 0, [0] * 32]
+
+    monkeypatch.setattr(kitty_io, "_require_tty", lambda: None)
+    monkeypatch.setattr(kitty_io, "_open", lambda: 11)
+    monkeypatch.setattr(kitty_io, "_send", lambda _fd, frame, _deadline: requests.append(frame))
+    monkeypatch.setattr(kitty_io, "_read_reply", lambda *_args: next(replies))
+    monkeypatch.setattr(kitty_io.termios, "tcgetattr", fake_attributes)
+    monkeypatch.setattr(kitty_io.termios, "tcsetattr", lambda _fd, _how, attrs: restored.append(attrs))
+    monkeypatch.setattr(kitty_io.os, "close", closed.append)
+
+    assert kitty_io.query_support(
+        probe_request(9), expected_id=9, owns_input=True, on_unmatched=handled.append
+    )
+    assert requests == [probe_request(9)]
+    assert handled == [response(8)]
+    assert closed == [11]
+    assert len(restored) == 2
+
+
+def test_native_request_does_not_silently_fall_back_to_noop(monkeypatch) -> None:
+    from wskr.protocol.registry import get_image_protocol
+
+    class Pipe:
+        def isatty(self) -> bool:
+            return False
+
+    monkeypatch.setattr(sys, "stdout", Pipe())
+    with pytest.raises(TransportUnavailableError, match="TTY"):
+        get_image_protocol("kitty")
