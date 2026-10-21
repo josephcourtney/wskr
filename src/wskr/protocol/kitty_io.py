@@ -59,9 +59,8 @@ def send_frames(frames: Iterable[bytes], *, timeout: float = 5.0) -> None:
             os.close(fd)
 
 
-def _read_reply(fd: int, deadline: float, unmatched: bytearray) -> bytes:
+def _read_reply(fd: int, deadline: float, unmatched: bytearray, pending: bytearray) -> bytes:
     """Find one bounded APC reply without swallowing unrelated terminal bytes."""
-    pending = bytearray()
     consumed = 0
     while consumed < 4096:
         left = deadline - monotonic()
@@ -79,7 +78,9 @@ def _read_reply(fd: int, deadline: float, unmatched: bytearray) -> bytes:
             unmatched.extend(pending)
             pending.clear()
         elif pending.startswith(b"\x1b_G") and pending.endswith(b"\x1b\\"):
-            return bytes(pending)
+            response = bytes(pending)
+            pending.clear()
+            return response
         elif len(pending) > 1024:
             unmatched.extend(pending)
             pending.clear()
@@ -112,6 +113,7 @@ def query_support(
         fd = _open()
         previous = None
         unmatched = bytearray()
+        pending = bytearray()
         try:
             previous = termios.tcgetattr(fd)
             attrs = termios.tcgetattr(fd)
@@ -121,15 +123,26 @@ def query_support(
             termios.tcsetattr(fd, termios.TCSANOW, attrs)
             deadline = monotonic() + timeout
             _send(fd, request, deadline)
-            response = _read_reply(fd, deadline, unmatched)
-            parse_response(response, expected_id=expected_id)
-            return True
+            while True:
+                response = _read_reply(fd, deadline, unmatched, pending)
+                try:
+                    image_id, _ = parse_response(response)
+                except TransportRuntimeError:
+                    unmatched.extend(response)
+                    continue
+                if image_id != expected_id:
+                    unmatched.extend(response)
+                    continue
+                parse_response(response, expected_id=expected_id)
+                return True
         finally:
             try:
                 if previous is not None:
                     termios.tcsetattr(fd, termios.TCSANOW, previous)
             finally:
                 os.close(fd)
+                if pending:
+                    unmatched.extend(pending)
                 if unmatched:
                     on_unmatched(bytes(unmatched))
 
