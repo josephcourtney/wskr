@@ -4,27 +4,22 @@ Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 
 
 ## Current focus
 
-**Phase 1 implementation and screenshot collection exist; the final clean macOS quality/evidence gate has not yet passed on the latest branch.** Phase 0 is on `main`; Phase 1 remains on `feature/phase1-terminal-profile-20261020`.
+**Phase 1 code is implemented and the targeted checks pass, but the latest full quality gate failed formatting.** Phase 0 is merged into `main`; Phase 1 remains on `feature/phase1-terminal-profile-20261020` in [draft PR #17](https://github.com/josephcourtney/wskr/pull/17).
 
-## Verified evidence
+## Latest macOS evidence — October 21, 2026, `a1a722e`
 
-- At `ab3ad41` (October 21): `just check` passed — **194 tests passed, 3 opt-in skips, 137 nonfatal legacy test-size warnings**; `just phase1`: **54 passed, 1 skipped**.
-- Earlier live `just test-tty`: **35 passed**; `just test-kitty`: **5 passed**.
-- First automated `just evidence` at `2dbb65f`: produced a ZIP and all three isolated real Kitty screenshots, but `just check` stopped at Ruff formatting.
-- Visual review: Matplotlib lines/axes render; black text on transparent margins is difficult to read against a dark terminal. Rich Kitty shows an expected inline-unavailable diagnostic; Rich noop shows a text fallback.
+- `just evidence` from a clean checkout generated a complete ZIP; 14/14 artifact checksums matched.
+- `just check` **FAILED at Ruff format** (`scripts/phase1_evidence.py:290:23`); lint, `ty` and full pytest were not reached.
+- `just phase1`: **55 passed, 1 skipped**; `just test-tty`: **35 passed**; `just test-kitty`: **5 passed**.
+- All three real Kitty screenshots were captured and reviewed at 1272×1381. Standard Matplotlib lines/grid/legend render; dark transparent margins make black title/labels difficult to read. Rich Kitty shows the expected inline-unavailable diagnostic; Rich noop displays the in-layout fallback.
 
-## Recent changes, not yet locally qualified
+## Latest changes — unverified on macOS
 
-- Corrected the evidence collector/test formatting issue reported by the first evidence run.
-- Recorded the **no silent contrast adaptation** decision in [ADR-002](docs/adr/0002-terminal-measured-defaults.md). Added a deterministic regression for the observed 6×6-inch, 300-DPI transparent configuration.
-- No `just check` or `just evidence` run has been observed on these latest commits. GitHub status checks are not a substitute for local Kitty acceptance.
+- Replaced the collector's multiline conditional with explicit branches to remove the observed Ruff formatter failure. This is not yet a passing `just check` result.
+- ADR-002 preserves explicit user styling; the new transparent/300-DPI regression passed within `just phase1`.
+- Prior fully passing `just check`: `ab3ad41` (194 passed, 3 skipped). This is **not** evidence for the latest head.
 
-## Known scope limits
+## Known limits and next action
 
-- Runtime OSC foreground/background interrogation is available only through caller-owned input; default plotting does not consume shared TTY input.
-- Rendering still uses external `kitty icat`; native Kitty codec/placement and Rich inline graphics are Phase 2/4 work.
-- Display-time figure resizing, managed redrawing and theme changes remain Phase 3 work. Existing size-marker warnings are advisory.
-
-## Handoff
-
-Run `just evidence` in a clean macOS Kitty checkout at the latest branch head; inspect the ZIP's check logs, manifest and three screenshots. **Do not merge Phase 1 before the final gate is green**; preserve failures precisely.
+- Automatic safe live OSC color discovery, native Kitty graphics, Rich inline placement and display-time resizing remain unimplemented or deferred to later phases.
+- Run `just evidence` on the latest clean feature head, review all command results and captured screenshots, and record the exact tested commit. **Do not merge until the full gate is green.** See [TODO.md](TODO.md).
