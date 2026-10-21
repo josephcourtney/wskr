@@ -126,13 +126,17 @@ def query_support(
             while True:
                 response = _read_reply(fd, deadline, unmatched, pending)
                 try:
-                    image_id, _ = parse_response(response)
-                except TransportRuntimeError:
+                    header = response.split(b";", 1)[0]
+                    identities = [part[2:] for part in header.split(b",") if part.startswith(b"i=")]
+                    image_id = int(identities[0])
+                except (IndexError, ValueError):
                     unmatched.extend(response)
                     continue
                 if image_id != expected_id:
                     unmatched.extend(response)
                     continue
+                # A negative response from the requested image is a
+                # definitive rejection, not unrelated terminal input.
                 parse_response(response, expected_id=expected_id)
                 return True
         finally:
