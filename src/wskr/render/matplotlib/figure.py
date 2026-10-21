@@ -63,9 +63,7 @@ class TerminalFigure(Figure):
         A style changed after this figure's construction takes precedence.
         """
         active = {
-            key: value
-            for key, value in self._wskr_defaults.items()
-            if mpl.rcParams[key] == mpl.rcParamsDefault[key]
+            key: value for key, value in self._wskr_defaults.items() if mpl.rcParams[key] == mpl.rcParamsDefault[key]
         }
         with mpl.rc_context(rc=active):
             yield

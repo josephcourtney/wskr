@@ -58,9 +58,7 @@ def test_pyplot_none_arguments_get_terminal_dimensions_and_colors(monkeypatch):
     monkeypatch.setitem(mpl.rcParams, "axes.facecolor", mpl.rcParamsDefault["axes.facecolor"])
     monkeypatch.setitem(mpl.rcParams, "axes.prop_cycle", mpl.rcParamsDefault["axes.prop_cycle"])
     before = mpl.rcParams.copy()
-    manager = core._BackendTermAgg.new_figure_manager(
-        1001, figsize=None, dpi=None, facecolor=None, FigureClass=Figure
-    )
+    manager = core._BackendTermAgg.new_figure_manager(1001, figsize=None, dpi=None, facecolor=None, FigureClass=Figure)
     try:
         fig = manager.canvas.figure
         assert isinstance(fig, TerminalFigure)
