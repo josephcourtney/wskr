@@ -1,0 +1,132 @@
+"""Deterministic tests for Phase 2 Kitty framing and ownership."""
+
+from __future__ import annotations
+
+import base64
+import sys
+from io import BytesIO
+
+import pytest
+
+from wskr.core.errors import TransportRuntimeError, TransportUnavailableError
+from wskr.protocol import kitty_io
+from wskr.protocol.kitty_codec import (
+    MAX_CHUNK,
+    command,
+    delete,
+    parse_response,
+    placement,
+    probe_request,
+    transmit,
+)
+from wskr.protocol.kitty_native import KittyImageManager, NativeKittyTransport
+
+pytestmark = pytest.mark.small
+PNG = b"\x89PNG\r\n\x1a\n" + b"x" * 6500
+
+
+def test_png_chunking_and_roundtrip() -> None:
+    frames = list(transmit(PNG, 17))
+    assert len(frames) >= 3
+    payloads = [frame.split(b";", 1)[1].removesuffix(b"\x1b\\") for frame in frames]
+    assert all(len(part) <= MAX_CHUNK for part in payloads)
+    assert base64.b64decode(b"".join(payloads)) == PNG
+    assert frames[0].startswith(b"\x1b_Ga=t,f=100,t=d,i=17,q=2,m=1;")
+    assert frames[1].startswith(b"\x1b_Gm=1,q=2;")
+    assert frames[-1].startswith(b"\x1b_Gm=0,q=2;")
+    assert all(frame.endswith(b"\x1b\\") for frame in frames)
+
+
+def test_small_display_and_validated_identity() -> None:
+    frames = list(transmit(PNG[:20], 7, display=True, placement_id=13))
+    assert len(frames) == 1
+    assert frames[0].startswith(b"\x1b_Ga=T,f=100,t=d,i=7,q=2,p=13,m=0;")
+    with pytest.raises(ValueError, match="PNG"):
+        list(transmit(b"not a PNG", 1))
+    with pytest.raises(ValueError, match="IDs"):
+        list(transmit(PNG, 0))
+    with pytest.raises(ValueError, match="placement ID"):
+        list(transmit(PNG, 1, placement_id=2))
+
+
+def test_scoped_placement_and_deletion_frames() -> None:
+    assert placement(4, 11, 30, 5) == b"\x1b_Ga=p,i=4,p=11,c=30,r=5,C=1,q=2;\x1b\\"
+    assert placement(4, 11, 30, 5, virtual=True) == b"\x1b_Ga=p,i=4,p=11,c=30,r=5,U=1,q=2;\x1b\\"
+    assert delete(4, placement_id=11) == b"\x1b_Ga=d,d=i,i=4,p=11,q=2;\x1b\\"
+    assert delete(4, free=True) == b"\x1b_Ga=d,d=I,i=4,q=2;\x1b\\"
+    assert b"a=d" not in command(a="p", i=1)
+    with pytest.raises(ValueError, match="dimensions"):
+        placement(1, 1, 0, 2)
+
+
+def test_graphics_query_and_ack_validation() -> None:
+    frame = probe_request(99)
+    assert frame.startswith(b"\x1b_Ga=q,f=32,s=1,v=1,i=99,t=d;")
+    assert frame.endswith(b"AAAAAA==\x1b\\")
+    assert parse_response(b"\x1b_Gi=99,p=8;OK\x1b\\", expected_id=99) == (99, 8)
+    with pytest.raises(TransportRuntimeError, match="another image"):
+        parse_response(b"\x1b_Gi=99;OK\x1b\\", expected_id=98)
+    with pytest.raises(TransportRuntimeError, match="rejected"):
+        parse_response(b"\x1b_Gi=99;ENOENT:not found\x1b\\", expected_id=99)
+    with pytest.raises(TransportRuntimeError, match="Malformed"):
+        parse_response(b"not an ACK")
+
+
+def test_manager_upload_place_reuse_and_scoped_cleanup(monkeypatch) -> None:
+    writes: list[bytes] = []
+    numbers = iter([13, 9, 17])
+    monkeypatch.setattr("wskr.protocol.kitty_native.secrets.randbelow", lambda _bound: next(numbers) - 1)
+    manager = KittyImageManager(lambda frames: writes.extend(frames))
+    image = manager.upload(PNG)
+    physical = manager.place(image, columns=20, rows=4)
+    virtual = manager.place(image, columns=18, rows=3, virtual=True)
+    assert (image, physical, virtual) == (13, 9, 17)
+    manager.place(image, columns=22, rows=5, placement_id=physical)
+    manager.remove_placement(image, physical)
+    assert b"d=i,i=13,p=9" in writes[-1]
+    manager.close()
+    assert b"d=I,i=13" in writes[-1]
+    manager.close()
+    assert not any(b"a=d,d=a" in frame for frame in writes)
+    with pytest.raises(TransportRuntimeError, match="closed"):
+        manager.upload(PNG)
+
+
+def test_manager_rejects_foreign_ids_without_writing() -> None:
+    writes: list[bytes] = []
+    manager = KittyImageManager(lambda frames: writes.extend(frames))
+    with pytest.raises(TransportRuntimeError, match="not owned"):
+        manager.place(999, columns=1, rows=1)
+    with pytest.raises(TransportRuntimeError, match="not owned"):
+        manager.remove_image(999)
+    assert not writes
+
+
+def test_direct_transport_has_rich_ready_placement_but_no_premature_inline_claim(monkeypatch) -> None:
+    writes: list[bytes] = []
+    monkeypatch.setattr("wskr.protocol.kitty_native.secrets.randbelow", lambda _bound: 100)
+    transport = NativeKittyTransport(writer=lambda frames: writes.extend(frames))
+    assert transport.supports_virtual_placement
+    assert not transport.supports_inline_placement
+    image = transport.init_image(PNG)
+    pid = transport.place_image(image, columns=3, rows=2, virtual=True)
+    assert pid > 0
+    assert any(b"U=1" in frame for frame in writes)
+    transport.close()
+
+
+def test_no_redirected_raw_output(monkeypatch) -> None:
+    class PipeOutput:
+        def isatty(self) -> bool:
+            return False
+
+    monkeypatch.setattr(sys, "stdout", PipeOutput())
+    with pytest.raises(TransportUnavailableError, match="TTY"):
+        kitty_io.send_frames([b"\x1b_Ga=p;\x1b\\"])
+    with pytest.raises(TransportUnavailableError, match="foreground TTY"):
+        NativeKittyTransport()
+
+
+def test_input_ownership_required_for_query() -> None:
+    with pytest.raises(TransportUnavailableError, match="exclusive"):
+        kitty_io.query_support(probe_request(1), expected_id=1)
