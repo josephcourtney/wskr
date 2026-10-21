@@ -15,9 +15,11 @@ Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 
 - Ordinary `MPLBACKEND=wskr_kitty` `plt.show()` exited 0 with no captured text. **On-screen image presence is unknown** without a screenshot/observation.
 - `RichPlot` with the default `noop` protocol produced an empty panel and warning text; **actual image display failed** for this configuration.
 
-## Subsequent remedy (not yet locally tested)
+## Subsequent remedy (not yet fully validated)
 
-- A `noop` Rich transport now produces a visible text fallback within Rich layout, without attempting PNG uploads or printing out-of-band warnings. Unit coverage added.
+- A `noop` Rich transport now yields a visible in-panel text fallback without printing out-of-band warnings; a regression test was added.
+- The October 20 late-night run passed `just phase1` (**45/1 skipped**), `just test-tty` (**35**), and `just test-kitty` (**5**). `just check` stopped on one surplus trailing newline in the Rich test; that whitespace was committed as a fix.
+- **The updated full `just check` has not been run** after the formatting repair. The Rich fallback test was not exercised by the focused Phase 1 suite.
 
 ## Remaining acceptance
 
