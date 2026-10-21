@@ -34,7 +34,12 @@ def _require_tty() -> None:
 
 
 def _open() -> int:
-    return os.open("/dev/tty", os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+    """Open the same TTY that is attached to stdout, not another controlling TTY."""
+    try:
+        name = os.ttyname(sys.stdout.fileno())
+        return os.open(name, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+    except (AttributeError, OSError, ValueError) as exc:
+        raise TransportUnavailableError("Cannot open the terminal attached to stdout") from exc
 
 
 def _send(fd: int, frame: bytes, deadline: float) -> None:
