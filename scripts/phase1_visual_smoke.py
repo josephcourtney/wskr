@@ -15,8 +15,10 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from matplotlib.figure import Figure
 
-def _plot() -> object:
+
+def _plot() -> Figure:
     """Build a stable multi-line Matplotlib graph with text and a legend."""
     import matplotlib.pyplot as plt  # ruff: ignore[PLC0415]
     import numpy as np  # ruff: ignore[PLC0415]
