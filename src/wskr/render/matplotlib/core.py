@@ -19,6 +19,8 @@ from wskr.render.matplotlib.figure import TerminalFigure
 from wskr.render.matplotlib.theme import resolve_rc_defaults
 from wskr.terminal import TerminalCapabilities, probe_profile
 
+_MAX_DISPLAY_SCALE = 8.0
+
 if sys.flags.interactive:
     interactive(b=True)
 
@@ -47,7 +49,7 @@ def render_figure_to_terminal(
         scale = float(os.getenv("WSKR_SCALE", "1.0"))
     except ValueError:
         scale = 1.0
-    if math.isfinite(scale) and 0 < scale <= 8 and scale != 1:
+    if math.isfinite(scale) and 0 < scale <= _MAX_DISPLAY_SCALE and scale != 1:
         with Image.open(BytesIO(png)) as original:
             width, height = original.size
             new_size = (max(1, round(width * scale)), max(1, round(height * scale)))
