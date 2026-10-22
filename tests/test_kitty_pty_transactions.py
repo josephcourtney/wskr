@@ -52,6 +52,16 @@ def _reply(image_id: int, status: bytes = b"OK") -> bytes:
     return b"\x1b_Gi=" + str(image_id).encode() + b";" + status + b"\x1b\\"
 
 
+def _assert_effective_attributes_restored(slave: int, before: list) -> None:
+    """Ignore PENDIN, a kernel-managed pending-input state on BSD/macOS."""
+    after = termios.tcgetattr(slave)
+    previous = before.copy()
+    pending = getattr(termios, "PENDIN", 0)
+    after[3] &= ~pending
+    previous[3] &= ~pending
+    assert after == previous
+
+
 def test_bound_image_writer_uses_stdout_tty(monkeypatch: pytest.MonkeyPatch) -> None:
     """A writer must target the terminal attached to stdout, never another TTY."""
     master, slave = os.openpty()
@@ -98,7 +108,7 @@ def test_owned_query_forwards_unmatched_and_restores_attributes(owned_pty: tuple
     assert not worker.is_alive()
     assert observed == [request]
     assert unmatched == [b"t" + _reply(1)]
-    assert termios.tcgetattr(slave) == before
+    _assert_effective_attributes_restored(slave, before)
 
 
 def test_negative_ack_restores_attributes(owned_pty: tuple[int, int]) -> None:
@@ -123,7 +133,7 @@ def test_negative_ack_restores_attributes(owned_pty: tuple[int, int]) -> None:
     finally:
         worker.join(timeout=2.0)
     assert not worker.is_alive()
-    assert termios.tcgetattr(slave) == before
+    _assert_effective_attributes_restored(slave, before)
 
 
 def test_timeout_preserves_partial_reply(owned_pty: tuple[int, int]) -> None:
@@ -151,4 +161,4 @@ def test_timeout_preserves_partial_reply(owned_pty: tuple[int, int]) -> None:
         worker.join(timeout=2.0)
     assert not worker.is_alive()
     assert unmatched == [partial]
-    assert termios.tcgetattr(slave) == before
+    _assert_effective_attributes_restored(slave, before)
