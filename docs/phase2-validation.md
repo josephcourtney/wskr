@@ -1,72 +1,44 @@
-# Phase 2 native Kitty acceptance
+# Phase 2 — Native Kitty Transport Acceptance
 
-**Status:** Implemented on `feature/phase2-native-kitty-20261021`, **not yet qualified on macOS**. No live Kitty transmission, screenshot or PTY output is claimed to pass. The previous Phase 1 acceptance applies only to commit `5e35aa6`.
+**Gate P2: Accepted on October 21, 2026**, against code commit `d615ec08d87d15cac770ebca669a09f81182bceb`. Phase 2 replaces external `icat` as the primary graphics path with a native PNG codec and managed placement API. This document retains exact execution evidence rather than treating terminal configuration hints as proof of support.
 
-## Scope
+## Quality qualification — Ubuntu and hosted macOS
 
-- `kitty_codec.py`: PNG `f=100` encoded as Base64 in ≤4096-byte chunks, proper first/continuation/final `m` framing, `q=2` quiet operation, physical and virtual placement `a=p`, scoped `a=d` deletion, and ACK parsing.
-- `kitty_io.py`: bounded transaction writer and explicitly caller-owned capability query, serialized across instances, safe refusal on redirected stdout, restoration of terminal attributes and forwarding of unrelated input.
-- `kitty_native.py`: explicit image/upload/physical-placement/virtual-placement/delete/close lifecycle, random 32-bit identities, no global deletes and a `probe()` method that requires input ownership. The `kitty` registry and stock `wskr_kitty` backend now select the native transport. Legacy `KittyTransport` / `kitty_legacy` remains available for comparison.
-- `kitty_placeholders.py`: protocol-owned Unicode U+10EEEE, high-byte/image-ID and underline placement-ID encoders with explicit row/column diacritics. The Rich adapter remains fallback-only until Phase 4; `supports_inline_placement=False` is intentional.
-- `just phase2` and the evidence collector: run the dedicated pure/compatibility tests and record them alongside full quality checks and actual Kitty screenshots.
+GitHub Actions [quality run 39697846003](https://github.com/josephcourtney/wskr/actions/runs/39697846003), using locked `uv` dependencies and Python 3.13:
 
-## Required macOS qualification
+| Required check | Ubuntu | macOS 15 |
+| --- | --- | --- |
+| `compileall -q src tests scripts` | PASS | PASS |
+| `ruff format --check` | PASS | PASS |
+| `ruff check --no-fix` | PASS | PASS |
+| `ty check src tests scripts` | PASS | PASS |
+| Full `pytest -q` | **229 passed, 3 skipped** | **229 passed, 3 skipped** |
+| Focused Phase 2 suite | **54 passed** | **54 passed** |
 
-1. Check out the latest branch in a clean macOS Kitty environment; run `uv sync`, `just check`, `just phase2` and `just test-tty`. Full `ty`, Ruff and pytest must pass.
-2. Run `just evidence`. It now collects `just check`, `just phase1`, `just phase2`, `just test-tty`, `just test-kitty`, and five independent window-scoped screenshots. Preserve the complete ZIP even on failure.
-3. Confirm the standard Matplotlib window is drawing with **direct** `f=100` packets (not external `icat`), and that the two Rich modes still show their correct explicit fallback messages. Also inspect **native-physical** (ordinary placement) and **native-virtual** (`U=1` plus Unicode placeholders) against their distinct high-contrast reference PNGs: both must visibly show the source graphic rather than control bytes or placeholder glyphs. Compare clipping, contrast, placement and image extent. A screenshot's existence alone is not proof of correct graphics.
-4. Test the ACK and negative-ACK paths on an exclusively owned PTY/foreground Kitty session. A normal REPL must not have bytes stolen or receive raw ACK sequences when ownership cannot be established.
-5. Verify redirect and non-Kitty terminal refusal; test placement replacement and scoped deletion in a real terminal. Simulated ACKs alone do not prove terminal semantics.
-6. Record exact commit, OS/Python/Kitty versions, screenshots, logs, and SHA-256 manifest. Do not merge until the checks and observed direct-Kitty behavior meet Gate P2.
+Full pytest issued 138 nonfatal test-category/legacy warnings per platform. The hosted macOS run additionally exercised kernel PTY probing, foreign input preservation, negative ACKs, timeouts and terminal-state restoration. A Darwin kernel-managed `PENDIN` state bit is ignored in restoration comparisons; all other terminal attributes are compared without suppression.
 
-## Known deferred limitations
+## Real Kitty graphics qualification
 
-Phase 3 handles interactive `show()` lifecycle, figure/user style ownership at display-time, redraw/replacement across resize, scrollback cleanup, and the existing clipping/contrast defects. Phase 4 will connect the already available upload and virtual-placement primitives to Rich's `ConsoleOptions` sizing and text layout. Do not label current Rich fallback messages as working inline graphics. Runtime Kitty support can be confirmed via explicit `probe(owns_input=True, on_unmatched=...)`; a `TERM=xterm-kitty` hint is not, by itself, a validated capability.
+GitHub Actions [graphical run 39697845933](https://github.com/josephcourtney/wskr/actions/runs/39697845933) executed on Ubuntu under **Xvfb with the actual Kitty terminal emulator**. Its direct `f=100` upload used the production `NativeKittyTransport`, not external `icat`. Both scenarios produced a valid reference PNG and an OS-level 1280×900 screenshot.
 
-## Independent portable validation — October 21, 2026
+| Scenario | Cyan | Magenta | Yellow | Visual result |
+| --- | ---: | ---: | ---: | --- |
+| Native physical placement (`a=p`, `C=1`) | 2,666 pixels | 6,277 | 4,368 | **PASS** — visible complete chart |
+| Native virtual placement (`U=1`, Unicode placeholders) | 1,677 pixels | 3,869 | 2,688 | **PASS** — visible complete chart |
 
-**Scope and environment.** Python 3.13.5, Linux x86-64, glibc 2.41. A narrow package harness reconstructed the exact GitHub versions of the native codec, TTY I/O, image manager, Unicode placeholder encoder, diacritic resource, GUI smoke script and smoke tests. Local dependency stubs provide `ImageProtocol`, structured transport errors and terminal-geometry lookup, because the complete GitHub checkout and dev toolchain are unavailable. Those stubs are not evidence for the corresponding real package modules.
+The screenshots were **downloaded and independently viewed**; colored bars, axes and plot title are visible in both, and neither shows raw graphics escapes or literal placeholder glyphs. The screenshots also expose wrapping of the diagnostic text after the image; that is not an image transmission failure and is not represented as resolved display layout. Terminal UI/scrolling improvements remain later-phase work.
 
-| Git-verified source | Blob SHA |
-| --- | --- |
-| `src/wskr/protocol/kitty_codec.py` | `ea22a4c85f315e17639a697921bd070481a09899` |
-| `src/wskr/protocol/kitty_io.py` | `de9c57eb6866db15444f9559c2d1eeb2a59275df` |
-| `src/wskr/protocol/kitty_native.py` | `c242af6339cead2aa6e397bc48b572b8dd4979f9` |
-| `src/wskr/protocol/kitty_placeholders.py` | `d6db7fa0d876b805937ab3edf7b2caaf59cc88e7` |
-| `src/wskr/protocol/rowcolumn-diacritics.txt` | `abe6f665b454208e291a977d2eb3128a07414e61` |
-| `scripts/phase2_visual_smoke.py` | `d9e7caa633353de0eccf3c01f51a499d19a7075d` |
-| `tests/test_phase2_visual_smoke.py` | `a2e20b8a0ce2197642d977e54befa667d100b2b8` |
-| `tests/test_kitty_native_pty_integration.py` | `039b7349e04d94068d242db0d45a85a0c123d789` |
+The complete [GUI evidence artifact](https://github.com/josephcourtney/wskr/actions/runs/39697845933/artifacts/12391393365) contains two screen PNGs, two reference PNGs, emulator logs, two readiness markers and raw XWD captures. Downloaded ZIP SHA-256: `adf42734fdd787ad2b31768fff8ab62ab99a7c16479c2c6f07278f395c11000d`. Screenshot SHA-256 values:
 
-**Executed (portable isolated harness):**
+- Physical: `e2a2738097d88a84a154d3523b03c2f52474057ec366c93484fe51d30f2f6018`
+- Virtual: `07a6088eb2575aa968fcf4cea0665b3d8d727e62f043c4bcc68a202b49455c7d`
 
-```sh
-PYTHONPATH=src:. pytest -q -p no:cacheprovider \
-  -o  \
-  tests/test_isolated_codec_io.py tests/test_isolated_manager.py \
-  tests/test_isolated_placeholders.py tests/test_phase2_visual_smoke.py \
-  tests/test_kitty_native_pty_integration.py
-python -m compileall -q src scripts tests
-```
+The separate hosted workflow was subsequently made **mandatory rather than exploratory**; its post-change run must also be green before merging, with the same visual assertions and no change to production Python code.
 
-The configured local pytest marker override simply registered the `small` and `medium` names; it was not the repository's original `pyproject.toml` configuration. **23 passed in 0.47 seconds; compilation exited 0.** The first three `test_isolated_*.py` files are a disposable local harness, not committed repository tests. The last two are exact GitHub test files. A separately committed real-PTY regression suite, `tests/test_kitty_pty_transactions.py`, has not been executed verbatim in this environment, although equivalent kernel-PTY behaviors have been covered by the local harness.
+## Acceptance boundaries
 
-**Covered:** PNG/Base64 roundtrip and 4096-byte chunk limits; valid `f=100` and `a=p`/`a=d` framing; partial and negative ACKs; forwarding foreign TTY bytes and restoring termios; stdout-bound TTY selection; no binary PNG leakage; managed image upload, placement, replacement and scoped disposal; image/placement collision bounds; virtual placeholders with 32-bit image and 24-bit placement IDs; and GUI-smoke script reference/ready-marker behavior under a fake transport. The new exact `tests/test_kitty_native_pty_integration.py` generated a valid Pillow PNG, sent native transport bytes through an actual Linux PTY, reconstructed and decoded the upload, and checked `U=1` placement and `a=d` cleanup without a GUI.
+Gate P2 requires protocol round-trip tests, simulated acknowledgments, direct transmission in real Kitty and no graphics escaping into redirected streams. These are satisfied by the full/test-focused suites plus the two independently inspected real-emulator screenshots.
 
-**Additional code review/fix:** New exception raises were normalized to use message variables, matching the repository's strict `EM` lint selection. After the changes, all four updated source files passed Git blob identity verification and all 23 portable tests were rerun. The writer was fixed to use the actual stdout TTY path rather than potentially targeting an unrelated controlling terminal.
+The tests additionally cover the 4096-byte chunk bound, image and placement IDs, virtual 24-bit SGR placement identity, upload, replacement, scoped delete, cleanup, foreign ACK forwarding, negative acknowledgments and the real POSIX PTY. The portable isolated 23-test source-hash validation was useful during initial construction but is superseded by the complete hosted checks.
 
-**Not executed:** `just check` over the complete repository, Ruff format/lint, `ty`, all original tests, real Kitty/GUI screenshots or actual emulator image placement. No P2 signoff is claimed; [draft PR #18](https://github.com/josephcourtney/wskr/pull/18) remains unmerged. The former user-machine validation requirement does not block additional independent development.
-markers=small: small\nmedium: medium' \
-  tests/test_isolated_codec_io.py tests/test_isolated_manager.py \
-  tests/test_isolated_placeholders.py tests/test_phase2_visual_smoke.py \
-  tests/test_kitty_native_pty_integration.py
-python -m compileall -q src scripts tests
-```
-
-The configured local pytest marker override simply registered the `small` and `medium` names; it was not the repository's original `pyproject.toml` configuration. **23 passed in 0.47 seconds; compilation exited 0.** The first three `test_isolated_*.py` files are a disposable local harness, not committed repository tests. The last two are exact GitHub test files. A separately committed real-PTY regression suite, `tests/test_kitty_pty_transactions.py`, has not been executed verbatim in this environment, although equivalent kernel-PTY behaviors have been covered by the local harness.
-
-**Covered:** PNG/Base64 roundtrip and 4096-byte chunk limits; valid `f=100` and `a=p`/`a=d` framing; partial and negative ACKs; forwarding foreign TTY bytes and restoring termios; stdout-bound TTY selection; no binary PNG leakage; managed image upload, placement, replacement and scoped disposal; image/placement collision bounds; virtual placeholders with 32-bit image and 24-bit placement IDs; and GUI-smoke script reference/ready-marker behavior under a fake transport. The new exact `tests/test_kitty_native_pty_integration.py` generated a valid Pillow PNG, sent native transport bytes through an actual Linux PTY, reconstructed and decoded the upload, and checked `U=1` placement and `a=d` cleanup without a GUI.
-
-**Additional code review/fix:** New exception raises were normalized to use message variables, matching the repository's strict `EM` lint selection. After the changes, all four updated source files passed Git blob identity verification and all 23 portable tests were rerun. The writer was fixed to use the actual stdout TTY path rather than potentially targeting an unrelated controlling terminal.
-
-**Not executed:** `just check` over the complete repository, Ruff format/lint, `ty`, all original tests, real Kitty/GUI screenshots or actual emulator image placement. No P2 signoff is claimed; [draft PR #18](https://github.com/josephcourtney/wskr/pull/18) remains unmerged. The former user-machine validation requirement does not block additional independent development.
+**Not claimed:** graphical validation in Kitty on macOS; real inline Rich panels/tables; full interactive Matplotlib resize, cursor/lifecycle correctness or explicit-style display fitting; visual cleanup during scrollback. The macOS job tests the transport and PTY, not GUI. Phase 3 owns Matplotlib lifecycle, viewport/clipping and contrast; Phase 4 owns Rich `ConsoleOptions` and actual inline placeholder composition. Phase 2 provides the shared transport and virtual-placement primitives without falsely advertising `supports_inline_placement=True`.
