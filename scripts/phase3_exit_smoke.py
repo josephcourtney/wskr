@@ -31,7 +31,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     mpl.use("module://wskr.render.matplotlib.kitty")
     import matplotlib.pyplot as plt  # ruff: ignore[import-outside-top-level]
 
-    fig, ax = plt.subplots(figsize=(4, 3), dpi=110)
+    _, ax = plt.subplots(figsize=(4, 3), dpi=110)
     ax.bar([1, 2, 3], [1.5, 2.5, 2], color=("cyan", "magenta", "yellow"))
     ax.set(xlim=(0.5, 3.5), ylim=(0, 3), title="wskr: persistent output after Python exit")
     plt.show()
