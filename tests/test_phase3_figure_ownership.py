@@ -219,9 +219,9 @@ def test_native_shutdown_detaches_only_last_display(monkeypatch) -> None:
     transport.retain_display()
     transport.close()
     assert transport.manager._images == {}
-    assert any(b"a=d,d=I,i=102" in packet for packet in packets)
+    assert any(b"a=d,d=I,i=201" in packet for packet in packets)
     assert any(f"a=d,d=I,i={other_id}".encode() in packet for packet in packets)
-    assert not any(b"a=d,d=I,i=103" in packet for packet in packets)
+    assert not any(b"a=d,d=I,i=202" in packet for packet in packets)
 
 
 def test_explicit_native_close_deletes_last_display(monkeypatch) -> None:
