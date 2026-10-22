@@ -1,23 +1,22 @@
 # wskr — Current Status
 
-Current handoff: [DESIGN](DESIGN.md), [PLAN](PLAN.md), [TODO](TODO.md), [Phase 2 evidence](docs/phase2-validation.md).
+Handoff: [DESIGN](DESIGN.md), [PLAN](PLAN.md), [TODO](TODO.md), [Phase 2 acceptance](docs/phase2-validation.md).
 
-## Active focus
+## Milestones
 
-**Phase 2 direct Kitty transport implemented on [draft PR #18](https://github.com/josephcourtney/wskr/pull/18); acceptance remains open.** Phase 1 merged and passed its complete macOS gate at code commit `5e35aa6`.
+**Phase 2 accepted: native Kitty graphics and managed image placements.** Code qualified at `d615ec08` in [PR #18](https://github.com/josephcourtney/wskr/pull/18); Phase 1 was previously integrated through [PR #17](https://github.com/josephcourtney/wskr/pull/17).
 
-## Implemented
+Hosted Ubuntu and macOS 15 quality jobs passed syntax, Ruff formatting/lint, `ty`, and **229 full pytest passes with 3 skips**. The focused Phase 2 suite passed **54 tests** on each platform. Real Kitty under Xvfb also passed independently inspected screenshots for **physical and Unicode virtual image placements**. Evidence and artifacts: [docs/phase2-validation.md](docs/phase2-validation.md).
 
-- Kitty PNG `f=100` Base64 codec (≤4096-byte chunks), control framing, ACK/error parsing, and explicit image/placement/delete operations.
-- Native transport with scoped image IDs, physical/virtual placements and cleanup. Main `kitty` backend uses direct packets; `kitty_legacy` retains external `icat` as a diagnostic.
-- Bounded PTY output and caller-owned capability interrogation; foreign terminal input preserved and terminal attributes restored. Writes bind to stdout's actual TTY and reject redirection.
-- Shared virtual-placeholder primitives (Unicode/ID/diacritic encoding) prepared for Phase 4. **Rich still renders honest text fallbacks, not inline graphics.**
-- Dedicated protocol, fault-injection, PTY and five-scenario visual-evidence tests committed; `just phase2` includes the portable PTY suite.
+## Current boundaries
 
-## Verified and outstanding
+- `wskr_kitty` and `WSKR_PROTOCOL=kitty` select the **native** PNG `f=100` transport; external `kitty icat` is available through `kitty_legacy` for comparison.
+- Native transport supports scoped image uploads, physical/virtual placement, deletion, input-owned capability queries and redirected-output rejection.
+- Real Rich image composition remains **unimplemented**: Rich text diagnostics remain intentional, and protocol-level Unicode placeholders are prepared for Phase 4.
+- **No macOS Kitty GUI claim:** macOS passed PTY and full code checks; real graphical screenshots were generated with hosted Linux Kitty.
 
-**Portable local subset passed:** 23 portable tests and `compileall` on Python 3.13/Linux, covering Git-blob-verified native codec, I/O, manager, virtual-placeholder and smoke code. Includes a real PNG transmitted by the complete native transport over a Linux PTY, physical/virtual framing, positive/negative ACKs, timeouts and scoped image disposal. Uses narrow dependency stubs, not a complete repo install. See the exact SHA/evidence matrix in [docs/phase2-validation.md](docs/phase2-validation.md).
+## Next focus
 
-**Not verified:** full repository `just check` (Ruff, `ty`, all tests), real Kitty display and screenshots, actual image deletion/virtual placement in an emulator. No macOS run is assumed or requested for the ongoing work. PR #18 stays draft; Gate P2 is **not yet certified**.
+**Phase 3:** Matplotlib figure ownership, lifecycle, viewport fitting and resize/replacement without silently rewriting user-provided styling. Known Phase 1 evidence includes small-window clipping, left-edge tick clipping and low-contrast labels on explicitly transparent backgrounds. See [TODO](TODO.md) and [ADR-002](docs/adr/0002-terminal-measured-defaults.md).
 
-Phase 3 retains viewport fitting, Matplotlib lifecycle/resize/contrast. Phase 4 retains real Rich inline placement and `ConsoleOptions` sizing. See [TODO](TODO.md).
+Phase 4 will connect Rich's cell allocation and virtual-placeholder composition to the accepted shared transport.
