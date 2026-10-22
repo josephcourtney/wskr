@@ -5,14 +5,17 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from wskr.render.matplotlib.core import WskrFigureCanvas, WskrFigureManager
 
 
-def test_manager_resizes_figure_and_sends_image(dummy_transport):
+def test_manager_preserves_figure_and_sends_image(dummy_transport):
     fig = plt.figure()
     canvas = FigureCanvasAgg(fig)
     transport = dummy_transport
     manager = WskrFigureManager(canvas=canvas, transport_factory=lambda: transport)
 
+    original = tuple(fig.get_size_inches()), fig.dpi
     manager.show()
 
+    assert tuple(fig.get_size_inches()) == original[0]
+    assert fig.dpi == original[1]
     assert transport.last_image is not None
     assert transport.last_image.startswith(b"\x89PNG"), "Expected PNG magic header"
 
