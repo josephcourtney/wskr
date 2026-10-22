@@ -17,6 +17,6 @@ Hosted Ubuntu/macOS quality checks passed **229 full tests, 3 skipped**, with **
 
 ## Next focus
 
-**Phase 3:** Matplotlib figure ownership, lifecycle, viewport fitting and resize/replacement without silently rewriting user-provided styling. Local Phase 2 evidence also shows **severe vertical clipping**: the 1800×1800 user-configured Matplotlib figure overflows a 1664×952 viewport, losing the upper half, title and some labels. Earlier evidence also showed small-window/left-edge clipping and low-contrast labels on transparent backgrounds. See [TODO](TODO.md) and [ADR-002](docs/adr/0002-terminal-measured-defaults.md).
+**Phase 3:** Matplotlib figure ownership, display lifecycle and controlled resize behavior without overriding user styling. The lower-half Matplotlib screenshot in the local Phase 2 bundle is **confounded by yabai actively changing the Kitty window shape** (confirmed by user), so it is *not* evidence of an intrinsic wskr clipping defect. Reproduce separately with stable unmanaged geometry and yabai-managed window changes before attributing a problem to the renderer. Earlier small-window/contrast observations also require geometry-aware interpretation. See [TODO](TODO.md) and [ADR-002](docs/adr/0002-terminal-measured-defaults.md).
 
 Phase 4 will connect Rich's cell allocation and virtual-placeholder composition to the accepted shared transport.
