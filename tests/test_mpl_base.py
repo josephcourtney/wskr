@@ -53,22 +53,16 @@ class DummyTransport(ImageProtocol):
         return 0
 
 
-def test_render_with_invalid_scale_defaults_to_1(monkeypatch):
+def test_invalid_legacy_scale_does_not_change_source_figure(monkeypatch):
     monkeypatch.setenv("WSKR_SCALE", "not-a-number")
-    observed = {}
-
-    def fake_autosize(fig, w, h):
-        observed["dims"] = (w, h)
-
-    monkeypatch.setattr("wskr.render.matplotlib.core.autosize_figure", fake_autosize)
-
-    fig = plt.figure()
+    fig = plt.figure(figsize=(4, 2), dpi=120)
+    original = tuple(fig.get_size_inches()), fig.dpi
     canvas = FigureCanvasAgg(fig)
     transport = DummyTransport()
     render_figure_to_terminal(canvas, transport)
 
-    # Should use the unscaled 20x40
-    assert observed["dims"] == (20, 40)
+    assert tuple(fig.get_size_inches()) == original[0]
+    assert fig.dpi == original[1]
     assert transport.last_image is not None
     assert transport.last_image.startswith(b"\x89PNG")
 
