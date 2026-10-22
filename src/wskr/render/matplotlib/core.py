@@ -21,13 +21,12 @@ from wskr.render.matplotlib.theme import resolve_rc_defaults
 from wskr.terminal import TerminalCapabilities, probe_profile
 
 _MAX_DISPLAY_SCALE = 8.0
-_EXITING = False
+_EXIT_STATE = {"exiting": False}
 
 
 def _mark_process_exit() -> None:
     """Distinguish Matplotlib's atexit cleanup from an explicit plt.close."""
-    global _EXITING
-    _EXITING = True
+    _EXIT_STATE["exiting"] = True
 
 
 # Matplotlib registers Gcf.destroy_all when _pylab_helpers is imported above.
@@ -37,7 +36,7 @@ atexit.register(_mark_process_exit)
 
 def _close_owned_transport(transport: ImageProtocol, *, static_output: bool) -> None:
     """On shutdown, retain static output; explicit close always deletes it."""
-    if _EXITING and static_output:
+    if _EXIT_STATE["exiting"] and static_output:
         transport.retain_display()
     transport.close()
 
