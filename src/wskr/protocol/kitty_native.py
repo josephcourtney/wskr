@@ -97,6 +97,18 @@ class KittyImageManager:
         self._writer((delete(image_id, placement_id=placement_id),))
         self._images[image_id].remove(placement_id)
 
+    def relinquish_image(self, image_id: int) -> None:
+        """Keep a displayed image in Kitty without deleting it.
+
+        The manager stops owning this identifier. It must only be used for a
+        static final display that should remain part of terminal history.
+        """
+        self._ensure_open()
+        if image_id not in self._images:
+            msg = "Image is not owned by this Kitty manager"
+            raise TransportRuntimeError(msg)
+        del self._images[image_id]
+
     def remove_image(self, image_id: int) -> None:
         """Free only the image and placements owned by this manager."""
         self._ensure_open()
@@ -198,8 +210,14 @@ class NativeKittyTransport(ImageProtocol):
         """Delete only this transport's owned image and its placements."""
         self.manager.remove_image(image_id)
 
+    def retain_display(self) -> None:
+        """Leave only the final one-off display visible after process exit."""
+        if self._display_image_id is not None:
+            self.manager.relinquish_image(self._display_image_id)
+            self._display_image_id = None
+
     def close(self) -> None:
-        """Release all images uploaded by this transport instance."""
+        """Delete still-managed images; retained terminal history survives."""
         self.manager.close()
         self._display_image_id = None
 

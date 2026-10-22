@@ -32,6 +32,14 @@ class ImageProtocol(ABC):
         """
         ...
 
+    def retain_display(self) -> None:  # ruff: ignore[empty-method-without-abstract-decorator]
+        """Detach the last static display before process-exit cleanup.
+
+        Optional transport hook: a terminal may keep an already-rendered image
+        visible as output history after its producing process has exited.
+        Ordinary close() remains responsible for all other owned resources.
+        """
+
     def close(self) -> None:  # ruff: ignore[empty-method-without-abstract-decorator]
         """Release any acquired resources (optional)."""
 

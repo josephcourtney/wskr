@@ -26,6 +26,7 @@ class CapturedTransport(ImageProtocol):
         self.viewport = (1800, 1200)
         self.frames: list[bytes] = []
         self.closed = 0
+        self.retained = 0
 
     def get_window_size_px(self) -> tuple[int, int]:
         return self.viewport
@@ -36,6 +37,9 @@ class CapturedTransport(ImageProtocol):
     def init_image(self, png_bytes: bytes) -> int:
         self.frames.append(png_bytes)
         return len(self.frames)
+
+    def retain_display(self) -> None:
+        self.retained += 1
 
     def close(self) -> None:
         self.closed += 1
@@ -160,3 +164,71 @@ def test_explicit_display_scale_changes_only_transmitted_raster(monkeypatch) -> 
     comparison = BytesIO()
     fig.savefig(comparison, format="png")
     assert comparison.getvalue() == normal.getvalue()
+
+
+def test_process_exit_retains_only_last_noninteractive_display(monkeypatch) -> None:
+    transport = CapturedTransport()
+    manager = core.WskrFigureManager(FigureCanvasAgg(Figure()), 3905, transport_factory=lambda: transport)
+    monkeypatch.setattr(core, "is_interactive", lambda: False)
+    manager.show()
+    monkeypatch.setitem(core._EXIT_STATE, "exiting", True)
+    manager.destroy()
+    assert transport.retained == 1
+    assert transport.closed == 1
+
+
+def test_explicit_close_deletes_noninteractive_output(monkeypatch) -> None:
+    transport = CapturedTransport()
+    manager = core.WskrFigureManager(FigureCanvasAgg(Figure()), 3906, transport_factory=lambda: transport)
+    monkeypatch.setattr(core, "is_interactive", lambda: False)
+    manager.show()
+    manager.destroy()
+    assert transport.retained == 0
+    assert transport.closed == 1
+
+
+def test_interactive_output_is_released_even_during_process_exit(monkeypatch) -> None:
+    transport = CapturedTransport()
+    manager = core.WskrFigureManager(FigureCanvasAgg(Figure()), 3907, transport_factory=lambda: transport)
+    monkeypatch.setattr(core, "is_interactive", lambda: True)
+    manager.show()
+    monkeypatch.setitem(core._EXIT_STATE, "exiting", True)
+    manager.destroy()
+    assert transport.retained == 0
+    assert transport.closed == 1
+
+
+def test_shutdown_without_successful_display_retains_nothing(monkeypatch) -> None:
+    transport = CapturedTransport()
+    manager = core.WskrFigureManager(FigureCanvasAgg(Figure()), 3908, transport_factory=lambda: transport)
+    monkeypatch.setitem(core._EXIT_STATE, "exiting", True)
+    manager.destroy()
+    assert transport.retained == 0
+    assert transport.closed == 1
+
+
+def test_native_shutdown_detaches_only_last_display(monkeypatch) -> None:
+    ids = iter((101, 201, 102, 202, 103))
+    monkeypatch.setattr("wskr.protocol.kitty_native.secrets.randbelow", lambda _bound: next(ids) - 1)
+    packets: list[bytes] = []
+    transport = NativeKittyTransport(writer=packets.extend)
+    png = b"\x89PNG\r\n\x1a\n" + b"sample"
+    other_id = transport.init_image(png)
+    transport.send_image(png)
+    transport.send_image(png)
+    transport.retain_display()
+    transport.close()
+    assert transport.manager._images == {}
+    assert any(b"a=d,d=I,i=201" in packet for packet in packets)
+    assert any(f"a=d,d=I,i={other_id}".encode() in packet for packet in packets)
+    assert not any(b"a=d,d=I,i=202" in packet for packet in packets)
+
+
+def test_explicit_native_close_deletes_last_display(monkeypatch) -> None:
+    ids = iter((101, 201))
+    monkeypatch.setattr("wskr.protocol.kitty_native.secrets.randbelow", lambda _bound: next(ids) - 1)
+    packets: list[bytes] = []
+    transport = NativeKittyTransport(writer=packets.extend)
+    transport.send_image(b"\x89PNG\r\n\x1a\n" + b"sample")
+    transport.close()
+    assert any(b"a=d,d=I,i=101" in packet for packet in packets)

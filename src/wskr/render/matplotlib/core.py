@@ -1,3 +1,4 @@
+import atexit
 import math
 import os
 import sys
@@ -20,6 +21,25 @@ from wskr.render.matplotlib.theme import resolve_rc_defaults
 from wskr.terminal import TerminalCapabilities, probe_profile
 
 _MAX_DISPLAY_SCALE = 8.0
+_EXIT_STATE = {"exiting": False}
+
+
+def _mark_process_exit() -> None:
+    """Distinguish Matplotlib's atexit cleanup from an explicit plt.close."""
+    _EXIT_STATE["exiting"] = True
+
+
+# Matplotlib registers Gcf.destroy_all when _pylab_helpers is imported above.
+# Exit callbacks execute in reverse order, so mark the shutdown first.
+atexit.register(_mark_process_exit)
+
+
+def _close_owned_transport(transport: ImageProtocol, *, static_output: bool) -> None:
+    """On shutdown, retain static output; explicit close always deletes it."""
+    if _EXIT_STATE["exiting"] and static_output:
+        transport.retain_display()
+    transport.close()
+
 
 if sys.flags.interactive:
     interactive(b=True)
@@ -72,6 +92,7 @@ class WskrFigureManager(FigureManagerBase):
         factory = transport_factory or get_image_protocol
         self.transport = factory()
         self.caps = caps_factory() if caps_factory is not None else None
+        self._last_output_static = False
 
     def show(self, *_args: Any, **_kwargs: Any) -> None:
         canvas = self.canvas
@@ -79,10 +100,11 @@ class WskrFigureManager(FigureManagerBase):
             msg = "wskr requires an Agg canvas for terminal rendering"
             raise TypeError(msg)
         render_figure_to_terminal(canvas, self.transport, self.caps)
+        self._last_output_static = not is_interactive()
 
     def destroy(self) -> None:
-        """Release this manager's transport without closing other figures."""
-        self.transport.close()
+        """Retain ordinary output at exit; otherwise release owned images."""
+        _close_owned_transport(self.transport, static_output=self._last_output_static)
 
 
 class WskrFigureCanvas(FigureCanvasAgg):
@@ -135,6 +157,7 @@ class BaseFigureManager(FigureManagerBase):
         super().__init__(canvas, num)
         self.transport = transport_cls()
         self.caps = caps
+        self._last_output_static = False
 
     def show(self, *_args: Any, **_kwargs: Any) -> None:
         canvas = self.canvas
@@ -142,10 +165,11 @@ class BaseFigureManager(FigureManagerBase):
             msg = "wskr requires an Agg canvas for terminal rendering"
             raise TypeError(msg)
         render_figure_to_terminal(canvas, self.transport, self.caps)
+        self._last_output_static = not is_interactive()
 
     def destroy(self) -> None:
-        """Release only the images owned by this figure's transport."""
-        self.transport.close()
+        """Retain ordinary output at exit; clean up explicit/interactively."""
+        _close_owned_transport(self.transport, static_output=self._last_output_static)
 
 
 class TerminalBackend(_Backend):

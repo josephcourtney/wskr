@@ -65,4 +65,53 @@ PY
   trap - EXIT
 done
 
-echo "Both native Kitty image-placement screenshots have the reference bar colors."
+# Unlike the two paused scenarios, this script genuinely exits. The ready
+# marker is written after Matplotlib's atexit figure-manager cleanup.
+ready="$out/phase3-exit.ready"
+log="$out/phase3-exit-kitty.log"
+screen="$out/phase3-exit-screen.png"
+rm -f "$ready"
+kitty --config NONE --title "wskr-phase3-exit" --hold \
+  uv run python scripts/phase3_exit_smoke.py --ready-file "$ready" >"$log" 2>&1 &
+pid=$!
+trap finish EXIT
+exited=0
+for _ in $(seq 1 120); do
+  if [[ -f "$ready" ]] && grep -q "python-exited" "$ready"; then
+    exited=1
+    break
+  fi
+  if ! kill -0 "$pid" 2>/dev/null; then
+    break
+  fi
+  sleep 0.25
+done
+if [[ "$exited" != 1 ]]; then
+  echo "Kitty process did not produce an after-cleanup exit marker:" >&2
+  cat "$log" >&2
+  exit 1
+fi
+sleep 0.7
+xwd -root -silent -out "$out/phase3-exit.xwd"
+convert "$out/phase3-exit.xwd" "$screen"
+uv run python - "$screen" <<'PY'
+import sys
+from PIL import Image
+
+counts = {"cyan": 0, "magenta": 0, "yellow": 0}
+with Image.open(sys.argv[1]) as source:
+    for red, green, blue in source.convert("RGB").getdata():
+        if red < 100 and green > 130 and blue > 130:
+            counts["cyan"] += 1
+        if red > 130 and green < 100 and blue > 130:
+            counts["magenta"] += 1
+        if red > 130 and green > 130 and blue < 100:
+            counts["yellow"] += 1
+print(f"phase3-exit: after-Python-shutdown colors={counts}")
+if min(counts.values()) < 40:
+    raise SystemExit("Static Kitty output disappeared after Matplotlib shutdown")
+PY
+finish
+trap - EXIT
+
+echo "Native placement and post-process-exit persistent Kitty rendering passed."
