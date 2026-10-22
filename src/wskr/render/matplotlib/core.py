@@ -60,6 +60,10 @@ class WskrFigureManager(FigureManagerBase):
             raise TypeError(msg)
         render_figure_to_terminal(canvas, self.transport, self.caps)
 
+    def destroy(self) -> None:
+        """Release this manager's transport without closing other figures."""
+        self.transport.close()
+
 
 class WskrFigureCanvas(FigureCanvasAgg):
     manager_class: Any = _api.classproperty(lambda _: WskrFigureManager)
@@ -118,6 +122,10 @@ class BaseFigureManager(FigureManagerBase):
             msg = "wskr requires an Agg canvas for terminal rendering"
             raise TypeError(msg)
         render_figure_to_terminal(canvas, self.transport, self.caps)
+
+    def destroy(self) -> None:
+        """Release only the images owned by this figure's transport."""
+        self.transport.close()
 
 
 class TerminalBackend(_Backend):
