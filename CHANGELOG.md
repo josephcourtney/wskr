@@ -9,7 +9,7 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 - Introduced provenance-aware terminal measurements, guarded OSC queries, and a pure resolver for terminal-derived Matplotlib defaults.
 
 ### Fixed
-- Preserved Matplotlib figure size, DPI, styling and normal exports during terminal display, even when an external window manager changes the terminal's geometry.
+- Preserved Matplotlib figure size, DPI, styling and normal exports during terminal display, even when an external window manager changes the terminal's geometry. Explicit `WSKR_SCALE` adjusts only the terminal PNG, not the figure.
 - Kept multiple figures registered across `show()` and released only the closed figure's terminal-image resources.
 - Replaced previous one-shot Kitty images during redraw instead of accumulating uploads.
 
