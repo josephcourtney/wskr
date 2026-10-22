@@ -92,3 +92,15 @@ def test_rich_image_rendered_lines(dummy_png, dummy_transport):
 
     lines = [line for line in output.splitlines() if line.strip()]
     assert len(lines) == 2
+
+
+def test_rich_unavailable_explicit_kitty_remains_text_fallback(monkeypatch, dummy_png):
+    from wskr.core.errors import TransportUnavailableError
+
+    def unavailable():
+        msg = "not attached to Kitty"
+        raise TransportUnavailableError(msg)
+
+    monkeypatch.setattr("wskr.render.rich.img.get_image_protocol", unavailable)
+    rendered = RichImage(io.BytesIO(dummy_png), desired_width=12, desired_height=4)
+    assert_rendered(rendered, "image unavailable (no graphics protocol)")

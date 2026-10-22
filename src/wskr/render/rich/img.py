@@ -6,6 +6,7 @@ from rich.console import Console, ConsoleOptions, RenderResult
 from rich.measure import Measurement
 from rich.text import Text
 
+from wskr.core.errors import TransportInitError, TransportUnavailableError
 from wskr.protocol import ImageProtocol, get_image_protocol
 from wskr.protocol.noop import NoOpProtocol
 
@@ -41,7 +42,15 @@ class RichImage:
     ):
         self.desired_width = desired_width
         self.desired_height = desired_height
-        self.transport = transport if transport is not None else get_image_protocol()
+        if transport is not None:
+            self.transport = transport
+        else:
+            try:
+                self.transport = get_image_protocol()
+            except (TransportUnavailableError, TransportInitError):
+                # Preserve an observable Rich fallback even if an explicitly
+                # requested native Kitty transport has no attached TTY.
+                self.transport = NoOpProtocol()
 
         if isinstance(image_path, BytesIO):
             image_path.seek(0)

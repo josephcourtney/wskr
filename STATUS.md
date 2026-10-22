@@ -1,24 +1,22 @@
 # wskr — Current Status
 
-Handoff: [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md), [TODO.md](TODO.md), [Phase 1 validation](docs/phase1-validation.md), [ADR-002](docs/adr/0002-terminal-measured-defaults.md).
+Handoff: [DESIGN](DESIGN.md), [PLAN](PLAN.md), [TODO](TODO.md), [Phase 2 acceptance](docs/phase2-validation.md).
 
-## Milestone
+## Milestones
 
-**Phase 1 accepted — terminal profiles, safe bounded queries, and Matplotlib default/style precedence.** Validated from a clean macOS Kitty checkout at code SHA `5e35aa6e9ae101aff0f30b82a19bd4cf26de2fb7` in [PR #17](https://github.com/josephcourtney/wskr/pull/17). Phase 0 was previously integrated into `main`.
+**Phase 2 accepted: native Kitty graphics and managed image placements.** Code qualified at `d615ec08` in [PR #18](https://github.com/josephcourtney/wskr/pull/18); Phase 1 was previously integrated through [PR #17](https://github.com/josephcourtney/wskr/pull/17).
 
-## Acceptance evidence — October 21, 2026
+Hosted Ubuntu and macOS 15 quality jobs passed syntax, Ruff formatting/lint, `ty`, and **229 full pytest passes with 3 skips**. The focused Phase 2 suite passed **54 tests** on each platform. Real Kitty under Xvfb also passed independently inspected screenshots for **physical and Unicode virtual image placements**. Evidence and artifacts: [docs/phase2-validation.md](docs/phase2-validation.md).
 
-- Complete run `20261021T202749061910Z-5e35aa6e9a-f0056e.zip`, 14/14 matching SHA-256 hashes, clean source tree, macOS arm64/Python 3.14.0.
-- `just check` **passed** syntax, Ruff format/lint, `ty` and full pytest (**200 passed, 3 skipped**).
-- `just phase1`: **55 passed, 1 skipped**; `just test-tty`: **35 passed**; live `just test-kitty`: **5 passed**.
-- Three actual, isolated **1272×1381 Kitty** screenshots reviewed. Matplotlib PNG image transmitted; both Rich modes display the correct in-layout diagnostic fallback. **Matplotlib presentation is still flawed**: black title/labels on the dark transparent margin have poor contrast, and leading y-tick digits clip at the left viewport edge.
-- **137 nonfatal full-suite size-marker warnings** reflect legacy test classification, not a failed gate.
+## Current boundaries
 
-## Next phase and known limits
+- `wskr_kitty` and `WSKR_PROTOCOL=kitty` select the **native** PNG `f=100` transport; external `kitty icat` is available through `kitty_legacy` for comparison.
+- Native transport supports scoped image uploads, physical/virtual placement, deletion, input-owned capability queries and redirected-output rejection.
+- Real Rich image composition remains **unimplemented**: Rich text diagnostics remain intentional, and protocol-level Unicode placeholders are prepared for Phase 4.
+- **No macOS Kitty GUI claim:** macOS passed PTY and full code checks; real graphical screenshots were generated with hosted Linux Kitty.
 
-- **Phase 2:** standards-correct native Kitty protocol codec, negotiated availability, image IDs, placement, cleanup and acknowledgments. Do not treat external `kitty icat` as completed native transmission.
-- **Phase 3:** solve small-window viewport fitting, display placement and clipping; honor explicit user `figsize`, DPI and colors. Any contrast-assistance mechanism must be opt-in and preserve saved exports.
-- **Phase 4:** genuine Rich inline graphics/virtual placement; current diagnostics are intentional.
-- Safe OSC foreground/background responses require caller-owned terminal input; unavailable capabilities remain unknown rather than fabricated.
+## Next focus
 
-Gate P1 is accepted on the tested **code** SHA; documentation-only closeout commits are not separate runtime validation runs. Full historical evidence and limitations appear in [docs/phase1-validation.md](docs/phase1-validation.md).
+**Phase 3:** Matplotlib figure ownership, lifecycle, viewport fitting and resize/replacement without silently rewriting user-provided styling. Known Phase 1 evidence includes small-window clipping, left-edge tick clipping and low-contrast labels on explicitly transparent backgrounds. See [TODO](TODO.md) and [ADR-002](docs/adr/0002-terminal-measured-defaults.md).
+
+Phase 4 will connect Rich's cell allocation and virtual-placeholder composition to the accepted shared transport.

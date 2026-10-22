@@ -1,0 +1,61 @@
+name: Quality and portable Kitty transport
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "scripts/**"
+      - "pyproject.toml"
+      - "ruff.default.toml"
+      - "uv.lock"
+      - ".github/workflows/quality.yml"
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: "Python 3.13 / ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15]
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Synchronize locked dependencies
+        run: uv sync --frozen
+      - name: Compile Python source
+        run: uv run python -m compileall -q src tests scripts
+      - name: Check formatting
+        run: |
+          uv run ruff format --diff src tests scripts
+          uv run ruff format --check src tests scripts
+      - name: Check lint
+        run: uv run ruff check --no-fix src tests scripts
+      - name: Check types
+        run: uv run ty check src tests scripts
+      - name: Full pytest suite
+        run: uv run pytest -q
+      - name: Phase 2 protocol and PTY tests
+        run: >-
+          uv run pytest -q
+          tests/test_kitty_native.py
+          tests/test_kitty_pty_transactions.py
+          tests/test_kitty_native_pty_integration.py
+          tests/test_phase2_visual_smoke.py
+          tests/test_tty_kitty.py
+          tests/test_rich_renderables.py

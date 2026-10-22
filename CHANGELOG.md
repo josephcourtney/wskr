@@ -5,15 +5,18 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- Added native Kitty PNG graphics transmission, image upload/placement IDs, scoped deletion and virtual Unicode-placeholder support for future Rich integration.
 - Introduced provenance-aware terminal measurements, guarded OSC queries, and a pure resolver for terminal-derived Matplotlib defaults.
 
 ### Fixed
+- Refused unsupported or redirected Kitty output and preserved unrelated terminal input during explicit capability queries.
 - Showed an in-layout Rich text fallback when no graphics protocol is configured, instead of silently rendering an empty panel.
 - Stopped package import from disabling Matplotlib's TeX setting.
 - Made a valid light-theme detection definitive and avoided automatic queries against shared terminal input.
 - Prevented legacy PTY color queries from hanging while waiting for terminal output to drain.
 
 ### Changed
+- Switched the primary `wskr_kitty`/`kitty` transport from external `icat` to direct Kitty graphics; retained the previous implementation as `kitty_legacy` for comparison.
 - Clarified which Kitty, Matplotlib, Rich, Sixel and iTerm2 features are supported today, with the intended architecture documented separately.
 - Replaced the copied development workflow with reproducible wskr-specific quality, package, terminal and wheel smoke checks.
 - Improved the real Kitty screenshot test to recognize image content across terminal themes and positions instead of requiring identical whole-window pixels.

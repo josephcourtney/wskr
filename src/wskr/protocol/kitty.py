@@ -9,6 +9,7 @@ import time
 from wskr.core.config import CACHE_TTL_S, DEFAULT_TTY_ROWS, IMAGE_CHUNK_SIZE, TIMEOUT_S
 from wskr.core.errors import CommandRunnerError, TransportRuntimeError, TransportUnavailableError
 from wskr.protocol.base import ImageProtocol
+from wskr.protocol.kitty_native import NativeKittyTransport
 from wskr.protocol.registry import register_image_protocol
 from wskr.terminal.core.command import CommandRunner
 from wskr.terminal.io import write_tty
@@ -197,8 +198,10 @@ class KittyPyTransport(ImageProtocol):
 
 
 # Register default protocols by name
-register_image_protocol("kitty", KittyTransport)
-register_image_protocol("kitty_py", KittyPyTransport)
+register_image_protocol("kitty_legacy", KittyTransport)
+# The old experimental KittyPyTransport remains importable for migration,
+# but is no longer selectable: it emitted invalid raw-PNG chunks.
+register_image_protocol("kitty_py", NativeKittyTransport)
 
 
 __all__ = ["KittyChunkParser", "KittyPyTransport", "KittyTransport"]

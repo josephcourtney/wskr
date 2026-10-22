@@ -73,14 +73,17 @@ def _ensure_builtin_protocols() -> None:
 
 def _ensure_requested_kitty(name: str) -> None:
     """Register Kitty only when selected, without opening a TTY at import."""
-    if name not in {"kitty", "kitty_py"}:
+    if name not in {"kitty", "kitty_legacy", "kitty_py"}:
         return
-    from .kitty import KittyPyTransport, KittyTransport  # ruff: ignore[import-outside-top-level] - lazy built-ins
+    from .kitty import KittyTransport  # ruff: ignore[import-outside-top-level] - lazy built-ins
+    from .kitty_native import NativeKittyTransport  # ruff: ignore[import-outside-top-level] - lazy built-ins
 
     if "kitty" not in _IMAGE_PROTOCOLS:
-        register_image_protocol("kitty", KittyTransport)
+        register_image_protocol("kitty", NativeKittyTransport)
+    if "kitty_legacy" not in _IMAGE_PROTOCOLS:
+        register_image_protocol("kitty_legacy", KittyTransport)
     if "kitty_py" not in _IMAGE_PROTOCOLS:
-        register_image_protocol("kitty_py", KittyPyTransport)
+        register_image_protocol("kitty_py", NativeKittyTransport)
 
 
 def get_image_protocol(name: str | None = None) -> ImageProtocol:
@@ -108,9 +111,14 @@ def get_image_protocol(name: str | None = None) -> ImageProtocol:
         else:
             try:
                 return entry.cls()
+            except TransportUnavailableError as exc:
+                err = exc
             except Exception as e:  # ruff: ignore[blind-except] - defensive guard
                 err = TransportInitError(f"Protocol {key!r} failed to initialise: {e}")
-    # Fallback to noop if available
+    # An explicitly selected native Kitty backend must not silently become
+    # a successful-looking no-op when the terminal is unsupported.
+    if key == "kitty":
+        raise err
     if "noop" in _IMAGE_PROTOCOLS:
         logger.warning("%s; falling back to NoOpProtocol", err)
         return _IMAGE_PROTOCOLS["noop"].cls()
