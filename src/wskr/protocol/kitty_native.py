@@ -137,6 +137,7 @@ class NativeKittyTransport(ImageProtocol):
                 msg = "Native Kitty graphics requires direct xterm-kitty terminal access"
                 raise TransportUnavailableError(msg)
         self.manager = KittyImageManager(writer or send_frames)
+        self._display_image_id: int | None = None
         self.confirmed: bool | None = None
 
     def probe(
@@ -166,8 +167,16 @@ class NativeKittyTransport(ImageProtocol):
         return geometry.width_px, geometry.height_px
 
     def send_image(self, png_bytes: bytes) -> None:
-        """Display one image; do not preempt an unrelated Kitty placement."""
-        self.manager.display(png_bytes)
+        """Replace this transport's previous display without leaking images.
+
+        A fresh upload is shown before the prior image is deleted, preserving
+        the most recent result if a transmission fails.
+        """
+        image_id = self.manager.display(png_bytes)
+        previous = self._display_image_id
+        self._display_image_id = image_id
+        if previous is not None:
+            self.manager.remove_image(previous)
 
     def init_image(self, png_bytes: bytes) -> int:
         """Upload image without placing; retained for ImageProtocol compatibility."""
@@ -192,6 +201,7 @@ class NativeKittyTransport(ImageProtocol):
     def close(self) -> None:
         """Release all images uploaded by this transport instance."""
         self.manager.close()
+        self._display_image_id = None
 
 
 __all__ = ["KittyImageManager", "NativeKittyTransport"]

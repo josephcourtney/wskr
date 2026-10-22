@@ -1,3 +1,4 @@
+import math
 import os
 import sys
 from collections.abc import Callable, Generator
@@ -11,12 +12,14 @@ from matplotlib._pylab_helpers import Gcf  # ruff: ignore[import-private-name]
 from matplotlib.backend_bases import FigureManagerBase, _Backend  # ruff: ignore[import-private-name]
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
+from PIL import Image
 
 from wskr.protocol import ImageProtocol, get_image_protocol
 from wskr.render.matplotlib.figure import TerminalFigure
-from wskr.render.matplotlib.size import autosize_figure
 from wskr.render.matplotlib.theme import resolve_rc_defaults
 from wskr.terminal import TerminalCapabilities, probe_profile
+
+_MAX_DISPLAY_SCALE = 8.0
 
 if sys.flags.interactive:
     interactive(b=True)
@@ -25,30 +28,36 @@ if sys.flags.interactive:
 def render_figure_to_terminal(
     canvas: FigureCanvasAgg,
     transport: ImageProtocol,
-    caps: TerminalCapabilities | None = None,
+    caps: TerminalCapabilities | None = None,  # ruff: ignore[unused-function-argument] - compatibility
 ) -> None:
-    """Resize and render a Matplotlib figure to the terminal using a given transport.
+    """Rasterize the caller's figure without changing its size or DPI.
 
-    If ``caps`` is provided, use it to determine the drawable viewport; otherwise
-    ask the transport for the window size.
+    Matplotlib owns figure and artist geometry. A window manager (including
+    yabai) may change the attached terminal between figure construction and
+    display; that alone is not permission to overwrite the figure's explicit
+    size. Figure-creation defaults are resolved separately by TerminalBackend.
+
+    The caps argument is retained for compatibility; viewport-driven
+    placement and resize notifications belong to later Phase 3 work.
     """
-    if caps is not None:
-        width_px, height_px = caps.window_px()
-    else:
-        width_px, height_px = transport.get_window_size_px()
+    buf = BytesIO()
+    canvas.print_png(buf)
+    png = buf.getvalue()
+    # An explicit display scale changes only the transmitted raster. In
+    # particular, it must not resize artists or alter ordinary savefig output.
     try:
         scale = float(os.getenv("WSKR_SCALE", "1.0"))
     except ValueError:
         scale = 1.0
-    width_px = int(width_px * scale)
-    height_px = int(height_px * scale)
-
-    autosize_figure(canvas.figure, width_px, height_px)
-
-    buf = BytesIO()
-    canvas.print_png(buf)
-    buf.seek(0)
-    transport.send_image(buf.read())
+    if math.isfinite(scale) and 0 < scale <= _MAX_DISPLAY_SCALE and scale != 1:
+        with Image.open(BytesIO(png)) as original:
+            width, height = original.size
+            new_size = (max(1, round(width * scale)), max(1, round(height * scale)))
+            image = original.resize(new_size, Image.Resampling.LANCZOS)
+            result = BytesIO()
+            image.save(result, format="PNG")
+            png = result.getvalue()
+    transport.send_image(png)
 
 
 class WskrFigureManager(FigureManagerBase):
@@ -70,6 +79,10 @@ class WskrFigureManager(FigureManagerBase):
             msg = "wskr requires an Agg canvas for terminal rendering"
             raise TypeError(msg)
         render_figure_to_terminal(canvas, self.transport, self.caps)
+
+    def destroy(self) -> None:
+        """Release this manager's transport without closing other figures."""
+        self.transport.close()
 
 
 class WskrFigureCanvas(FigureCanvasAgg):
@@ -130,6 +143,10 @@ class BaseFigureManager(FigureManagerBase):
             raise TypeError(msg)
         render_figure_to_terminal(canvas, self.transport, self.caps)
 
+    def destroy(self) -> None:
+        """Release only the images owned by this figure's transport."""
+        self.transport.close()
+
 
 class TerminalBackend(_Backend):
     """Generic Matplotlib backend for terminal-image protocols."""
@@ -183,16 +200,16 @@ class TerminalBackend(_Backend):
     def draw_if_interactive(cls):
         manager = Gcf.get_active()
         if mpl.is_interactive() and manager and manager.canvas.figure.get_axes():
-            cls.show()
+            manager.show()
 
     @classmethod
     def show(cls, *args: Any, **kwargs: Any) -> None:
         if cls.not_impl_msg is not None:
             raise NotImplementedError(cls.not_impl_msg)
-        manager = Gcf.get_active()
-        if manager:
+        # Standard pyplot show presents every registered figure. Display must
+        # not dispose of figures, transports, or the caller's plot state.
+        for manager in Gcf.get_all_fig_managers():
             manager.show(*args, **kwargs)
-            Gcf.destroy_all()
 
 
 FigureCanvas = WskrFigureCanvas

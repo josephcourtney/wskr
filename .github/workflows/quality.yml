@@ -50,6 +50,16 @@ jobs:
         run: uv run ty check src tests scripts
       - name: Full pytest suite
         run: uv run pytest -q
+      - name: Phase 3 figure ownership and lifecycle tests
+        run: >-
+          uv run pytest -q
+          tests/test_phase3_figure_ownership.py
+          tests/test_phase0_baseline.py
+          tests/test_mpl_base.py
+          tests/test_mpl_kitty.py
+          tests/test_canvas.py
+          tests/test_backend_profile_defaults.py
+          tests/test_terminal_figure.py
       - name: Phase 2 protocol and PTY tests
         run: >-
           uv run pytest -q

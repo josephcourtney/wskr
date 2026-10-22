@@ -61,8 +61,8 @@ def test_registry_default_is_explicit_noop_when_no_protocol_is_selected(monkeypa
     transport.close()
 
 
-def test_baseline_renderer_resizes_an_explicit_figure():
-    """Capture known pre-migration behavior; replace with target contract at P3."""
+def test_renderer_preserves_explicit_figure_size():
+    """Phase 3: display does not mutate caller-owned geometry."""
     from wskr.render.matplotlib.core import render_figure_to_terminal
 
     class FakeTransport(ImageProtocol):
@@ -82,7 +82,7 @@ def test_baseline_renderer_resizes_an_explicit_figure():
     canvas = FigureCanvasAgg(fig)
     target = FakeTransport()
     render_figure_to_terminal(canvas, target)
-    assert tuple(fig.get_size_inches()) != (7.0, 3.0)
+    assert tuple(fig.get_size_inches()) == (7.0, 3.0)
     assert target.png is not None
     assert target.png.startswith(b"\x89PNG")
 

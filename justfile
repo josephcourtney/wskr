@@ -51,6 +51,11 @@ phase1:
 phase2:
   uv run pytest -q tests/test_kitty_native.py tests/test_kitty_pty_transactions.py tests/test_kitty_native_pty_integration.py tests/test_phase2_visual_smoke.py tests/test_tty_kitty.py tests/test_rich_renderables.py
 
+# Phase 3: explicit Matplotlib ownership, non-destructive multi-figure show,
+# and scoped native display replacement.
+phase3:
+  uv run pytest -q tests/test_phase3_figure_ownership.py tests/test_phase0_baseline.py tests/test_mpl_base.py tests/test_mpl_kitty.py tests/test_canvas.py tests/test_backend_profile_defaults.py tests/test_terminal_figure.py
+
 # Manual visual smoke run, inside Kitty. For Rich, set WSKR_PROTOCOL=kitty.
 visual-smoke mode="matplotlib":
   uv run python scripts/phase1_visual_smoke.py --mode '{{mode}}'
