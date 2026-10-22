@@ -42,3 +42,27 @@ Gate P2 requires protocol round-trip tests, simulated acknowledgments, direct tr
 The tests additionally cover the 4096-byte chunk bound, image and placement IDs, virtual 24-bit SGR placement identity, upload, replacement, scoped delete, cleanup, foreign ACK forwarding, negative acknowledgments and the real POSIX PTY. The portable isolated 23-test source-hash validation was useful during initial construction but is superseded by the complete hosted checks.
 
 **Not claimed:** graphical validation in Kitty on macOS; real inline Rich panels/tables; full interactive Matplotlib resize, cursor/lifecycle correctness or explicit-style display fitting; visual cleanup during scrollback. The macOS job tests the transport and PTY, not GUI. Phase 3 owns Matplotlib lifecycle, viewport/clipping and contrast; Phase 4 owns Rich `ConsoleOptions` and actual inline placeholder composition. Phase 2 provides the shared transport and virtual-placement primitives without falsely advertising `supports_inline_placement=True`.
+
+## Independent native macOS Kitty acceptance — October 21, 2026
+
+**Local evidence:** `20261022T004859842696Z-dc3306bd7c-677857.zip`; generated 2026-10-22 00:48:59–00:50:06 UTC (October 21, US Eastern). Bundle submitted and independently inspected. Exact **clean** checkout: `main` at merge commit `dc3306bd7c6f80ea2213faf14b37808ac5bbdd34`, macOS 27.0.1 arm64, Python 3.14.0, `TERM=xterm-kitty`, `COLORTERM=truecolor`. All **21/21 manifest SHA-256 values match their archive members**; the archive contains 22 members including the manifest.
+
+| Local check | Independently verified result |
+| --- | --- |
+| `just check` | **PASS:** compileall, Ruff format (96 files), Ruff lint, `ty`, full pytest **229 passed, 3 skipped, 138 nonfatal warnings** |
+| `just phase1` | **PASS:** 55 passed, 1 skipped |
+| `just phase2` | **PASS:** 54 passed (26 nonfatal marker warnings) |
+| `just test-tty` | **PASS:** 35 passed |
+| `just test-kitty` | **PASS:** 5 real-Kitty tests passed |
+| Screenshots | **5/5**, uniquely scoped owned Kitty windows, **1664×952 px** each; all captured and manually inspected |
+
+**Visual observations:**
+
+- **Native physical placement:** the PNG bar chart is visibly delivered through the direct Kitty transport; cyan, magenta and yellow bars appear correctly without raw escape sequences. The small reference's title is already clipped at its upper edge; this is not evidence of failed transport.
+- **Native Unicode virtual placement:** `U=1` plus placeholder text visibly resolves to the bar chart with the same three colors; no literal placeholder glyphs. Its content fits in the allocated region with no incorrect adjacent-cell overwrites evident in the capture.
+- **Rich with Kitty selected:** `Kitty inline placement unavailable (experimental transport)` is contained correctly within both the panel and table. Rich still does **not** display images inline, by design until Phase 4.
+- **Rich noop:** `image unavailable (no graphics protocol)` remains correctly contained within the panel and table.
+- **Matplotlib native display:** graphics upload succeeds, but the displayed plot is **severely vertically clipped**. The source is a full **1800×1800** figure (user-configured `figsize=[6,6]` and `dpi=300`) versus the **1664×952** capture. Only approximately the lower half of the axes is visible: upper data curves, title and positive y-axis extent are outside the screen; the x-axis label is partly obscured. The saved/reference plot is complete. This is a **Phase 3 figure-lifecycle, viewport sizing/placement and user-style-ownership defect**, not resolved or accepted as desirable output.
+- Kitty diagnostics include unknown `clear_all_in_scrollback` / `hide_single_tab` configuration keys and nonfatal OpenGL/uniform warnings. Tests and graphics rendering succeeded despite them. Remove stale options from the test-only Kitty configuration during Phase 3 test-harness maintenance; do not infer they are valid for this version of Kitty.
+
+**Disposition:** This is direct *macOS* graphical corroboration of Gate P2, supplementing prior hosted Linux/Xvfb graphics and hosted macOS PTY/quality tests. **Phase 2 remains accepted.** The local archive's tested SHA is the exact merge commit `dc3306b`. This documentation-only recording is not a new implementation test. Track the large vertical-clipping regression and small-window cases as separate Phase 3 visual acceptance criteria, preserving explicit user Matplotlib rcParams per ADR-002.
