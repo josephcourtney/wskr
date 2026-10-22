@@ -1,10 +1,10 @@
 # Phase 3 — Matplotlib Lifecycle Validation
 
-**Status:** First implementation slice passed hosted quality and graphical regression checks on `feature/phase3-figure-ownership-lifecycle-20261021`; **Gate P3 remains open**. This file records the evidence without attributing yabai-confounded screenshots to a renderer defect.
+**Status:** First implementation slice passed hosted quality and graphical regression checks at code SHA `3fda8e5f0130e5f54af9610ebea1b14c9f71a3f0`; **Gate P3 remains open**. This file records the evidence without attributing yabai-confounded screenshots to a renderer defect.
 
 ## Completed slice
 
-- `render_figure_to_terminal` no longer calls `Figure.set_size_inches` or modifies a caller's figure/DPI at display time. Backend-derived construction defaults remain separate.
+- `render_figure_to_terminal` no longer calls `Figure.set_size_inches` or modifies a caller's figure/DPI at display time. Backend-derived construction defaults remain separate. Explicit finite/bounded `WSKR_SCALE` now rescales **only the transmitted PNG**, preserving the caller's raster-export semantics.
 - `TerminalBackend.show` visits all registered managers without `Gcf.destroy_all`. Interactive redraw targets only the active manager.
 - Destruction of each figure manager closes only its owned transport.
 - `NativeKittyTransport.send_image` replaces the prior image on successful subsequent sends using scoped deletion; separately uploaded images remain independently owned.
@@ -12,16 +12,16 @@
 
 ## Hosted verification
 
-GitHub Actions [quality run 39711622040](https://github.com/josephcourtney/wskr/actions/runs/39711622040) passed on Python 3.13 Ubuntu and macOS 15:
+GitHub Actions [quality run 39712138799](https://github.com/josephcourtney/wskr/actions/runs/39712138799) passed on Python 3.13 Ubuntu and macOS 15:
 
 | Check | Ubuntu | macOS 15 |
 | --- | --- | --- |
 | Python compile, Ruff format/lint, ty | Pass | Pass |
-| Full pytest | **234 passed, 3 skipped** | **234 passed, 3 skipped** |
-| Focused Phase 3 | **33 passed** | **33 passed** |
+| Full pytest | **235 passed, 3 skipped** | **235 passed, 3 skipped** |
+| Focused Phase 3 | **34 passed** | **34 passed** |
 | Focused Phase 2 regression | **54 passed** | **54 passed** |
 
-The real Kitty graphical workflow [39711622380](https://github.com/josephcourtney/wskr/actions/runs/39711622380) also passed on Linux with Xvfb (physical and Unicode virtual placement). GUI rendering on macOS of this **new** Phase 3 code has not been separately observed. Previous macOS Phase 2 native placement evidence remains valid for unchanged protocol primitives but is not a Phase 3 visual signoff.
+The real Kitty graphical workflow [39712138855](https://github.com/josephcourtney/wskr/actions/runs/39712138855) also passed on Linux with Xvfb (physical and Unicode virtual placement). GUI rendering on macOS of this **new** Phase 3 code has not been separately observed. Previous macOS Phase 2 native placement evidence remains valid for unchanged protocol primitives but is not a Phase 3 visual signoff.
 
 ## Known boundaries
 
