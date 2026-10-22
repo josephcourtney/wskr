@@ -14,13 +14,14 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 from PIL import Image
 
+from wskr.protocol.base import ImageProtocol
 from wskr.protocol.kitty_native import NativeKittyTransport
 from wskr.render.matplotlib import core
 
 pytestmark = pytest.mark.medium
 
 
-class CapturedTransport:
+class CapturedTransport(ImageProtocol):
     def __init__(self) -> None:
         self.viewport = (1800, 1200)
         self.frames: list[bytes] = []
@@ -31,6 +32,10 @@ class CapturedTransport:
 
     def send_image(self, png_bytes: bytes) -> None:
         self.frames.append(png_bytes)
+
+    def init_image(self, png_bytes: bytes) -> int:
+        self.frames.append(png_bytes)
+        return len(self.frames)
 
     def close(self) -> None:
         self.closed += 1
@@ -75,6 +80,7 @@ def test_backend_owned_creation_size_is_not_overwritten_during_display(monkeypat
     try:
         figure = manager.canvas.figure
         creation = tuple(figure.get_size_inches()), figure.dpi
+        assert isinstance(manager.canvas, FigureCanvasAgg)
         core.render_figure_to_terminal(manager.canvas, transport)
         assert tuple(figure.get_size_inches()) == creation[0]
         assert figure.dpi == creation[1]
