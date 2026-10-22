@@ -1,4 +1,3 @@
-import os
 import sys
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
@@ -14,7 +13,6 @@ from matplotlib.figure import Figure
 
 from wskr.protocol import ImageProtocol, get_image_protocol
 from wskr.render.matplotlib.figure import TerminalFigure
-from wskr.render.matplotlib.size import autosize_figure
 from wskr.render.matplotlib.theme import resolve_rc_defaults
 from wskr.terminal import TerminalCapabilities, probe_profile
 
@@ -27,28 +25,19 @@ def render_figure_to_terminal(
     transport: ImageProtocol,
     caps: TerminalCapabilities | None = None,
 ) -> None:
-    """Resize and render a Matplotlib figure to the terminal using a given transport.
+    """Rasterize the caller's figure without changing its size or DPI.
 
-    If ``caps`` is provided, use it to determine the drawable viewport; otherwise
-    ask the transport for the window size.
+    Matplotlib owns figure and artist geometry. A window manager (including
+    yabai) may change the attached terminal between figure construction and
+    display; that alone is not permission to overwrite the figure's explicit
+    size. Figure-creation defaults are resolved separately by TerminalBackend.
+
+    The caps argument is retained for compatibility; viewport-driven
+    placement and resize notifications belong to later Phase 3 work.
     """
-    if caps is not None:
-        width_px, height_px = caps.window_px()
-    else:
-        width_px, height_px = transport.get_window_size_px()
-    try:
-        scale = float(os.getenv("WSKR_SCALE", "1.0"))
-    except ValueError:
-        scale = 1.0
-    width_px = int(width_px * scale)
-    height_px = int(height_px * scale)
-
-    autosize_figure(canvas.figure, width_px, height_px)
-
     buf = BytesIO()
     canvas.print_png(buf)
-    buf.seek(0)
-    transport.send_image(buf.read())
+    transport.send_image(buf.getvalue())
 
 
 class WskrFigureManager(FigureManagerBase):
@@ -189,10 +178,10 @@ class TerminalBackend(_Backend):
     def show(cls, *args: Any, **kwargs: Any) -> None:
         if cls.not_impl_msg is not None:
             raise NotImplementedError(cls.not_impl_msg)
-        manager = Gcf.get_active()
-        if manager:
+        # Standard pyplot show presents every registered figure. Display must
+        # not dispose of figures, transports, or the caller's plot state.
+        for manager in Gcf.get_all_fig_managers():
             manager.show(*args, **kwargs)
-            Gcf.destroy_all()
 
 
 FigureCanvas = WskrFigureCanvas
