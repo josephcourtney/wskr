@@ -23,7 +23,7 @@ if sys.flags.interactive:
 def render_figure_to_terminal(
     canvas: FigureCanvasAgg,
     transport: ImageProtocol,
-    caps: TerminalCapabilities | None = None,
+    caps: TerminalCapabilities | None = None,  # ruff: ignore[unused-function-argument] - compatibility
 ) -> None:
     """Rasterize the caller's figure without changing its size or DPI.
 
