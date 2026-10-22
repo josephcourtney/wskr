@@ -7,7 +7,7 @@ wskr currently uses Matplotlib's Agg renderer to produce images for a graphical 
 ## What works today
 
 - Phase 1's immutable terminal profile, safe optional OSC queries and figure-local default styling are merged and validated.
-- On the **Phase 2 feature branch only**, `wskr_kitty` and `WSKR_PROTOCOL=kitty` use a direct Kitty `f=100` PNG codec with bounded Base64 framing. The code is **awaiting macOS/Kitty acceptance**, not yet a validated release.
+- Phase 2's `wskr_kitty` and `WSKR_PROTOCOL=kitty` use direct Kitty `f=100` PNG graphics with bounded Base64 framing, accepted by full hosted Linux/macOS tests and real Kitty screenshots of physical/virtual placement.
 - The native image manager provides uploads, physical and virtual placements, scoped deletion, and an explicitly input-owned capability probe. The former external `kitty +kitten icat` transport is available as `kitty_legacy` for comparison.
 - `RichPlot` and `RichImage` retain safe text fallbacks. Actual inline graphics are **not yet implemented**; protocol-level Unicode placeholder encoding is prepared for Phase 4.
 
@@ -23,7 +23,7 @@ From a checkout:
 uv sync
 ```
 
-Run the installed development environment with `uv run` (or activate its environment). The `justfile` provides wskr-specific checks and smoke tests. Runtime success still requires validation in your environment; consult [STATUS.md](STATUS.md).
+Run the installed development environment with `uv run` (or activate its environment). The `justfile` provides wskr-specific checks and smoke tests. See [Phase 2 qualification](docs/phase2-validation.md) for independently verified native Kitty behavior and known limitations.
 
 ## Terminal discovery (Phase 1, accepted)
 
@@ -77,7 +77,7 @@ ax.plot([0, 1, 2], [2, 3, 1])
 Console().print(RichPlot(fig, desired_width=40, desired_height=10))
 ```
 
-The current default protocol registry uses `noop` unless a transport is requested or configured. Without an image transport, `RichPlot` now displays a visible text fallback, not an image. Setting `WSKR_PROTOCOL=kitty` on the Phase 2 branch selects the direct native transport when a Kitty TTY is available. **Rich inline graphics remain unavailable** by design: the adapter still displays an explicit diagnostic instead of emitting unverified placeholders. The Phase 2 manager and placeholder encoder are prepared for Phase 4's actual Rich placement implementation. Do not use it for an unattended production dashboard yet.
+The current default protocol registry uses `noop` unless a transport is requested or configured. Without an image transport, `RichPlot` now displays a visible text fallback, not an image. Setting `WSKR_PROTOCOL=kitty` selects the direct native transport when a Kitty TTY is available. **Rich inline graphics remain unavailable** by design: the adapter still displays an explicit diagnostic instead of emitting unverified placeholders. The Phase 2 manager and placeholder encoder are prepared for Phase 4's actual Rich placement implementation. Do not use it for an unattended production dashboard yet.
 
 ## Extending transports
 
@@ -116,7 +116,7 @@ The Phase 1 figure-local defaults apply when terminal measurements are available
 
 ## Testing and maturity
 
-Phase 1 acceptance succeeded at `5e35aa6`: full `just check` (200 passed, 3 skipped), Phase 1 (55 passed, 1 skipped), PTY (35 passed), and live Kitty (5 passed). The subsequent Phase 2 code has **not yet passed** those checks and needs its own real Kitty evidence. Execute `just check`, `just phase2`, and `just evidence`, then inspect the captured screens. See [Phase 2 validation](docs/phase2-validation.md).
+Phase 1 acceptance succeeded at `5e35aa6`: full `just check` (200 passed, 3 skipped), Phase 1 (55 passed, 1 skipped), PTY (35 passed), and live Kitty (5 passed). Phase 2 subsequently passed full hosted Linux/macOS validation (**229 passed, 3 skipped** on each) and focused Phase 2 suites (**54 passed** each), plus independently inspected real Kitty physical/virtual screenshots under Linux/Xvfb. See [Phase 2 acceptance](docs/phase2-validation.md).
 
 Development should not be declared complete based on unit or simulated terminal tests alone. Real Kitty appearance, image placement, cleanup and resize/theme behavior have distinct acceptance criteria in [PLAN.md](PLAN.md).
 
