@@ -76,7 +76,8 @@ def test_terminalbackend_draw_if_interactive_and_show(monkeypatch):
         def show(self, *args, **kwargs):
             called["show"] = True
 
-    monkeypatch.setattr("wskr.render.matplotlib.core.Gcf.get_active", lambda: FakeManager())
+    manager = FakeManager()
+    monkeypatch.setattr("wskr.render.matplotlib.core.Gcf.get_active", lambda: manager)
 
     # When not interactive, draw_if_interactive is a no-op
     monkeypatch.setattr("matplotlib.is_interactive", lambda: False)
