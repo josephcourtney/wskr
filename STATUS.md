@@ -6,9 +6,9 @@ Handoff: [DESIGN](DESIGN.md), [PLAN](PLAN.md), [TODO](TODO.md), [Phase 3 evidenc
 
 **Phase 2 accepted and merged**, with hosted quality, real Kitty Linux/Xvfb screenshots and subsequent native macOS Kitty acceptance; see [Phase 2 validation](docs/phase2-validation.md).
 
-**Phase 3, first implementation slice qualified in [PR #21](https://github.com/josephcourtney/wskr/pull/21), but Gate P3 remains OPEN.** The backend now preserves caller figure dimensions/DPI across display, shows all registered figures without destroying them, redraws only the active figure interactively, closes each manager's own transport on destruction, and replaces rather than accumulates one-off Kitty images.
+**Phase 3, first implementation slice qualified in [PR #21](https://github.com/josephcourtney/wskr/pull/21), but Gate P3 remains OPEN.** The backend now preserves caller figure dimensions/DPI across display (and retains explicit `WSKR_SCALE` as display-only PNG scaling), shows all registered figures without destroying them, redraws only the active figure interactively, closes each manager's own transport on destruction, and replaces rather than accumulates one-off Kitty images.
 
-Hosted Linux/macOS 15 quality: **234 passed, 3 skipped** in each full pytest suite; **33 focused Phase 3** and **54 Phase 2** tests passed per host, with Ruff, ty and compilation green. Hosted Linux real Kitty physical/virtual graphics check passed. See [Phase 3 validation](docs/phase3-validation.md).
+Hosted Linux/macOS 15 quality: **235 passed, 3 skipped** in each full pytest suite; **34 focused Phase 3** and **54 Phase 2** tests passed per host, with Ruff, ty and compilation green. Hosted Linux real Kitty physical/virtual graphics check passed. See [Phase 3 validation](docs/phase3-validation.md).
 
 ## Current boundaries and next focus
 
