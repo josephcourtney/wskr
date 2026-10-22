@@ -9,6 +9,10 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 - Introduced provenance-aware terminal measurements, guarded OSC queries, and a pure resolver for terminal-derived Matplotlib defaults.
 
 ### Fixed
+- Preserved Matplotlib figure size, DPI, styling and normal exports during terminal display, even when an external window manager changes the terminal's geometry.
+- Kept multiple figures registered across `show()` and released only the closed figure's terminal-image resources.
+- Replaced previous one-shot Kitty images during redraw instead of accumulating uploads.
+
 - Refused unsupported or redirected Kitty output and preserved unrelated terminal input during explicit capability queries.
 - Showed an in-layout Rich text fallback when no graphics protocol is configured, instead of silently rendering an empty panel.
 - Stopped package import from disabling Matplotlib's TeX setting.
