@@ -1,9 +1,10 @@
 # wskr — Immediate Tasks
 
-See [Phase 2 validation](docs/phase2-validation.md), [PLAN Gate P2](PLAN.md), [ADR-003](docs/adr/0003-kitty-transport-and-placement.md).
+Phase 2 is accepted; begin Phase 3 according to [PLAN](PLAN.md). See [STATUS](STATUS.md), [Phase 2 acceptance](docs/phase2-validation.md), [ADR-002](docs/adr/0002-terminal-measured-defaults.md) and [ADR-003](docs/adr/0003-kitty-transport-and-placement.md).
 
-- [ ] Review `tests/test_kitty_native.py`, `tests/test_kitty_pty_transactions.py`, `tests/test_kitty_native_pty_integration.py` and `tests/test_phase2_visual_smoke.py` against strict Ruff 0.15.2 formatting/lint and `ty`; neither executable is available in the present Linux environment. Keep changes narrowly scoped to verified findings.
-- [ ] Obtain a complete repository test run (`just check`, `just phase2`) from any compatible environment when available. The portable Linux exact-code subset currently passes 23 tests, including one exact committed native-to-PTY integration test, but is not a whole-project gate.
-- [ ] Independently qualify real Kitty `f=100` transfer, physical placement, `U=1` Unicode virtual placement, response behavior and scoped image deletion. The evidence collector prepares **five isolated window screenshots** plus references; their existence must not count as automatic visual success.
-- [ ] Update [draft PR #18](https://github.com/josephcourtney/wskr/pull/18) with any failures and further corrections; preserve Gate P2 as incomplete until integration evidence justifies acceptance. Do not block additional review/refinement on availability of the user's Mac.
-- [ ] Keep the Phase 3 Matplotlib resize/figure-lifecycle and contrast/clipping issues separate. Defer true Rich panels/tables via virtual placements and allocated-cell sizing to Phase 4.
+- [ ] Create a dedicated Phase 3 feature branch from `main` after Phase 2 merges; keep Rich actual inline placement as a Phase 4 consumer rather than expanding native Kitty transport scope.
+- [ ] Audit `src/wskr/render/matplotlib/core.py`, `size.py` and `figure.py` for mutations of explicit `figsize`, `dpi`, colors, and `savefig` behavior. Introduce tests separating backend-provided defaults from caller-owned values.
+- [ ] Replace unconditional figure resizing/manager destruction with explicit image placement ownership, redraw/replace semantics and lifecycle hooks. Cover repeated show, `plt.ion()`, `draw_idle()`, multiple figures and `show(block=...)` with deterministic tests.
+- [ ] Derive allocated image geometry from measured terminal cells; test viewport changes, clipping, text margins and zoom. Do not fabricate DPI or rewrite explicit styles; consider opt-in legibility assistance separately from saved exports.
+- [ ] Qualify Phase 3 with full hosted quality checks, PTY faults, real Kitty screenshot comparison and small/large viewport scenarios. The existing hosted Kitty graphical workflow provides a reusable Phase 2 baseline.
+- [ ] In Phase 4, integrate real Rich `ConsoleOptions` sizing, nested panels/tables, cached `U=1` virtual placements, inline text placeholder rendering, scrolling and cleanup; retain honest fallback until integration is qualified.
