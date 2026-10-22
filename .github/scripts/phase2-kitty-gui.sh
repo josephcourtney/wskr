@@ -41,7 +41,7 @@ for mode in native-physical native-virtual; do
   xwd -root -silent -out "$out/$mode.xwd"
   convert "$out/$mode.xwd" "$screen"
 
-  python - "$screen" "$reference" "$mode" <<'PY'
+  uv run python - "$screen" "$reference" "$mode" <<'PY'
 import sys
 from PIL import Image
 
