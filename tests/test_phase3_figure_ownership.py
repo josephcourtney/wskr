@@ -171,7 +171,7 @@ def test_process_exit_retains_only_last_noninteractive_display(monkeypatch) -> N
     manager = core.WskrFigureManager(FigureCanvasAgg(Figure()), 3905, transport_factory=lambda: transport)
     monkeypatch.setattr(core, "is_interactive", lambda: False)
     manager.show()
-    monkeypatch.setattr(core, "_EXITING", True)
+    monkeypatch.setitem(core._EXIT_STATE, "exiting", True)
     manager.destroy()
     assert transport.retained == 1
     assert transport.closed == 1
@@ -192,7 +192,7 @@ def test_interactive_output_is_released_even_during_process_exit(monkeypatch) ->
     manager = core.WskrFigureManager(FigureCanvasAgg(Figure()), 3907, transport_factory=lambda: transport)
     monkeypatch.setattr(core, "is_interactive", lambda: True)
     manager.show()
-    monkeypatch.setattr(core, "_EXITING", True)
+    monkeypatch.setitem(core._EXIT_STATE, "exiting", True)
     manager.destroy()
     assert transport.retained == 0
     assert transport.closed == 1
@@ -201,7 +201,7 @@ def test_interactive_output_is_released_even_during_process_exit(monkeypatch) ->
 def test_shutdown_without_successful_display_retains_nothing(monkeypatch) -> None:
     transport = CapturedTransport()
     manager = core.WskrFigureManager(FigureCanvasAgg(Figure()), 3908, transport_factory=lambda: transport)
-    monkeypatch.setattr(core, "_EXITING", True)
+    monkeypatch.setitem(core._EXIT_STATE, "exiting", True)
     manager.destroy()
     assert transport.retained == 0
     assert transport.closed == 1
