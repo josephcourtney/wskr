@@ -28,3 +28,20 @@ The real Kitty graphical workflow [39712138855](https://github.com/josephcourtne
 The user's local Phase 2 Matplotlib screenshot showed a cropped image **while yabai actively reshaped Kitty**. Its appearance is not proof of a wskr defect. Tests in this slice simulate geometry changes to verify **figure immutability**, not to prove live viewport fitting or window-manager resize redraw behavior.
 
 Outstanding for Gate P3: explicit terminal placement/viewport policy for oversized user figures, stable-window versus yabai-resized screenshot comparison, interactive `show(block=True)`/REPL/pandas behavior, `draw_idle` scheduling and debounced resize update, multiple displayed images during scrolling, image placements/repositioning and wheel/module-backend export qualification. The figure's size/DPI/style must stay authoritative under ADR-002.
+
+## Static output persistence at interpreter exit — October 22, 2026
+
+The preceding implementation deleted the last Kitty plot when the smoke-test script exited: Matplotlib's registered `Gcf.destroy_all` called `KittyFigureManager.destroy()`, which invoked `NativeKittyTransport.close()` and deleted the one-off image. This was directly observed on native macOS, with yabai **disabled**, after pressing Enter at the smoke-test prompt. The original script retained the entire image while the process was alive.
+
+**Implemented:** Matplotlib's normal `Gcf.destroy_all` shutdown remains registered. A subsequent lightweight `atexit` callback marks interpreter shutdown *before* the figure managers are destroyed. Only managers whose last successful `show()` happened with interactive mode **off** call the optional `ImageProtocol.retain_display()` hook before closing. Native Kitty relinquishes ownership of its final one-off display without issuing an image-delete frame; all other independently owned uploads/placements remain subject to scoped close cleanup. Explicit `plt.close()` or `Gcf.destroy` still delete the output, as do managed interactive displays at exit. Repeated updates still delete superseded display images.
+
+**Hosted evidence:** [quality workflow 39766399752](https://github.com/josephcourtney/wskr/actions/runs/39766399752) passed on Python 3.13 in Ubuntu and macOS 15: Ruff, ty, compilation, **241 full tests passed, 3 skipped**, focused Phase 3 **40 passed** and Phase 2 **54 passed** per operating system. [Real Kitty GUI run 39766399850](https://github.com/josephcourtney/wskr/actions/runs/39766399850) launched a *real* Python program that registered a final exit marker before importing Matplotlib; that marker is emitted after pyplot manager teardown. Kitty `--hold` displayed the surviving static chart after this marker. Host screenshot pixel tests detected **11,557 cyan, 19,292 magenta and 15,470 yellow pixels**, and both existing native physical/Unicode virtual placement scenarios also passed.
+
+**Not yet verified on native macOS GUI:** the new process-exit retention policy. A local check is:
+
+```sh
+git switch main && git pull --ff-only && uv sync
+WSKR_SCALE=0.4 just visual-smoke matplotlib
+```
+
+The chart should remain visible after the script returns to the shell. Explicit `plt.close()` before exit is expected to remove it. This is a deliberately narrow lifetime policy, not a completed solution for cross-session scrollback, window-resize redraw, remote terminal reconnections, or `show(block=True)`; **Gate P3 remains open**.
