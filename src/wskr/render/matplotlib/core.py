@@ -1,3 +1,5 @@
+import math
+import os
 import sys
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
@@ -10,6 +12,7 @@ from matplotlib._pylab_helpers import Gcf  # ruff: ignore[import-private-name]
 from matplotlib.backend_bases import FigureManagerBase, _Backend  # ruff: ignore[import-private-name]
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
+from PIL import Image
 
 from wskr.protocol import ImageProtocol, get_image_protocol
 from wskr.render.matplotlib.figure import TerminalFigure
@@ -37,7 +40,22 @@ def render_figure_to_terminal(
     """
     buf = BytesIO()
     canvas.print_png(buf)
-    transport.send_image(buf.getvalue())
+    png = buf.getvalue()
+    # An explicit display scale changes only the transmitted raster. In
+    # particular, it must not resize artists or alter ordinary savefig output.
+    try:
+        scale = float(os.getenv("WSKR_SCALE", "1.0"))
+    except ValueError:
+        scale = 1.0
+    if math.isfinite(scale) and 0 < scale <= 8 and scale != 1:
+        with Image.open(BytesIO(png)) as original:
+            width, height = original.size
+            new_size = (max(1, round(width * scale)), max(1, round(height * scale)))
+            image = original.resize(new_size, Image.Resampling.LANCZOS)
+            result = BytesIO()
+            image.save(result, format="PNG")
+            png = result.getvalue()
+    transport.send_image(png)
 
 
 class WskrFigureManager(FigureManagerBase):
