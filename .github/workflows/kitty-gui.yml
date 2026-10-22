@@ -1,4 +1,4 @@
-name: Kitty graphical acceptance (exploratory)
+name: Kitty graphical acceptance
 
 on:
   pull_request:
@@ -19,9 +19,6 @@ jobs:
     name: Native Kitty visible physical and virtual placements
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # This optional hosted visual probe is not a substitute for a
-    # completed and independently inspected screenshot acceptance run.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
