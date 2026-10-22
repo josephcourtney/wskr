@@ -139,3 +139,24 @@ def test_native_display_replaces_previous_owned_image_without_global_delete(monk
     assert not any(b"a=d,d=a" in packet for packet in packets)
     transport.close()
     assert transport.manager._images == {}
+
+
+def test_explicit_display_scale_changes_only_transmitted_raster(monkeypatch) -> None:
+    fig = Figure(figsize=(4, 2), dpi=100)
+    canvas = FigureCanvasAgg(fig)
+    fig.subplots().plot([0, 1], [1, 2])
+    transport = CapturedTransport()
+    original = tuple(fig.get_size_inches()), fig.dpi
+    normal = BytesIO()
+    fig.savefig(normal, format="png")
+
+    monkeypatch.setenv("WSKR_SCALE", "0.5")
+    core.render_figure_to_terminal(canvas, transport)
+    with Image.open(BytesIO(transport.frames[-1])) as displayed:
+        assert displayed.size == (200, 100)
+
+    assert tuple(fig.get_size_inches()) == original[0]
+    assert fig.dpi == original[1]
+    comparison = BytesIO()
+    fig.savefig(comparison, format="png")
+    assert comparison.getvalue() == normal.getvalue()
