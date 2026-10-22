@@ -11,7 +11,7 @@ wskr currently uses Matplotlib's Agg renderer to produce images for a graphical 
 - The native image manager provides uploads, physical and virtual placements, scoped deletion, and an explicitly input-owned capability probe. The former external `kitty +kitten icat` transport is available as `kitty_legacy` for comparison.
 - `RichPlot` and `RichImage` retain safe text fallbacks. Actual inline graphics are **not yet implemented**; protocol-level Unicode placeholder encoding is prepared for Phase 4.
 
-**Limitations:** viewport fitting, lifecycle redraw/resize and terminal-dependent contrast are Phase 3 work. Rich virtual placeholder composition and ConsoleOptions sizing are Phase 4 work. `wskr_sixel` and `wskr_iterm2` remain unsupported stubs. See [STATUS.md](STATUS.md).
+**Limitations:** viewport fitting, interactive blocking/redraw/resize and terminal-dependent contrast remain Phase 3 work. Ordinary static plots now persist at the prompt after Python exits; explicit figure closure and interactive teardown still clean up owned images. Rich virtual placeholder composition and ConsoleOptions sizing are Phase 4 work. `wskr_sixel` and `wskr_iterm2` remain unsupported stubs. See [STATUS.md](STATUS.md).
 
 ## Requirements and local installation
 
@@ -38,7 +38,7 @@ defaults = resolve_rc_defaults(profile)
 print(profile.columns.value, profile.cell_width_px.source, defaults)
 ```
 
-Only backend-owned **initial** figure defaults can use measured terminal dimensions. The display path still resizes figures, and unattended automatic OSC color probing remains deliberately disabled without input ownership. Phase 3 will address the complete live-theme/resize and figure-lifecycle design.
+Only backend-owned **initial** figure defaults can use measured terminal dimensions. Display does not change figure size or DPI; optional `WSKR_SCALE` rescales only the transmitted raster. Unattended automatic OSC color probing remains disabled without input ownership. Live-theme and window-resize orchestration remain Phase 3 work.
 
 ## Basic Matplotlib usage
 
@@ -62,7 +62,7 @@ MPLBACKEND=wskr_kitty uv run python example.py
 
 The explicit module path may also be selected as `module://wskr.render.matplotlib.kitty`. This is a terminal-display backend: normal `fig.savefig("plot.png")` and `fig.savefig("plot.svg")` remain the ordinary Matplotlib interfaces for files.
 
-**Current caution:** the backend's display code resizes figures to the viewport using heuristic dimensions and the backend show path may close figure managers. The intended behavior (respect explicit `figsize`/`dpi`, correct `block=...`, REPL and pandas auto-display, multi-figure management) is an adopted **requirement**, not a validated current guarantee.
+**Current behavior:** displaying a figure preserves the figure's `figsize`/`dpi` and normal `savefig` results. Multiple managers survive `show()`, explicit `plt.close()` removes owned terminal images, and ordinary noninteractive Kitty plots remain in terminal history after Python exits. Run `WSKR_SCALE=0.4 just visual-smoke matplotlib` from a Kitty terminal for the display-only scaling and persistence check. Responsive resizing, `show(block=True)`, and REPL/pandas redraw require further Phase 3 work.
 
 ## Using the current Rich adapter
 
@@ -81,7 +81,7 @@ The current default protocol registry uses `noop` unless a transport is requeste
 
 ## Extending transports
 
-The current extension interface is `wskr.protocol.base.ImageProtocol`, registered by `wskr.protocol.registry.register_image_protocol(name, cls)`. It exposes `get_window_size_px()`, `send_image(png_bytes)` and `init_image(png_bytes)`; the registry can load entry points from `wskr.image_protocols`.
+The current extension interface is `wskr.protocol.base.ImageProtocol`, registered by `wskr.protocol.registry.register_image_protocol(name, cls)`. It exposes `get_window_size_px()`, `send_image(png_bytes)` and `init_image(png_bytes)`, plus an optional `retain_display()` hook for terminal-history semantics. The registry can load entry points from `wskr.image_protocols`.
 
 A transport is not considered supported merely because it is registered. The future protocol and placement lifecycle are specified in [DESIGN.md](DESIGN.md), and the migration path is in [PLAN.md](PLAN.md).
 
