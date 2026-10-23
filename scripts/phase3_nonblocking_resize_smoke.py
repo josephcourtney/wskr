@@ -51,6 +51,12 @@ def _pump_until(figure: Figure, sent: list[dict[str, list[int]]], *, count: int)
         raise TimeoutError(msg)
 
 
+def _check_geometry_unchanged(figure: Figure, original: tuple[tuple[float, ...], float]) -> None:
+    if (tuple(figure.get_size_inches()), figure.dpi) != original:
+        msg = "Terminal window resizing modified user-owned figure dimensions"
+        raise AssertionError(msg)
+
+
 def _make_figure() -> Figure:
     import matplotlib.pyplot as plt  # ruff: ignore[import-outside-top-level]
 
@@ -112,18 +118,14 @@ def main(argv: Sequence[str] | None = None) -> None:
         if sent[-1]["raster"][0] >= sent[0]["raster"][0] - 80:
             msg = f"Fitted raster failed to shrink: {sent}"
             raise AssertionError(msg)
-        if (tuple(fig.get_size_inches()), fig.dpi) != original:
-            msg = "Terminal resize modified user-owned figure dimensions"
-            raise AssertionError(msg)
+        _check_geometry_unchanged(fig, original)
         (args.directory / "resized.ready").write_text("redrawn\n", encoding="utf-8")
         _wait_for(args.directory / "resized.proceed", label="resized Kitty screenshot")
         _pump_until(fig, sent, count=_EXPANDED_FRAMES)
         if sent[-1]["raster"][0] <= sent[1]["raster"][0] + 80:
             msg = f"Fitted raster failed to expand with the Kitty viewport: {sent}"
             raise AssertionError(msg)
-        if (tuple(fig.get_size_inches()), fig.dpi) != original:
-            msg = "Terminal expansion modified user-owned figure dimensions"
-            raise AssertionError(msg)
+        _check_geometry_unchanged(fig, original)
         (args.directory / "expanded.ready").write_text("redrawn\n", encoding="utf-8")
         _wait_for(args.directory / "expanded.proceed", label="expanded Kitty screenshot")
 
