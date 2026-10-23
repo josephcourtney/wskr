@@ -27,6 +27,9 @@ class _Stream:
     def fileno(self) -> int:
         return self.fd
 
+    def flush(self) -> None:
+        """Stand in for an unbuffered terminal output stream."""
+
 
 def test_blocking_input_requires_same_foreground_tty(monkeypatch) -> None:
     first_master, first_slave = os.openpty()
@@ -208,7 +211,8 @@ def test_alternate_screen_writes_mode_switch_on_real_pty(monkeypatch) -> None:
             patch.setattr(sys, "stdout", _Stream(slave))
             # The session must be balanced even after an exception.
             with pytest.raises(ValueError, match="test failure"), core._temporary_terminal_screen():
-                raise ValueError("test failure")
+                msg = "test failure"
+                raise ValueError(msg)
         assert os.read(master, 4096) == b"\x1b[?1049h\x1b[?1049l"
     finally:
         os.close(master)
