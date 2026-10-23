@@ -332,7 +332,11 @@ def render_figure_to_terminal(
             result = BytesIO()
             image.save(result, format="PNG")
             png = result.getvalue()
-    transport.send_image(png)
+    anchored = getattr(transport, "send_anchored_image", None)
+    if os.getenv("WSKR_FIT", "").lower() == "contain" and callable(anchored):
+        anchored(png)
+    else:
+        transport.send_image(png)
 
 
 class WskrFigureManager(FigureManagerBase):
