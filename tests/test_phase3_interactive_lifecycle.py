@@ -10,6 +10,7 @@ import pytest
 from matplotlib.backend_bases import FigureManagerBase
 from matplotlib.figure import Figure
 
+from wskr.protocol.kitty_native import NativeKittyTransport
 from wskr.render.matplotlib import core, kitty
 
 pytestmark = pytest.mark.medium
@@ -155,3 +156,25 @@ def test_kitty_canvas_noninteractive_draw_idle_does_not_transmit(monkeypatch) ->
     Manager(canvas, 4902)
     monkeypatch.setattr(core, "is_interactive", lambda: False)
     canvas.draw_idle()
+
+
+def test_native_kitty_idle_redraw_replaces_managed_image(monkeypatch) -> None:
+    packets: list[bytes] = []
+    monkeypatch.setattr(kitty, "NativeKittyTransport", lambda: NativeKittyTransport(writer=packets.extend))
+    monkeypatch.setattr(core, "is_interactive", lambda: True)
+
+    fig = Figure(figsize=(1.5, 1), dpi=48)
+    line = fig.subplots().plot([0, 1], [0, 1])[0]
+    canvas = kitty.KittyFigureCanvas(fig)
+    manager = kitty.KittyFigureManager(canvas, 4903)
+
+    canvas.draw_idle()
+    assert sum(b"a=T" in packet for packet in packets) == 1
+
+    line.set_ydata([1, 0])
+    canvas.draw_idle()
+    assert sum(b"a=T" in packet for packet in packets) == 2
+    assert sum(b"a=d,d=I" in packet for packet in packets) == 1
+
+    manager.destroy()
+    assert sum(b"a=d,d=I" in packet for packet in packets) == 2
