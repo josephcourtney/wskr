@@ -34,7 +34,7 @@ def _wait_for(path: Path, *, label: str) -> None:
 
 
 def _signal_initial_and_wait(directory: Path) -> None:
-    (directory / "initial.ready").write_text("displayed\\n", encoding="utf-8")
+    (directory / "initial.ready").write_text("displayed\n", encoding="utf-8")
     _wait_for(directory / "resize.proceed", label="pre-redraw screenshot")
 
 
