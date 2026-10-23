@@ -30,7 +30,9 @@ if TYPE_CHECKING:
 type WriteFrames = Callable[[Iterable[bytes]], None]
 
 # Transparent 1x1 RGBA PNG used as an invisible physical placement anchor.
-_ANCHOR_PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==")
+_ANCHOR_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg=="
+)
 
 
 def _placement_cells(png: bytes) -> tuple[int, int] | None:
