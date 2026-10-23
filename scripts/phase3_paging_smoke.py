@@ -44,7 +44,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     def checkpoints(managers: list[FigureManagerBase], _geometry: Geometry | None) -> None:
         _await_release(args.directory / "page0.ready", args.directory / "page0.proceed")
-        core._redraw_foreground_figures(managers, page_index=1)
+        core._redraw_foreground_figures(managers, page_index=1)  # ruff: ignore[private-member-access] - GUI regression
         _await_release(args.directory / "page1.ready", args.directory / "page1.proceed")
 
     with patch.object(core, "_wait_for_foreground_resize", checkpoints):
