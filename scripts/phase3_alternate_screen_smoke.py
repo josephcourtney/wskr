@@ -8,9 +8,9 @@ The ordinary foreground Enter path is tested separately on a real PTY.
 from __future__ import annotations
 
 import argparse
-import builtins
 import time
 from pathlib import Path
+from unittest.mock import patch
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -48,12 +48,8 @@ def main(argv: Sequence[str] | None = None) -> None:
             raise TimeoutError(msg)
         return ""
 
-    prior = builtins.input
-    builtins.input = checkpoint
-    try:
+    with patch("builtins.input", checkpoint):
         plt.show(block=True)
-    finally:
-        builtins.input = prior
 
     print("\x1b[48;2;255;0;0m" + " " * 28 + "\x1b[0m PRIMARY AFTER", flush=True)
     args.closed.write_text("primary-restored\n", encoding="utf-8")
