@@ -11,6 +11,10 @@ from unittest.mock import patch
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from matplotlib.backend_bases import FigureManagerBase
+
+    from wskr.terminal.profile import Geometry
+
 
 def _await_release(ready: Path, release: Path) -> None:
     ready.write_text("ready\n", encoding="utf-8")
@@ -38,7 +42,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     for color in ("red", "blue", "green"):
         plt.figure(figsize=(3, 2), dpi=80, facecolor=color)
 
-    def checkpoints(managers: object, geometry: object) -> None:
+    def checkpoints(managers: list[FigureManagerBase], _geometry: Geometry | None) -> None:
         _await_release(args.directory / "page0.ready", args.directory / "page0.proceed")
         core._redraw_foreground_figures(managers, page_index=1)
         _await_release(args.directory / "page1.ready", args.directory / "page1.proceed")
