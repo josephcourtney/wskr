@@ -24,6 +24,8 @@ def main(argv: Sequence[str] | None = None) -> None:
     mpl.use("module://wskr.render.matplotlib.kitty")
     import matplotlib.pyplot as plt  # ruff: ignore[import-outside-top-level]
 
+    from wskr.render.matplotlib import core  # ruff: ignore[import-outside-top-level]
+
     plt.figure(figsize=(3, 2), dpi=90, facecolor="red")
     plt.figure(figsize=(3, 2), dpi=90, facecolor="blue")
 
@@ -38,7 +40,10 @@ def main(argv: Sequence[str] | None = None) -> None:
             raise TimeoutError(msg)
         return ""
 
-    with patch("builtins.input", checkpoint):
+    # The fitted foreground session polls canonical TTY input instead of
+    # calling input immediately. Replace only that watcher to coordinate the
+    # screenshot; true live-resize/Enter behavior is covered by PTY tests.
+    with patch.object(core, "_wait_for_foreground_resize", lambda _managers, _geometry: checkpoint()):
         plt.show(block=True)
 
     args.closed.write_text("primary-restored\n", encoding="utf-8")
