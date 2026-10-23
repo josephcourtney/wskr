@@ -28,8 +28,7 @@ def _color_count(image: Image.Image, color: str, *, start: int, end: int) -> int
         1
         for x in range(start, end, 3)
         for y in range(0, pixels.height, 3)
-        if (r := pixels.getpixel((x, y)))[{"red": 0, "blue": 2}[color]] > 220
-        and r[1 if color == "red" else 0] < 70
+        if (r := pixels.getpixel((x, y)))[{"red": 0, "blue": 2}[color]] > 220 and r[1 if color == "red" else 0] < 70
     )
 
 
