@@ -114,6 +114,48 @@ def _display_scale() -> float:
     return scale if math.isfinite(scale) and 0 < scale <= _MAX_DISPLAY_SCALE else 1.0
 
 
+class _NonblockingResizeState:
+    """Refresh displayed fitted images when an application pumps GUI events.
+
+    The backend has no background event loop and must never claim REPL input,
+    install signal handlers, or write into a redirected output stream. A
+    canvas flush_events() is an explicit opportunity to inspect geometry.
+    """
+
+    def __init__(self) -> None:
+        self._displayed: Geometry | None = None
+        self._pending: Geometry | None = None
+        self._pending_since = 0.0
+
+    def note_display(self) -> None:
+        """Record geometry only after a successful image transmission."""
+        geometry = read_geometry() if os.getenv("WSKR_FIT", "").lower() == "contain" else None
+        self._displayed = (
+            geometry if geometry is not None and geometry.width_px > 0 and geometry.height_px > 0 else None
+        )
+        self._pending = None
+
+    def clear(self) -> None:
+        self._displayed = None
+        self._pending = None
+
+    def flush(self, redraw: Callable[[], None]) -> None:
+        """Debounce only observed changes; never start an unsolicited loop."""
+        if os.getenv("WSKR_FIT", "").lower() != "contain" or self._displayed is None:
+            self._pending = None
+            return
+        geometry = read_geometry()
+        if geometry is None or geometry.width_px <= 0 or geometry.height_px <= 0 or geometry == self._displayed:
+            self._pending = None
+            return
+        if geometry != self._pending:
+            self._pending = geometry
+            self._pending_since = monotonic()
+            return
+        if monotonic() - self._pending_since >= _RESIZE_QUIET_SECONDS:
+            redraw()
+
+
 def _sheet_for_managers(
     managers: list[FigureManagerBase], geometry: Geometry | None
 ) -> tuple[list[WskrFigureManager | BaseFigureManager], list[FigureCanvasAgg], SheetPages] | None:
@@ -306,6 +348,7 @@ class WskrFigureManager(FigureManagerBase):
         self.transport = factory()
         self.caps = caps_factory() if caps_factory is not None else None
         self._last_output_static = False
+        self._nonblocking_resize = _NonblockingResizeState()
 
     def show(self, *_args: Any, **_kwargs: Any) -> None:
         canvas = self.canvas
@@ -314,9 +357,11 @@ class WskrFigureManager(FigureManagerBase):
             raise TypeError(msg)
         render_figure_to_terminal(canvas, self.transport, self.caps)
         self._last_output_static = not is_interactive()
+        self._nonblocking_resize.note_display()
 
     def destroy(self) -> None:
         """Retain ordinary output at exit; otherwise release owned images."""
+        self._nonblocking_resize.clear()
         _close_owned_transport(self.transport, static_output=self._last_output_static)
 
 
@@ -356,6 +401,20 @@ class WskrFigureCanvas(FigureCanvasAgg):
 
     draw_idle = draw
 
+    def flush_events(self) -> None:
+        """Respond to an event pump without claiming the terminal's input.
+
+        plt.pause() and compatible REPL event loops call this hook. A stable
+        resize redraws only an already displayed figure, using the guarded
+        interactive draw when interactive mode is enabled.
+        """
+        manager = self.manager
+        if manager is None:
+            return
+        state = getattr(manager, "_nonblocking_resize", None)
+        if isinstance(state, _NonblockingResizeState):
+            state.flush(self.draw_idle if is_interactive() else manager.show)
+
 
 class BaseFigureManager(FigureManagerBase):
     """Minimal backend manager parameterized by transport class."""
@@ -371,6 +430,7 @@ class BaseFigureManager(FigureManagerBase):
         self.transport = transport_cls()
         self.caps = caps
         self._last_output_static = False
+        self._nonblocking_resize = _NonblockingResizeState()
 
     def show(self, *_args: Any, **_kwargs: Any) -> None:
         canvas = self.canvas
@@ -379,9 +439,11 @@ class BaseFigureManager(FigureManagerBase):
             raise TypeError(msg)
         render_figure_to_terminal(canvas, self.transport, self.caps)
         self._last_output_static = not is_interactive()
+        self._nonblocking_resize.note_display()
 
     def destroy(self) -> None:
         """Retain ordinary output at exit; clean up explicit/interactively."""
+        self._nonblocking_resize.clear()
         _close_owned_transport(self.transport, static_output=self._last_output_static)
 
 
