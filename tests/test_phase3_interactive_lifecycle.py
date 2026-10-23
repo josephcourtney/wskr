@@ -209,6 +209,7 @@ def test_alternate_screen_writes_mode_switch_on_real_pty(monkeypatch) -> None:
     try:
         with monkeypatch.context() as patch:
             patch.setattr(sys, "stdout", _Stream(slave))
+
             # The session must be balanced even after an exception.
             def fail() -> None:
                 msg = "test failure"
