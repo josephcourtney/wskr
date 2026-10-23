@@ -30,9 +30,7 @@ def _color_count(image: Image.Image, color: str, *, start: int, end: int) -> int
         for y in range(0, pixels.height, 3):
             offset = (y * pixels.width + x) * 3
             red, green, blue = raw[offset : offset + 3]
-            if color == "red" and red > 220 and green < 70:
-                selected += 1
-            elif color == "blue" and blue > 220 and red < 70:
+            if (color == "red" and red > 220 and green < 70) or (color == "blue" and blue > 220 and red < 70):
                 selected += 1
     return selected
 
