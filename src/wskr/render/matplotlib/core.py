@@ -1,7 +1,9 @@
 import atexit
 import math
 import os
+import select
 import sys
+from time import monotonic
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from io import BytesIO
@@ -20,8 +22,12 @@ from wskr.protocol import ImageProtocol, get_image_protocol
 from wskr.render.matplotlib.figure import TerminalFigure
 from wskr.render.matplotlib.theme import resolve_rc_defaults
 from wskr.terminal import TerminalCapabilities, probe_profile
+from wskr.terminal.profile import Geometry, read_geometry
 
 _MAX_DISPLAY_SCALE = 8.0
+_RESIZE_POLL_SECONDS = 0.1
+_RESIZE_QUIET_SECONDS = 0.2
+_BLOCKING_PROMPT = "wskr: press Enter to close displayed figures: "
 _EXIT_STATE = {"exiting": False}
 
 
@@ -89,6 +95,64 @@ def _temporary_terminal_screen() -> Generator[None]:
             # Even a failed buffered-output flush must not trap the caller
             # inside Kitty's alternate screen.
             os.write(fd, b"\x1b[?1049l")
+
+
+def _redraw_foreground_figures(managers: list[FigureManagerBase]) -> None:
+    """Repaint the owned alternate screen from the top after a stable resize.
+
+    The previous physical Kitty images are replaced by the managers' scoped
+    send_image operation. Clearing the *alternate* screen only is safe here:
+    no ordinary shell scrollback or separately owned primary-screen content
+    is touched.
+    """
+    output = sys.stdout
+    if output is None:
+        msg = "Blocking resize redraw requires TTY stdout"
+        raise RuntimeError(msg)
+    output.flush()
+    os.write(output.fileno(), b"\x1b[H\x1b[2J")
+    for manager in managers:
+        manager.show()
+    print(_BLOCKING_PROMPT, end="", flush=True)
+
+
+def _wait_for_foreground_resize(managers: list[FigureManagerBase], start: Geometry | None) -> None:
+    """Wait for Enter and debounce viewport changes without signal handlers.
+
+    The foreground owner may poll a canonical TTY for complete lines; no
+    input is read until the terminal itself reports a completed line. Geometry
+    is passively read through TIOCGWINSZ, preserving third-party SIGWINCH
+    handlers and terminal modes. Only explicitly fitted blocking plots opt in.
+    """
+    input_stream = sys.stdin
+    if input_stream is None:
+        msg = "Blocking resize session requires TTY stdin"
+        raise RuntimeError(msg)
+    fd = input_stream.fileno()
+    current = start
+    pending: Geometry | None = None
+    pending_since = 0.0
+    print(_BLOCKING_PROMPT, end="", flush=True)
+    while True:
+        readable, _, _ = select.select([fd], [], [], _RESIZE_POLL_SECONDS)
+        if readable:
+            input()
+            return
+
+        observed = read_geometry()
+        if observed is None or observed == current:
+            pending = None
+            continue
+        if observed != pending:
+            pending = observed
+            pending_since = monotonic()
+            continue
+        if monotonic() - pending_since < _RESIZE_QUIET_SECONDS:
+            continue
+
+        _redraw_foreground_figures(managers)
+        current = observed
+        pending = None
 
 
 def render_figure_to_terminal(
@@ -312,9 +376,13 @@ class TerminalBackend(_Backend):
             # and cursor instead of a hole where the image used to be.
             with _temporary_terminal_screen():
                 try:
+                    initial_geometry = read_geometry() if os.getenv("WSKR_FIT", "").lower() == "contain" else None
                     for manager in managers:
                         manager.show()
-                    input("wskr: press Enter to close displayed figures: ")
+                    if os.getenv("WSKR_FIT", "").lower() == "contain":
+                        _wait_for_foreground_resize(managers, initial_geometry)
+                    else:
+                        input(_BLOCKING_PROMPT)
                 finally:
                     Gcf.destroy_all()
         else:
