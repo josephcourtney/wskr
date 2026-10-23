@@ -75,7 +75,7 @@ def test_tall_terminal_stacks_figures_vertically() -> None:
 
 @pytest.mark.parametrize("geometry", [Geometry(3, 80, 800, 400), Geometry(30, 80), Geometry(25, 80, 5, 5)])
 def test_contact_sheet_rejects_unknown_or_insufficient_terminal_space(geometry) -> None:
-    with pytest.raises(ValueError, match=r"terminal|Contact sheet"):
+    with pytest.raises(ValueError, match=r"[Tt]erminal|[Cc]ontact sheet"):
         contact_sheet([_canvas("red"), _canvas("blue")], geometry)
 
 
