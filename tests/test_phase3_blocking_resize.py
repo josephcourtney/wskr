@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 fig, ax = plt.subplots(figsize=(6, 6), dpi=120)
 ax.bar([1, 2, 3], [2, 4, 3], color=("cyan", "magenta", "yellow"))
 plt.show(block=True)
-print("RESIZE_DONE", tuple(fig.get_size_inches()), fig.dpi, flush=True)
+print("RESIZE_DONE", tuple(float(value) for value in fig.get_size_inches()), fig.dpi, flush=True)
 """
 
 
