@@ -11,7 +11,7 @@ wskr currently uses Matplotlib's Agg renderer to produce images for a graphical 
 - The native image manager provides uploads, physical and virtual placements, scoped deletion, and an explicitly input-owned capability probe. The former external `kitty +kitten icat` transport is available as `kitty_legacy` for comparison.
 - `RichPlot` and `RichImage` retain safe text fallbacks. Actual inline graphics are **not yet implemented**; protocol-level Unicode placeholder encoding is prepared for Phase 4.
 
-**Limitations:** viewport fitting, debounced interactive redraw/resize, REPL/pandas integration and terminal-dependent contrast remain Phase 3 work. Ordinary static plots now persist at the prompt after Python exits; explicit figure closure and interactive teardown still clean up owned images. Rich virtual placeholder composition and ConsoleOptions sizing are Phase 4 work. `wskr_sixel` and `wskr_iterm2` remain unsupported stubs. See [STATUS.md](STATUS.md).
+**Limitations:** fitted blocking resize and event-pumped nonblocking resize are implemented, but unattended REPL/pandas redraw, independent image positioning, and terminal-dependent contrast remain Phase 3 work. Ordinary static plots now persist at the prompt after Python exits; explicit figure closure and interactive teardown still clean up owned images. Rich virtual placeholder composition and ConsoleOptions sizing are Phase 4 work. `wskr_sixel` and `wskr_iterm2` remain unsupported stubs. See [STATUS.md](STATUS.md).
 
 ## Requirements and local installation
 
