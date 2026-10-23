@@ -58,10 +58,7 @@ def _owns_foreground_terminal_input() -> bool:
     try:
         input_fd = sys.stdin.fileno()
         output_fd = sys.stdout.fileno()
-        return (
-            os.ttyname(input_fd) == os.ttyname(output_fd)
-            and os.tcgetpgrp(input_fd) == os.getpgrp()
-        )
+        return os.ttyname(input_fd) == os.ttyname(output_fd) and os.tcgetpgrp(input_fd) == os.getpgrp()
     except (OSError, ValueError):
         return False
 
