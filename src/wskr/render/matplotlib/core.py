@@ -130,7 +130,9 @@ class _NonblockingResizeState:
     def note_display(self) -> None:
         """Record geometry only after a successful image transmission."""
         geometry = read_geometry() if os.getenv("WSKR_FIT", "").lower() == "contain" else None
-        self._displayed = geometry if geometry is not None and geometry.width_px > 0 and geometry.height_px > 0 else None
+        self._displayed = (
+            geometry if geometry is not None and geometry.width_px > 0 and geometry.height_px > 0 else None
+        )
         self._pending = None
 
     def clear(self) -> None:
@@ -143,12 +145,7 @@ class _NonblockingResizeState:
             self._pending = None
             return
         geometry = read_geometry()
-        if (
-            geometry is None
-            or geometry.width_px <= 0
-            or geometry.height_px <= 0
-            or geometry == self._displayed
-        ):
+        if geometry is None or geometry.width_px <= 0 or geometry.height_px <= 0 or geometry == self._displayed:
             self._pending = None
             return
         if geometry != self._pending:
