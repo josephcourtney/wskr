@@ -247,3 +247,26 @@ def test_blocking_render_failure_restores_screen_and_destroys_managers(monkeypat
     with pytest.raises(ValueError, match="broken PNG"):
         core._BackendTermAgg.show(block=True)
     assert events == ["enter-screen", "render", "close", "restore-screen"]
+
+
+def test_alternate_screen_restores_tty_if_final_flush_fails(monkeypatch) -> None:
+    class BrokenFlush(_Stream):
+        count = 0
+
+        def flush(self) -> None:
+            self.count += 1
+            if self.count == 2:
+                msg = "flush failed"
+                raise OSError(msg)
+
+    master, slave = os.openpty()
+    try:
+        with monkeypatch.context() as patch:
+            stream = BrokenFlush(slave)
+            patch.setattr(sys, "stdout", stream)
+            with pytest.raises(OSError, match="flush failed"), core._temporary_terminal_screen():
+                pass
+        assert os.read(master, 4096) == b"\x1b[?1049h\x1b[?1049l"
+    finally:
+        os.close(master)
+        os.close(slave)
