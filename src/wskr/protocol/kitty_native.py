@@ -13,9 +13,9 @@ import os
 import secrets
 import sys
 from io import BytesIO
+from typing import TYPE_CHECKING
 
 from PIL import Image
-from typing import TYPE_CHECKING
 
 from wskr.core.errors import TransportRuntimeError, TransportUnavailableError
 from wskr.protocol.base import ImageProtocol
