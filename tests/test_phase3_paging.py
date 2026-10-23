@@ -13,9 +13,9 @@ import sys
 import termios
 import time
 from io import BytesIO
+from typing import TYPE_CHECKING
 
 import pytest
-from matplotlib.backend_bases import FigureManagerBase
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 from PIL import Image
@@ -24,6 +24,10 @@ from wskr.protocol.base import ImageProtocol
 from wskr.render.matplotlib import core
 from wskr.render.matplotlib.sheet import contact_sheet, plan_sheet_pages
 from wskr.terminal.profile import Geometry
+
+if TYPE_CHECKING:
+    from matplotlib.backend_bases import FigureManagerBase
+
 
 pytestmark = pytest.mark.medium
 
