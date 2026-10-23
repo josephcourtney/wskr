@@ -63,7 +63,6 @@ def plan_sheet_pages(count: int, geometry: Geometry) -> SheetPages:
     return SheetPages(capacity, columns, (count + capacity - 1) // capacity)
 
 
-
 def _place_panel(
     sheet: Image.Image,
     canvas: FigureCanvasAgg,
