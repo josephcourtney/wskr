@@ -18,6 +18,8 @@ from unittest.mock import patch
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from matplotlib.figure import Figure
+
 
 _EXPECTED_FRAMES = 2
 
@@ -29,6 +31,15 @@ def _wait_for(path: Path, *, label: str) -> None:
     if not path.exists():
         msg = f"Timed out waiting for {label}"
         raise TimeoutError(msg)
+
+
+def _make_figure() -> Figure:
+    import matplotlib.pyplot as plt  # ruff: ignore[import-outside-top-level]
+
+    fig, ax = plt.subplots(figsize=(9, 2), dpi=100)
+    ax.bar([1, 2], [3, 4], color=("red", "blue"), width=0.65)
+    ax.set(xlim=(0.2, 2.8), ylim=(0, 5), title="wskr event-pumped nonblocking resize")
+    return fig
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -67,9 +78,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         (args.directory / "frames.json").write_text(json.dumps(sent), encoding="utf-8")
 
     with patch.object(NativeKittyTransport, "send_image", record_send):
-        fig, ax = plt.subplots(figsize=(9, 2), dpi=100)
-        ax.bar([1, 2], [3, 4], color=("red", "blue"), width=0.65)
-        ax.set(xlim=(0.2, 2.8), ylim=(0, 5), title="wskr event-pumped nonblocking resize")
+        fig = _make_figure()
         original = tuple(fig.get_size_inches()), fig.dpi
         plt.show(block=False)
         if len(sent) != 1:
