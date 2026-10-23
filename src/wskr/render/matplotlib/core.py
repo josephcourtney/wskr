@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import atexit
 import math
 import os
@@ -29,6 +31,8 @@ _MAX_DISPLAY_SCALE = 8.0
 _RESIZE_POLL_SECONDS = 0.1
 _RESIZE_QUIET_SECONDS = 0.2
 _BLOCKING_PROMPT = "wskr: press Enter to close displayed figures: "
+_MIN_SHEET_MANAGERS = 2
+_LONG_PAGE_PROMPT_COLS = 51
 _EXIT_STATE = {"exiting": False}
 
 
@@ -111,7 +115,7 @@ def _sheet_for_managers(
     managers: list[FigureManagerBase], geometry: Geometry | None
 ) -> tuple[list[WskrFigureManager | BaseFigureManager], list[FigureCanvasAgg], SheetPages] | None:
     """Identify the bounded contact-sheet case without claiming other figures."""
-    if len(managers) < 2 or geometry is None or os.getenv("WSKR_FIT", "").lower() != "contain" or is_interactive():
+    if len(managers) < _MIN_SHEET_MANAGERS or geometry is None or os.getenv("WSKR_FIT", "").lower() != "contain" or is_interactive():
         return None
     owned = [manager for manager in managers if isinstance(manager, (WskrFigureManager, BaseFigureManager))]
     if len(owned) != len(managers):
@@ -157,7 +161,7 @@ def _page_prompt(plan: SheetPages | None, index: int, geometry: Geometry | None)
     width = geometry.columns if geometry is not None else 80
     choices = (
         f"Page {page}/{plan.total_pages}: n/p + Enter, blank closes: "
-        if width >= 51
+        if width >= _LONG_PAGE_PROMPT_COLS
         else f"{page}/{plan.total_pages} n/p, Enter closes: "
     )
     return choices if len(choices) < width else f"{page}/{plan.total_pages}> "
@@ -203,9 +207,9 @@ def _wait_for_foreground_resize(managers: list[FigureManagerBase], start: Geomet
         if readable:
             line = input()
             command = line.strip().lower() if isinstance(line, str) else ""
-            if command in ("", "q"):
+            if command in {"", "q"}:
                 return
-            if plan is not None and plan.total_pages > 1 and command in ("n", "p"):
+            if plan is not None and plan.total_pages > 1 and command in {"n", "p"}:
                 offset = 1 if command == "n" else -1
                 index = (index + offset) % plan.total_pages
                 _redraw_foreground_figures(managers, page_index=index)
