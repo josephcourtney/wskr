@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import base64
 import sys
+from io import BytesIO
+
+from PIL import Image
+
+from wskr.terminal.profile import Geometry
 
 import pytest
 
@@ -270,3 +275,68 @@ def test_placeholder_colors_and_coordinates_for_full_id_range(image_id, placemen
         assert text.count(chr(0x10EEEE)) == columns
         for column in range(columns):
             assert chr(0x10EEEE) + table[row] + table[column] + (table[high] if high else "") in text
+
+
+def test_sized_anchor_and_relative_placement_codec() -> None:
+    """Only a cursor-moving transparent anchor reserves terminal rows."""
+    frames = list(transmit(PNG[:20], 5, display=True, placement_id=7, columns=24, rows=6))
+    assert len(frames) == 1
+    assert b"p=7,c=24,r=6,m=0;" in frames[0]
+    assert placement(8, 9, parent=(5, 7)) == b"\\x1b_Ga=p,i=8,p=9,P=5,Q=7,q=2\\x1b\\\\"
+    with pytest.raises(ValueError, match="both columns"):
+        list(transmit(PNG, 5, display=True, columns=4))
+    with pytest.raises(ValueError, match="Virtual"):
+        placement(8, 9, columns=1, rows=1, parent=(5, 7), virtual=True)
+    with pytest.raises(ValueError, match="dimensions"):
+        placement(8, 9)
+
+
+def test_fitted_kitty_anchor_survives_replacement_and_static_exit(monkeypatch) -> None:
+    """Redraws refer to the same original placement, not the moved cursor."""
+    monkeypatch.setattr(
+        "wskr.protocol.kitty_native.read_geometry",
+        lambda: Geometry(25, 80, 800, 500),
+    )
+    source = BytesIO()
+    Image.new("RGB", (320, 100), "red").save(source, "PNG")
+    frames: list[bytes] = []
+    transport = NativeKittyTransport(writer=frames.extend)
+    transport.send_anchored_image(source.getvalue())
+    anchor = transport._anchor
+    assert anchor is not None
+    first = transport._display_image_id
+    assert first is not None
+    assert any(f"a=T,f=100,t=d,i={anchor[0]}".encode() in x and b"c=32,r=5" in x for x in frames)
+    assert any(f"P={anchor[0]},Q={anchor[1]}".encode() in x for x in frames)
+    assert not any(b"\\x1b[H" in x or b"\\x1b[?1049" in x for x in frames)
+
+    transport.send_anchored_image(source.getvalue())
+    second = transport._display_image_id
+    assert second is not None and second != first
+    assert transport._anchor == anchor
+    assert sum(b"a=T" in frame for frame in frames) == 1
+    assert any(f"a=d,d=I,i={first}".encode() in x for x in frames)
+    assert not any(f"a=d,d=I,i={anchor[0]}".encode() in x for x in frames)
+    transport.retain_display()
+    transport.close()
+    assert not any(f"a=d,d=I,i={second}".encode() in x for x in frames)
+    assert not any(f"a=d,d=I,i={anchor[0]}".encode() in x for x in frames)
+
+
+def test_explicit_anchored_close_cleans_child_and_parent(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "wskr.protocol.kitty_native.read_geometry",
+        lambda: Geometry(25, 80, 800, 500),
+    )
+    source = BytesIO()
+    Image.new("RGB", (320, 100), "blue").save(source, "PNG")
+    frames: list[bytes] = []
+    transport = NativeKittyTransport(writer=frames.extend)
+    transport.send_anchored_image(source.getvalue())
+    anchor = transport._anchor
+    child = transport._display_image_id
+    assert anchor is not None and child is not None
+    transport.close()
+    assert any(f"a=d,d=I,i={child}".encode() in frame for frame in frames)
+    assert any(f"a=d,d=I,i={anchor[0]}".encode() in frame for frame in frames)
+    assert not any(b"a=d,d=a" in frame for frame in frames)
