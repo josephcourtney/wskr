@@ -142,3 +142,20 @@ A dedicated **real Kitty/Xvfb** acceptance scenario in [draft PR #30](https://gi
 Thus the original physical placement **survives** the window shrink (partly clipped); the event-pumped replacement loses visible placement. The source raster and width containment are correct, so unit/PTY PNG evidence is insufficient for placement acceptance. A 9×6-inch chart shows the same post-redraw disappearance. Reproduction and screenshot artifact references: [run 39942815378](https://github.com/josephcourtney/wskr/actions/runs/39942815378) and [issue #31](https://github.com/josephcourtney/wskr/issues/31).
 
 **Acceptance remains open:** implement a safe independent placement anchor and non-destructive replacement policy without assuming ownership of REPL/shell cursor, output or input. Do not claim general nonblocking resize until after/before and post-exit real Kitty screenshots pass. Fitted blocking/alternate-screen resizing is a separate, previously qualified path.
+
+## Stable Kitty-relative nonblocking placements — October 23, 2026
+
+[PR #30](https://github.com/josephcourtney/wskr/pull/30), merged as `56b318fa`, resolves the specific on-screen replacement failure documented in the prior section using a persistent, invisible physical parent placement. The initial parent uses a transparent 1×1 PNG with measured **cell dimensions** to reserve the figure's original output region and advance the cursor once. Subsequent raster uploads are physically placed using Kitty `P/Q` placement-parent keys, so updates keep the original anchor instead of the current shell cursor. New children replace old owned images with scoped cleanup. At interpreter exit both the final image and parent are retained; explicit `plt.close()` releases them. The implementation does not address the cursor, poll input or install signals. This protocol feature requires Kitty version 0.31+; older versions have not been qualified. Explicit fitted `show(block=True)` continues using the existing alternate-screen layout rather than persistent relative placement.
+
+**Automated Linux and macOS quality:** [workflow 39946078492](https://github.com/josephcourtney/wskr/actions/runs/39946078492) passed compilation, Ruff format/lint, ty, **291 passed, 3 skipped** full pytest, **87 focused Phase 3 passed**, and **57 Phase 2 passed** on both platforms.
+
+**Real Kitty/Xvfb screenshot qualification:** [workflow 39946078506](https://github.com/josephcourtney/wskr/actions/runs/39946078506) passed original static/fit, physical/virtual placement, alternate-screen, multiple figures, paging, plus two new measured X11 resize cycles:
+
+| Source | Initial raster | Shrunk raster | Expanded raster | Retained after exit |
+| --- | --- | --- | --- | --- |
+| 9×2 in, 100 DPI | 900×200 | 612×136 | 900×200 | Yes |
+| 9×6 in, 100 DPI | 900×600 | 612×408 | 900×600 | Yes |
+
+Window pixel viewports were 999×684, then 612×432, then 999×684. All stages captured actual onscreen red/blue plot pixels, including a separate after-shrink/before-redraw screenshot, and figure dimensions/DPI remained unmodified. The 9×6 case had **48,198 red / 64,750 blue** pixels initially, **22,184 / 29,618** after the anchored shrinking redraw and **48,198 / 64,750** after expansion and interpreter exit. Screenshot and `frames.json` artifacts are retained in the workflow. The original unanchored failing comparison is preserved above as a regression record, not current behavior.
+
+**Outstanding:** This is hosted Linux *real Kitty* acceptance, not native macOS GUI visual evidence. Controlled local macOS Kitty tests under unmanaged and yabai-managed geometry, inactive REPL pumping, independent image placement/scrollback and wider IPython/pandas workflows remain open under [issue #31](https://github.com/josephcourtney/wskr/issues/31) and Gate P3.
