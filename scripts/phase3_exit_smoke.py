@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import argparse
 import atexit
+from contextlib import nullcontext
+from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -20,6 +23,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     """Draw a deterministic colored chart and exit without calling plt.close."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ready-file", type=Path, required=True)
+    parser.add_argument("--fit-file", type=Path, help="Record verified real-Kitty viewport containment")
     args = parser.parse_args(argv)
 
     # This callback is registered *before* importing Matplotlib, so it runs
@@ -31,10 +35,32 @@ def main(argv: Sequence[str] | None = None) -> None:
     mpl.use("module://wskr.render.matplotlib.kitty")
     import matplotlib.pyplot as plt  # ruff: ignore[import-outside-top-level]
 
-    _, ax = plt.subplots(figsize=(4, 3), dpi=110)
+    from PIL import Image  # ruff: ignore[import-outside-top-level]
+    from wskr.protocol.kitty_native import NativeKittyTransport  # ruff: ignore[import-outside-top-level]
+
+    source = (6, 6) if args.fit_file is not None else (4, 3)
+    dpi = 300 if args.fit_file is not None else 110
+    _, ax = plt.subplots(figsize=source, dpi=dpi)
     ax.bar([1, 2, 3], [1.5, 2.5, 2], color=("cyan", "magenta", "yellow"))
     ax.set(xlim=(0.5, 3.5), ylim=(0, 3), title="wskr: persistent output after Python exit")
-    plt.show()
+
+    send = NativeKittyTransport.send_image
+
+    def inspect_and_send(transport: NativeKittyTransport, png_bytes: bytes) -> None:
+        if args.fit_file is None:
+            return send(transport, png_bytes)
+        viewport = transport.get_window_size_px()
+        with Image.open(BytesIO(png_bytes)) as image:
+            output = image.size
+        if not (0 < output[0] <= viewport[0] and 0 < output[1] <= viewport[1]):
+            msg = f"Kitty display {output} exceeded measured viewport {viewport}"
+            raise AssertionError(msg)
+        send(transport, png_bytes)
+        args.fit_file.write_text(f"{output[0]}x{output[1]} of {viewport[0]}x{viewport[1]}\n", encoding="utf-8")
+
+    context = patch.object(NativeKittyTransport, "send_image", inspect_and_send) if args.fit_file else nullcontext()
+    with context:
+        plt.show()
     print("Rendered ordinary Matplotlib output; Python is exiting.")
 
 
