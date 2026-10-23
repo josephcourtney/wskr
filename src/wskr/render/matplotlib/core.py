@@ -45,6 +45,27 @@ if sys.flags.interactive:
     interactive(b=True)
 
 
+def _owns_foreground_terminal_input() -> bool:
+    """Allow an explicit blocking show only with foreground TTY input.
+
+    In REPLs, notebooks, pipes, and background jobs, terminal input may be
+    managed by another component. Never consume its bytes opportunistically.
+    """
+    if sys.stdin is None or sys.stdout is None:
+        return False
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        return False
+    try:
+        input_fd = sys.stdin.fileno()
+        output_fd = sys.stdout.fileno()
+        return (
+            os.ttyname(input_fd) == os.ttyname(output_fd)
+            and os.tcgetpgrp(input_fd) == os.getpgrp()
+        )
+    except (OSError, ValueError):
+        return False
+
+
 def render_figure_to_terminal(
     canvas: FigureCanvasAgg,
     transport: ImageProtocol,
@@ -227,13 +248,32 @@ class TerminalBackend(_Backend):
             manager.show()
 
     @classmethod
-    def show(cls, *args: Any, **kwargs: Any) -> None:
+    def show(cls, *, block: bool | None = None) -> None:
+        """Display every figure; wait for Enter only if explicitly requested.
+
+        Kitty images live in terminal history, not separate GUI windows.
+        Therefore the ordinary show(block=None) is intentionally nonblocking
+        so static output survives the script's exit. A caller opting into
+        block=True owns its foreground input for the duration of the prompt.
+        """
         if cls.not_impl_msg is not None:
             raise NotImplementedError(cls.not_impl_msg)
-        # Standard pyplot show presents every registered figure. Display must
-        # not dispose of figures, transports, or the caller's plot state.
-        for manager in Gcf.get_all_fig_managers():
-            manager.show(*args, **kwargs)
+        managers = Gcf.get_all_fig_managers()
+        if not managers:
+            return
+        if block is True and not _owns_foreground_terminal_input():
+            msg = "Blocking terminal show requires foreground stdin and stdout on the same TTY"
+            raise RuntimeError(msg)
+
+        for manager in managers:
+            manager.show()
+        if block is True:
+            try:
+                input("wskr: press Enter to close displayed figures: ")
+            finally:
+                # This is deliberate interactive closure, not interpreter exit.
+                # Do not retain its images in Kitty history.
+                Gcf.destroy_all()
 
 
 FigureCanvas = WskrFigureCanvas
