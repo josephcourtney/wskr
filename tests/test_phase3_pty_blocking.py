@@ -56,7 +56,7 @@ def test_real_foreground_pty_blocking_show_and_scoped_close() -> None:
                     data = b""
                 if data:
                     output.extend(data)
-                elif sent_enter:
+                else:
                     break
             if b"press Enter to close displayed figures" in output and not sent_enter:
                 os.write(master, b"\n")
@@ -64,8 +64,13 @@ def test_real_foreground_pty_blocking_show_and_scoped_close() -> None:
             if b"BLOCK_DONE" in output:
                 break
     finally:
-        # Never leak a process or foreground TTY if a regression hangs.
+        # Allow the child to finish its normal Python cleanup before
+        # resorting to a forced kill; never leak a foreground PTY process.
         waited, code = os.waitpid(child, os.WNOHANG)
+        until = time.monotonic() + 3
+        while waited == 0 and time.monotonic() < until:
+            time.sleep(0.05)
+            waited, code = os.waitpid(child, os.WNOHANG)
         if waited == 0:
             os.kill(child, signal.SIGKILL)
             _, code = os.waitpid(child, 0)
