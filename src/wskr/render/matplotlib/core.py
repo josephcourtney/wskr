@@ -111,12 +111,7 @@ def _sheet_for_managers(
     managers: list[FigureManagerBase], geometry: Geometry | None
 ) -> tuple[list[WskrFigureManager | BaseFigureManager], list[FigureCanvasAgg], SheetPages] | None:
     """Identify the bounded contact-sheet case without claiming other figures."""
-    if (
-        len(managers) < 2
-        or geometry is None
-        or os.getenv("WSKR_FIT", "").lower() != "contain"
-        or is_interactive()
-    ):
+    if len(managers) < 2 or geometry is None or os.getenv("WSKR_FIT", "").lower() != "contain" or is_interactive():
         return None
     owned = [manager for manager in managers if isinstance(manager, (WskrFigureManager, BaseFigureManager))]
     if len(owned) != len(managers):
@@ -168,9 +163,7 @@ def _page_prompt(plan: SheetPages | None, index: int, geometry: Geometry | None)
     return choices if len(choices) < width else f"{page}/{plan.total_pages}> "
 
 
-def _redraw_foreground_figures(
-    managers: list[FigureManagerBase], *, page_index: int = 0
-) -> SheetPages | None:
+def _redraw_foreground_figures(managers: list[FigureManagerBase], *, page_index: int = 0) -> SheetPages | None:
     """Repaint the owned alternate screen and its selected page after resize."""
     output = sys.stdout
     if output is None:
