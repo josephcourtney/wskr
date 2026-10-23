@@ -58,7 +58,9 @@ def main(argv: Sequence[str] | None = None) -> None:
         if args.fit_file is not None:
             args.fit_file.write_text(f"{output[0]}x{output[1]} of {viewport[0]}x{viewport[1]}\n", encoding="utf-8")
 
-    context = patch.object(NativeKittyTransport, "send_anchored_image", inspect_and_send) if args.fit_file else nullcontext()
+    context = (
+        patch.object(NativeKittyTransport, "send_anchored_image", inspect_and_send) if args.fit_file else nullcontext()
+    )
     with context:
         plt.show()
     print("Rendered ordinary Matplotlib output; Python is exiting.")
