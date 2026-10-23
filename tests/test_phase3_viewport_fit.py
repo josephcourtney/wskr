@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import fcntl
+import os
+import struct
+import sys
+import termios
 from io import BytesIO
 
 import pytest
@@ -12,6 +17,7 @@ from PIL import Image
 from wskr.core.errors import TransportUnavailableError
 from wskr.protocol.base import ImageProtocol
 from wskr.render.matplotlib.core import render_figure_to_terminal
+from wskr.terminal.profile import read_geometry
 
 pytestmark = pytest.mark.medium
 
@@ -121,3 +127,44 @@ def test_invalid_scale_defaults_to_one_then_applies_fit(monkeypatch) -> None:
     transport = ViewportTransport((200, 160))
     render_figure_to_terminal(FigureCanvasAgg(Figure(figsize=(4, 2), dpi=100)), transport)
     assert _image_size(transport.frames[-1]) == (200, 100)
+
+
+def test_fit_remeasures_kernel_pty_pixel_geometry_between_displays(monkeypatch) -> None:
+    """Real TIOCGWINSZ pixel measurements must be fresh on each render."""
+    master, slave = os.openpty()
+
+    class Tty:
+        def isatty(self) -> bool:
+            return True
+
+        def fileno(self) -> int:
+            return slave
+
+    class KernelTransport(ViewportTransport):
+        def get_window_size_px(self) -> tuple[int, int]:
+            self.probes += 1
+            geometry = read_geometry()
+            assert geometry is not None
+            return geometry.width_px, geometry.height_px
+
+    try:
+        monkeypatch.setenv("WSKR_FIT", "contain")
+        monkeypatch.delenv("WSKR_SCALE", raising=False)
+        canvas = FigureCanvasAgg(Figure(figsize=(6, 3), dpi=100))
+        transport = KernelTransport((0, 0))
+        with monkeypatch.context() as patch:
+            patch.setattr(sys, "stdout", Tty())
+            for viewport, expected in [
+                ((800, 300), (600, 300)),
+                ((400, 500), (400, 200)),
+                ((1000, 150), (300, 150)),
+            ]:
+                pixels_w, pixels_h = viewport
+                packed = struct.pack("HHHH", 30, 80, pixels_w, pixels_h)
+                fcntl.ioctl(slave, termios.TIOCSWINSZ, packed)
+                render_figure_to_terminal(canvas, transport)
+                assert _image_size(transport.frames[-1]) == expected
+        assert transport.probes == 3
+    finally:
+        os.close(master)
+        os.close(slave)
