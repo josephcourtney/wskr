@@ -33,6 +33,11 @@ def _wait_for(path: Path, *, label: str) -> None:
         raise TimeoutError(msg)
 
 
+def _signal_initial_and_wait(directory: Path) -> None:
+    (directory / "initial.ready").write_text("displayed\\n", encoding="utf-8")
+    _wait_for(directory / "resize.proceed", label="pre-redraw screenshot")
+
+
 def _make_figure() -> Figure:
     import matplotlib.pyplot as plt  # ruff: ignore[import-outside-top-level]
 
@@ -84,8 +89,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         if len(sent) != 1:
             msg = f"Unexpected initial uploads: {sent}"
             raise AssertionError(msg)
-        (args.directory / "initial.ready").write_text("displayed\n", encoding="utf-8")
-        _wait_for(args.directory / "resize.proceed", label="pre-redraw screenshot")
+        _signal_initial_and_wait(args.directory)
 
         deadline = time.monotonic() + 18
         while len(sent) < _EXPECTED_FRAMES and time.monotonic() < deadline:
