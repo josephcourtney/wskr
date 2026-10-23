@@ -45,3 +45,25 @@ WSKR_SCALE=0.4 just visual-smoke matplotlib
 ```
 
 The chart should remain visible after the script returns to the shell. Explicit `plt.close()` before exit is expected to remove it. This is a deliberately narrow lifetime policy, not a completed solution for cross-session scrollback, window-resize redraw, remote terminal reconnections, or `show(block=True)`; **Gate P3 remains open**.
+
+## Foreground blocking show and interactive Kitty redraw — October 22, 2026
+
+**Implemented and tested at code SHA `e4ae001de37a333251905dd8b425aa78a745f8b0`:**
+
+- Ordinary `plt.show()`, `plt.show(block=None)` and `plt.show(block=False)` remain **nonblocking**. Unlike GUI backends, a terminal plot has no separate user-closable window; ordinary noninteractive output must remain in Kitty history when Python exits.
+- Explicit `plt.show(block=True)` checks that **both stdin and stdout are TTYs, resolve to the same terminal, and stdin belongs to the foreground process group**. It renders all registered figures, displays an explicit Enter-to-close prompt, and calls `Gcf.destroy_all()` when the user finishes, including when `KeyboardInterrupt` or `EOFError` interrupts input. Invalid/shared input is rejected **before rendering**, without consuming REPL or notebook bytes. This terminal-specific policy is not a general Matplotlib GUI event loop.
+- The Kitty-specific Agg canvas now inherits the guarded `WskrFigureCanvas.draw/draw_idle` behavior. Interactive draw requests transmit a PNG, are protected against recursive draw callbacks, replace the previous Kitty image with a scoped deletion, and clean up on managed close. Noninteractive `draw_idle` does not unexpectedly transmit.
+- A **real child process on a controlling POSIX PTY** ran the actual `module://wskr.render.matplotlib.kitty` backend and `plt.show(block=True)`, received an Enter key through its PTY, emitted the expected Kitty PNG upload and scoped image-delete packets, and exited cleanly on both hosted Linux and macOS. Additional pure/in-process tests cover mismatched TTYs, background process groups, absent stdin, unchanged nonblocking semantics, interruption cleanup, and actual interactive native Kitty redraw.
+
+[Hosted quality run 39891723351](https://github.com/josephcourtney/wskr/actions/runs/39891723351), Python 3.13:
+
+| Check | Ubuntu | macOS 15 |
+| --- | --- | --- |
+| Compilation, Ruff format/lint, ty | Pass | Pass |
+| Full pytest | **253 passed, 3 skipped** | **253 passed, 3 skipped** |
+| Focused Phase 3 | **52 passed** | **52 passed** |
+| Phase 2 regression | **54 passed** | **54 passed** |
+
+The [real Kitty/Xvfb graphical workflow 39891723347](https://github.com/josephcourtney/wskr/actions/runs/39891723347) passed physical, Unicode virtual and post-interpreter-exit static image scenarios. The new explicit blocking prompt has been exercised through real controlling PTYs on **both systems**; a separately observed native macOS Kitty GUI session for this prompt is not yet recorded.
+
+**Still outstanding for Gate P3:** native macOS GUI interactive confirmation, deliberate terminal resize/theme notifications and debounced placement changes, richer IPython/pandas REPL behavior, image scrollback positioning and wheel-qualified workflows. `block=None` remains intentionally nonblocking (a documented terminal-output exception to GUI-backend default-block semantics). Interactive blocking does not imply generalized UI event-loop support. Figure geometry, DPI and exports remain caller-owned.

@@ -5,7 +5,7 @@ from matplotlib.backend_bases import _Backend  # ruff: ignore[import-private-nam
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from wskr.protocol.kitty_native import NativeKittyTransport
-from wskr.render.matplotlib.core import BaseFigureManager, TerminalBackend
+from wskr.render.matplotlib.core import BaseFigureManager, TerminalBackend, WskrFigureCanvas
 
 if sys.flags.interactive:
     interactive(b=True)
@@ -16,7 +16,7 @@ class KittyFigureManager(BaseFigureManager):
         super().__init__(canvas, num, NativeKittyTransport)
 
 
-class KittyFigureCanvas(FigureCanvasAgg):
+class KittyFigureCanvas(WskrFigureCanvas):
     manager_class = _api.classproperty(lambda _: KittyFigureManager)
 
 
