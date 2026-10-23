@@ -51,16 +51,22 @@ jobs:
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
         run: xvfb-run -a -s "-screen 0 1280x900x24" bash .github/scripts/phase3-paging-gui.sh
-      - name: Check event-pumped nonblocking resized Kitty graphics
+      - name: Check short figure through Kitty shrink and expansion
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
+          WSKR_CASE_HEIGHT: "2"
+        run: xvfb-run -a -s "-screen 0 1280x900x24" bash .github/scripts/phase3-nonblocking-gui.sh
+      - name: Check tall figure through Kitty shrink and expansion
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          WSKR_CASE_HEIGHT: "6"
         run: xvfb-run -a -s "-screen 0 1280x900x24" bash .github/scripts/phase3-nonblocking-gui.sh
       - name: Upload nonblocking resize screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: phase3-kitty-nonblocking-resize
-          path: ${{ runner.temp }}/wskr-phase3-nonblocking/
+          path: ${{ runner.temp }}/wskr-phase3-nonblocking-*/
           if-no-files-found: warn
           retention-days: 14
       - name: Upload paging screenshots
