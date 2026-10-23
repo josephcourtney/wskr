@@ -37,7 +37,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     ax.bar([1, 2, 3], [2, 3, 2.5], color=("cyan", "magenta", "yellow"))
     ax.set(xlim=(0.5, 3.5), ylim=(0, 3.5), title="temporary Kitty alternate screen")
 
-    def checkpoint(prompt: str) -> str:
+    def checkpoint(prompt: object = "", /) -> str:
         print(prompt, flush=True)
         args.ready.write_text("alternate-active\n", encoding="utf-8")
         end = time.monotonic() + 12
