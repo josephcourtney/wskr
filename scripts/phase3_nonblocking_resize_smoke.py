@@ -23,7 +23,8 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure
 
 
-_EXPECTED_FRAMES = 2
+_RESIZED_FRAMES = 2
+_EXPANDED_FRAMES = 3
 
 
 def _wait_for(path: Path, *, label: str) -> None:
@@ -40,10 +41,24 @@ def _signal_initial_and_wait(directory: Path) -> None:
     _wait_for(directory / "resize.proceed", label="pre-redraw screenshot")
 
 
+def _pump_until(figure: Figure, sent: list[dict[str, list[int]]], *, count: int) -> None:
+    deadline = time.monotonic() + 18
+    while len(sent) < count and time.monotonic() < deadline:
+        figure.canvas.flush_events()  # real backend hook, no mock
+        time.sleep(0.05)
+    if len(sent) < count:
+        msg = f"Event-pumped redraw did not occur: {sent}"
+        raise TimeoutError(msg)
+
+
 def _make_figure() -> Figure:
     import matplotlib.pyplot as plt  # ruff: ignore[import-outside-top-level]
 
-    fig, ax = plt.subplots(figsize=(9, 2), dpi=100)
+    height = int(os.getenv("WSKR_CASE_HEIGHT", "2"))
+    if height not in {2, 6}:
+        msg = "Kitty GUI fixture supports figure heights of two or six inches"
+        raise ValueError(msg)
+    fig, ax = plt.subplots(figsize=(9, height), dpi=100)
     ax.bar([1, 2], [3, 4], color=("red", "blue"), width=0.65)
     ax.set(xlim=(0.2, 2.8), ylim=(0, 5), title="wskr event-pumped nonblocking resize")
     return fig
@@ -93,13 +108,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             raise AssertionError(msg)
         _signal_initial_and_wait(args.directory)
 
-        deadline = time.monotonic() + 18
-        while len(sent) < _EXPECTED_FRAMES and time.monotonic() < deadline:
-            fig.canvas.flush_events()  # real backend hook, no mock
-            time.sleep(0.05)
-        if len(sent) < _EXPECTED_FRAMES:
-            msg = f"Event-pumped redraw did not occur: {sent}"
-            raise TimeoutError(msg)
+        _pump_until(fig, sent, count=_RESIZED_FRAMES)
         if sent[-1]["raster"][0] >= sent[0]["raster"][0] - 80:
             msg = f"Fitted raster failed to shrink: {sent}"
             raise AssertionError(msg)
@@ -108,6 +117,15 @@ def main(argv: Sequence[str] | None = None) -> None:
             raise AssertionError(msg)
         (args.directory / "resized.ready").write_text("redrawn\n", encoding="utf-8")
         _wait_for(args.directory / "resized.proceed", label="resized Kitty screenshot")
+        _pump_until(fig, sent, count=_EXPANDED_FRAMES)
+        if sent[-1]["raster"][0] <= sent[1]["raster"][0] + 80:
+            msg = f"Fitted raster failed to expand with the Kitty viewport: {sent}"
+            raise AssertionError(msg)
+        if (tuple(fig.get_size_inches()), fig.dpi) != original:
+            msg = "Terminal expansion modified user-owned figure dimensions"
+            raise AssertionError(msg)
+        (args.directory / "expanded.ready").write_text("redrawn\n", encoding="utf-8")
+        _wait_for(args.directory / "expanded.proceed", label="expanded Kitty screenshot")
 
     # Exit without explicit close: normal nonblocking output should persist.
     (args.directory / "finished").write_text("complete\n", encoding="utf-8")
