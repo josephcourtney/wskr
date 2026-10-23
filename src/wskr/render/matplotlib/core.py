@@ -109,7 +109,12 @@ def _display_scale() -> float:
 
 def _show_blocking_managers(managers: list[FigureManagerBase], geometry: Geometry | None) -> None:
     """Use one nonoverlapping Kitty placement for fitted multi-figure output."""
-    if len(managers) > 1 and geometry is not None and os.getenv("WSKR_FIT", "").lower() == "contain" and not is_interactive():
+    if (
+        len(managers) > 1
+        and geometry is not None
+        and os.getenv("WSKR_FIT", "").lower() == "contain"
+        and not is_interactive()
+    ):
         owned = [manager for manager in managers if isinstance(manager, (WskrFigureManager, BaseFigureManager))]
         if len(owned) == len(managers):
             canvases = [canvas for manager in owned if isinstance(canvas := manager.canvas, FigureCanvasAgg)]
