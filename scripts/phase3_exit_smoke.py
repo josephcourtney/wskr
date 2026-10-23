@@ -44,7 +44,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     ax.bar([1, 2, 3], [1.5, 2.5, 2], color=("cyan", "magenta", "yellow"))
     ax.set(xlim=(0.5, 3.5), ylim=(0, 3), title="wskr: persistent output after Python exit")
 
-    send = NativeKittyTransport.send_image
+    send = NativeKittyTransport.send_anchored_image
 
     def inspect_and_send(transport: NativeKittyTransport, png_bytes: bytes) -> None:
         if args.fit_file is not None:
@@ -58,7 +58,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         if args.fit_file is not None:
             args.fit_file.write_text(f"{output[0]}x{output[1]} of {viewport[0]}x{viewport[1]}\n", encoding="utf-8")
 
-    context = patch.object(NativeKittyTransport, "send_image", inspect_and_send) if args.fit_file else nullcontext()
+    context = patch.object(NativeKittyTransport, "send_anchored_image", inspect_and_send) if args.fit_file else nullcontext()
     with context:
         plt.show()
     print("Rendered ordinary Matplotlib output; Python is exiting.")
