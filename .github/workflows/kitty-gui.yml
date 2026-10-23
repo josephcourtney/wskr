@@ -9,6 +9,7 @@ on:
       - "pyproject.toml"
       - ".github/scripts/phase2-kitty-gui.sh"
       - ".github/scripts/phase3-alt-screen-gui.sh"
+      - ".github/scripts/phase3-multifigure-gui.sh"
       - ".github/workflows/kitty-gui.yml"
   workflow_dispatch:
 
@@ -40,6 +41,18 @@ jobs:
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
         run: xvfb-run -a -s "-screen 0 1280x900x24" bash .github/scripts/phase3-alt-screen-gui.sh
+      - name: Check multi-figure contact-sheet graphics
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: xvfb-run -a -s "-screen 0 1280x900x24" bash .github/scripts/phase3-multifigure-gui.sh
+      - name: Upload multi-figure screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase3-kitty-multifigure
+          path: ${{ runner.temp }}/wskr-phase3-multifigure/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload alternate-screen screenshots
         if: always()
         uses: actions/upload-artifact@v4

@@ -5,6 +5,7 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- Added measured-viewport contact-sheet composition for multiple figures during explicitly fitted blocking Matplotlib sessions, with nonoverlapping tiles, one scoped Kitty display, prompt space and resize-time recomposition.
 - Added passive, debounced terminal resize repainting for explicitly fitted foreground `show(block=True)` sessions, without installing signal handlers or modifying TTY input modes; the alternate screen and image ownership remain scoped.
 - Added opt-in `WSKR_FIT=contain` display-only PNG containment using freshly measured terminal pixels at each render; preserve figure `figsize`, DPI and normal exports and default native-size output.
 - Added an explicit foreground-terminal `plt.show(block=True)` session with Enter-to-close semantics, plus guarded native Kitty interactive `draw_idle` image updates.
