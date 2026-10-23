@@ -101,7 +101,7 @@ def contact_sheet(
         raise ValueError(msg)
     if columns is None:
         columns = 2 if count > 1 and geometry.width_px >= geometry.height_px * _LANDSCAPE_THRESHOLD else 1
-    if columns not in (1, 2):
+    if columns not in {1, 2}:
         msg = "Contact sheet supports one or two columns"
         raise ValueError(msg)
     columns = min(columns, count)
