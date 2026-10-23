@@ -44,6 +44,43 @@ def command(**fields: str | int) -> bytes:
     return APC + ",".join(f"{key}={value}" for key, value in fields.items()).encode("ascii") + ST
 
 
+def _check_cells(columns: int | None, rows: int | None, *, display: bool) -> None:
+    if (columns is None) != (rows is None) or (columns is not None and not display):
+        msg = "Explicit cell dimensions require display=True and both columns and rows"
+        raise ValueError(msg)
+    if columns is not None and rows is not None:
+        _dimension(columns)
+        _dimension(rows)
+
+
+def _check_placement(
+    columns: int | None,
+    rows: int | None,
+    *,
+    virtual: bool,
+    parent: tuple[int, int] | None,
+    quiet: int,
+) -> None:
+    if (columns is None) != (rows is None):
+        msg = "Placement requires both dimensions or neither"
+        raise ValueError(msg)
+    if columns is not None and rows is not None:
+        _dimension(columns)
+        _dimension(rows)
+    if parent is not None:
+        if virtual:
+            msg = "Virtual placements cannot be relative to a parent"
+            raise ValueError(msg)
+        _identifier(parent[0])
+        _identifier(parent[1])
+    elif columns is None:
+        msg = "Non-relative placements require dimensions"
+        raise ValueError(msg)
+    if quiet not in {0, 1, 2}:
+        msg = "Invalid Kitty quiet mode"
+        raise ValueError(msg)
+
+
 def transmit(
     png: bytes,
     image_id: int,
@@ -71,12 +108,7 @@ def transmit(
     if quiet not in {0, 1, 2}:
         msg = "Invalid Kitty quiet mode"
         raise ValueError(msg)
-    if (columns is None) != (rows is None) or (columns is not None and not display):
-        msg = "Explicit cell dimensions require display=True and both columns and rows"
-        raise ValueError(msg)
-    if columns is not None and rows is not None:
-        _dimension(columns)
-        _dimension(rows)
+    _check_cells(columns, rows, display=display)
     payload = base64.b64encode(png)
     chunks = [payload[i : i + MAX_CHUNK] for i in range(0, len(payload), MAX_CHUNK)]
     for i, chunk in enumerate(chunks):
@@ -113,24 +145,7 @@ def placement(
     """Place a physical/virtual image, optionally relative to a stable parent."""
     _identifier(image_id)
     _identifier(placement_id)
-    if (columns is None) != (rows is None):
-        msg = "Placement requires both dimensions or neither"
-        raise ValueError(msg)
-    if columns is not None and rows is not None:
-        _dimension(columns)
-        _dimension(rows)
-    if parent is not None:
-        if virtual:
-            msg = "Virtual placements cannot be relative to a parent"
-            raise ValueError(msg)
-        _identifier(parent[0])
-        _identifier(parent[1])
-    elif columns is None:
-        msg = "Non-relative placements require dimensions"
-        raise ValueError(msg)
-    if quiet not in {0, 1, 2}:
-        msg = "Invalid Kitty quiet mode"
-        raise ValueError(msg)
+    _check_placement(columns, rows, virtual=virtual, parent=parent, quiet=quiet)
     fields: dict[str, str | int] = {"a": "p", "i": image_id, "p": placement_id}
     if columns is not None and rows is not None:
         fields["c"] = columns
