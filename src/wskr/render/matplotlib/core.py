@@ -20,6 +20,7 @@ from PIL import Image
 from wskr.core.errors import TransportUnavailableError
 from wskr.protocol import ImageProtocol, get_image_protocol
 from wskr.render.matplotlib.figure import TerminalFigure
+from wskr.render.matplotlib.sheet import contact_sheet
 from wskr.render.matplotlib.theme import resolve_rc_defaults
 from wskr.terminal import TerminalCapabilities, probe_profile
 from wskr.terminal.profile import Geometry, read_geometry
@@ -97,6 +98,41 @@ def _temporary_terminal_screen() -> Generator[None]:
             os.write(fd, b"\x1b[?1049l")
 
 
+def _display_scale() -> float:
+    """Read the existing finite/bounded display-scale override."""
+    try:
+        scale = float(os.getenv("WSKR_SCALE", "1.0"))
+    except ValueError:
+        return 1.0
+    return scale if math.isfinite(scale) and 0 < scale <= _MAX_DISPLAY_SCALE else 1.0
+
+
+def _show_blocking_managers(managers: list[FigureManagerBase], geometry: Geometry | None) -> None:
+    """Use one nonoverlapping Kitty placement for fitted multi-figure output."""
+    if (
+        len(managers) > 1
+        and geometry is not None
+        and os.getenv("WSKR_FIT", "").lower() == "contain"
+        and not is_interactive()
+        and all(isinstance(manager, (WskrFigureManager, BaseFigureManager)) for manager in managers)
+    ):
+        canvases = [manager.canvas for manager in managers]
+        if all(isinstance(canvas, FigureCanvasAgg) for canvas in canvases):
+            try:
+                png = contact_sheet(canvases, geometry, scale=_display_scale())
+            except ValueError:
+                pass  # Insufficient measured terminal space: preserve old path.
+            else:
+                managers[0].transport.send_image(png)
+                output = sys.stdout
+                if output is not None:
+                    output.flush()
+                    os.write(output.fileno(), f"\x1b[{geometry.rows};1H".encode())
+                return
+    for manager in managers:
+        manager.show()
+
+
 def _redraw_foreground_figures(managers: list[FigureManagerBase]) -> None:
     """Repaint the owned alternate screen from the top after a stable resize.
 
@@ -111,8 +147,8 @@ def _redraw_foreground_figures(managers: list[FigureManagerBase]) -> None:
         raise RuntimeError(msg)
     output.flush()
     os.write(output.fileno(), b"\x1b[H\x1b[2J")
-    for manager in managers:
-        manager.show()
+    geometry = read_geometry()
+    _show_blocking_managers(managers, geometry)
     print(_BLOCKING_PROMPT, end="", flush=True)
 
 
@@ -178,12 +214,7 @@ def render_figure_to_terminal(
     # The display-only controls never touch Figure geometry, axes or savefig.
     # Explicit WSKR_SCALE is applied before optional containment; WSKR_FIT
     # requires actual attached-terminal pixel measurements, never guessed DPI.
-    try:
-        scale = float(os.getenv("WSKR_SCALE", "1.0"))
-    except ValueError:
-        scale = 1.0
-    if not math.isfinite(scale) or not 0 < scale <= _MAX_DISPLAY_SCALE:
-        scale = 1.0
+    scale = _display_scale()
 
     if os.getenv("WSKR_FIT", "").lower() == "contain":
         try:
@@ -377,8 +408,7 @@ class TerminalBackend(_Backend):
             with _temporary_terminal_screen():
                 try:
                     initial_geometry = read_geometry() if os.getenv("WSKR_FIT", "").lower() == "contain" else None
-                    for manager in managers:
-                        manager.show()
+                    _show_blocking_managers(managers, initial_geometry)
                     if os.getenv("WSKR_FIT", "").lower() == "contain":
                         _wait_for_foreground_resize(managers, initial_geometry)
                     else:
