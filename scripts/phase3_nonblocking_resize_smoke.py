@@ -85,6 +85,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             msg = f"Unexpected initial uploads: {sent}"
             raise AssertionError(msg)
         (args.directory / "initial.ready").write_text("displayed\n", encoding="utf-8")
+        _wait_for(args.directory / "resize.proceed", label="pre-redraw screenshot")
 
         deadline = time.monotonic() + 18
         while len(sent) < _EXPECTED_FRAMES and time.monotonic() < deadline:
