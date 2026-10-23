@@ -82,8 +82,12 @@ def _temporary_terminal_screen() -> Generator[None]:
     try:
         yield
     finally:
-        output.flush()
-        os.write(fd, b"\x1b[?1049l")
+        try:
+            output.flush()
+        finally:
+            # Even a failed buffered-output flush must not trap the caller
+            # inside Kitty's alternate screen.
+            os.write(fd, b"\x1b[?1049l")
 
 
 def render_figure_to_terminal(
