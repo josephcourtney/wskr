@@ -5,11 +5,10 @@ import math
 import os
 import select
 import sys
-from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from io import BytesIO
 from time import monotonic
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import matplotlib as mpl
 from matplotlib import _api, interactive, is_interactive  # ruff: ignore[import-private-name]
@@ -26,6 +25,10 @@ from wskr.render.matplotlib.sheet import SheetPages, contact_sheet, plan_sheet_p
 from wskr.render.matplotlib.theme import resolve_rc_defaults
 from wskr.terminal import TerminalCapabilities, probe_profile
 from wskr.terminal.profile import Geometry, read_geometry
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+
 
 _MAX_DISPLAY_SCALE = 8.0
 _RESIZE_POLL_SECONDS = 0.1
