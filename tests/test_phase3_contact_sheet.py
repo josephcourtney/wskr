@@ -135,7 +135,7 @@ def test_unfitted_blocking_session_uses_individual_manager_show(monkeypatch) -> 
 
     class Manager(FigureManagerBase):
         def show(self) -> None:
-            calls.append(self.num)
+            calls.append(int(self.num))
 
     core._show_blocking_managers([Manager(_canvas("red"), 1), Manager(_canvas("blue"), 2)], Geometry(25, 80, 800, 480))
     assert calls == [1, 2]
