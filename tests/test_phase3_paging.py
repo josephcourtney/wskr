@@ -15,6 +15,7 @@ import time
 from io import BytesIO
 
 import pytest
+from matplotlib.backend_bases import FigureManagerBase
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 from PIL import Image
@@ -96,7 +97,7 @@ def test_single_figure_page_preserves_source_export() -> None:
 
 def test_paged_manager_transmits_only_selected_figure(monkeypatch) -> None:
     transport = _Captured()
-    managers = [
+    managers: list[FigureManagerBase] = [
         core.WskrFigureManager(_canvas(color), 9100 + index, transport_factory=lambda: transport)
         for index, color in enumerate(("red", "blue", "green"))
     ]
