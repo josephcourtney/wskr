@@ -67,7 +67,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         (args.directory / "frames.json").write_text(json.dumps(sent), encoding="utf-8")
 
     with patch.object(NativeKittyTransport, "send_image", record_send):
-        fig, ax = plt.subplots(figsize=(9, 6), dpi=100)
+        fig, ax = plt.subplots(figsize=(9, 2), dpi=100)
         ax.bar([1, 2], [3, 4], color=("red", "blue"), width=0.65)
         ax.set(xlim=(0.2, 2.8), ylim=(0, 5), title="wskr event-pumped nonblocking resize")
         original = tuple(fig.get_size_inches()), fig.dpi
