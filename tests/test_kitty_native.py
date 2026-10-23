@@ -6,11 +6,8 @@ import base64
 import sys
 from io import BytesIO
 
-from PIL import Image
-
-from wskr.terminal.profile import Geometry
-
 import pytest
+from PIL import Image
 
 from wskr.core.errors import TransportRuntimeError, TransportUnavailableError
 from wskr.protocol import kitty_io
@@ -24,6 +21,7 @@ from wskr.protocol.kitty_codec import (
     transmit,
 )
 from wskr.protocol.kitty_native import KittyImageManager, NativeKittyTransport
+from wskr.terminal.profile import Geometry
 
 pytestmark = pytest.mark.small
 PNG = b"\x89PNG\r\n\x1a\n" + b"x" * 6500
@@ -282,7 +280,7 @@ def test_sized_anchor_and_relative_placement_codec() -> None:
     frames = list(transmit(PNG[:20], 5, display=True, placement_id=7, columns=24, rows=6))
     assert len(frames) == 1
     assert b"p=7,c=24,r=6,m=0;" in frames[0]
-    assert placement(8, 9, parent=(5, 7)) == b"\\x1b_Ga=p,i=8,p=9,P=5,Q=7,q=2\\x1b\\\\"
+    assert placement(8, 9, parent=(5, 7)) == bytes([27]) + b"_Ga=p,i=8,p=9,P=5,Q=7,q=2" + bytes([27, 92])
     with pytest.raises(ValueError, match="both columns"):
         list(transmit(PNG, 5, display=True, columns=4))
     with pytest.raises(ValueError, match="Virtual"):
@@ -312,7 +310,8 @@ def test_fitted_kitty_anchor_survives_replacement_and_static_exit(monkeypatch) -
 
     transport.send_anchored_image(source.getvalue())
     second = transport._display_image_id
-    assert second is not None and second != first
+    assert second is not None
+    assert second != first
     assert transport._anchor == anchor
     assert sum(b"a=T" in frame for frame in frames) == 1
     assert any(f"a=d,d=I,i={first}".encode() in x for x in frames)
@@ -335,7 +334,8 @@ def test_explicit_anchored_close_cleans_child_and_parent(monkeypatch) -> None:
     transport.send_anchored_image(source.getvalue())
     anchor = transport._anchor
     child = transport._display_image_id
-    assert anchor is not None and child is not None
+    assert anchor is not None
+    assert child is not None
     transport.close()
     assert any(f"a=d,d=I,i={child}".encode() in frame for frame in frames)
     assert any(f"a=d,d=I,i={anchor[0]}".encode() in frame for frame in frames)
