@@ -65,7 +65,7 @@ def test_tall_terminal_stacks_figures_vertically() -> None:
 
 @pytest.mark.parametrize("geometry", [Geometry(3, 80, 800, 400), Geometry(30, 80), Geometry(25, 80, 5, 5)])
 def test_contact_sheet_rejects_unknown_or_insufficient_terminal_space(geometry) -> None:
-    with pytest.raises(ValueError, match="terminal|Contact sheet"):
+    with pytest.raises(ValueError, match=r"terminal|Contact sheet"):
         contact_sheet([_canvas("red"), _canvas("blue")], geometry)
 
 
@@ -115,7 +115,8 @@ def test_blocking_managers_send_one_image_and_move_prompt_to_last_row(monkeypatc
         second.destroy()
         os.close(master)
         os.close(slave)
-    assert one.closed and two.closed
+    assert one.closed
+    assert two.closed
 
 
 def test_unfitted_blocking_session_uses_individual_manager_show(monkeypatch) -> None:
