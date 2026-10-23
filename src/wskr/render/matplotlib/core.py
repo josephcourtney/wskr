@@ -6,6 +6,7 @@ import os
 import select
 import sys
 from contextlib import contextmanager
+from contextvars import ContextVar
 from io import BytesIO
 from time import monotonic
 from typing import TYPE_CHECKING, Any
@@ -37,6 +38,7 @@ _BLOCKING_PROMPT = "wskr: press Enter to close displayed figures: "
 _MIN_SHEET_MANAGERS = 2
 _LONG_PAGE_PROMPT_COLS = 51
 _EXIT_STATE = {"exiting": False}
+_BLOCKING_RENDER: ContextVar[bool] = ContextVar("wskr_blocking_render", default=False)
 
 
 def _mark_process_exit() -> None:
@@ -332,7 +334,11 @@ def render_figure_to_terminal(
             result = BytesIO()
             image.save(result, format="PNG")
             png = result.getvalue()
-    transport.send_image(png)
+    anchored = getattr(transport, "send_anchored_image", None)
+    if os.getenv("WSKR_FIT", "").lower() == "contain" and not _BLOCKING_RENDER.get() and callable(anchored):
+        anchored(png)
+    else:
+        transport.send_image(png)
 
 
 class WskrFigureManager(FigureManagerBase):
@@ -520,19 +526,22 @@ class TerminalBackend(_Backend):
             raise RuntimeError(msg)
 
         if block is True:
-            # The entire plot session, including its cleanup, belongs to the
-            # alternate screen. On return the shell regains its original text
-            # and cursor instead of a hole where the image used to be.
-            with _temporary_terminal_screen():
-                try:
-                    initial_geometry = read_geometry() if os.getenv("WSKR_FIT", "").lower() == "contain" else None
-                    _show_blocking_managers(managers, initial_geometry)
-                    if os.getenv("WSKR_FIT", "").lower() == "contain":
-                        _wait_for_foreground_resize(managers, initial_geometry)
-                    else:
-                        input(_BLOCKING_PROMPT)
-                finally:
-                    Gcf.destroy_all()
+            # A blocking alternate-screen session already owns placement and
+            # cursor redraw. Keep its established Kitty transport behavior.
+            token = _BLOCKING_RENDER.set(True)
+            try:
+                with _temporary_terminal_screen():
+                    try:
+                        initial_geometry = read_geometry() if os.getenv("WSKR_FIT", "").lower() == "contain" else None
+                        _show_blocking_managers(managers, initial_geometry)
+                        if os.getenv("WSKR_FIT", "").lower() == "contain":
+                            _wait_for_foreground_resize(managers, initial_geometry)
+                        else:
+                            input(_BLOCKING_PROMPT)
+                    finally:
+                        Gcf.destroy_all()
+            finally:
+                _BLOCKING_RENDER.reset(token)
         else:
             for manager in managers:
                 manager.show()
