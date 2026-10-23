@@ -5,6 +5,7 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- Added opt-in `WSKR_FIT=contain` display-only PNG containment using freshly measured terminal pixels at each render; preserve figure `figsize`, DPI and normal exports and default native-size output.
 - Added an explicit foreground-terminal `plt.show(block=True)` session with Enter-to-close semantics, plus guarded native Kitty interactive `draw_idle` image updates.
 - Added native Kitty PNG graphics transmission, image upload/placement IDs, scoped deletion and virtual Unicode-placeholder support for future Rich integration.
 - Introduced provenance-aware terminal measurements, guarded OSC queries, and a pure resolver for terminal-derived Matplotlib defaults.
