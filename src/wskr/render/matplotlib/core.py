@@ -115,7 +115,12 @@ def _sheet_for_managers(
     managers: list[FigureManagerBase], geometry: Geometry | None
 ) -> tuple[list[WskrFigureManager | BaseFigureManager], list[FigureCanvasAgg], SheetPages] | None:
     """Identify the bounded contact-sheet case without claiming other figures."""
-    if len(managers) < _MIN_SHEET_MANAGERS or geometry is None or os.getenv("WSKR_FIT", "").lower() != "contain" or is_interactive():
+    if (
+        len(managers) < _MIN_SHEET_MANAGERS
+        or geometry is None
+        or os.getenv("WSKR_FIT", "").lower() != "contain"
+        or is_interactive()
+    ):
         return None
     owned = [manager for manager in managers if isinstance(manager, (WskrFigureManager, BaseFigureManager))]
     if len(owned) != len(managers):
