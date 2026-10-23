@@ -8,6 +8,7 @@ on:
       - "uv.lock"
       - "pyproject.toml"
       - ".github/scripts/phase2-kitty-gui.sh"
+      - ".github/scripts/phase3-alt-screen-gui.sh"
       - ".github/workflows/kitty-gui.yml"
   workflow_dispatch:
 
@@ -35,6 +36,18 @@ jobs:
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
         run: xvfb-run -a -s "-screen 0 1280x900x24" bash .github/scripts/phase2-kitty-gui.sh
+      - name: Check temporary figure and restored primary screen
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: xvfb-run -a -s "-screen 0 1280x900x24" bash .github/scripts/phase3-alt-screen-gui.sh
+      - name: Upload alternate-screen screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase3-kitty-alternate-screen
+          path: ${{ runner.temp }}/wskr-phase3-alternate-screen/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload screenshot and emulator diagnostics
         if: always()
         uses: actions/upload-artifact@v4

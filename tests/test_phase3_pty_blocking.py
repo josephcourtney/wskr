@@ -92,5 +92,11 @@ def test_real_foreground_pty_blocking_show_and_scoped_close() -> None:
     assert b"BLOCK_DONE" in output, output[-2000:]
     assert b"a=T" in output or b"a=t" in output
     assert b"a=d,d=I" in output
+    enter = output.index(b"\x1b[?1049h")
+    upload = output.index(b"\x1b_G")
+    deletion = output.index(b"a=d,d=I")
+    restore = output.index(b"\x1b[?1049l")
+    returned = output.index(b"BLOCK_DONE")
+    assert enter < upload < deletion < restore < returned
     assert os.WIFEXITED(status)
     assert os.WEXITSTATUS(status) == 0

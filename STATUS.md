@@ -18,4 +18,6 @@ Native macOS GUI reproduction of **post-exit persistence** is outstanding; prior
 
 **Newly qualified in PR #23:** foreground `plt.show(block=True)` waits for Enter with same-TTY/foreground ownership, then explicitly closes managed figures; ordinary `plt.show()` stays nonblocking and preserves static output. Native Kitty now uses guarded `draw_idle` so `plt.ion()` changes transmit image updates without recursive redraw. Real child-process PTY tests passed on both Ubuntu and macOS, with **253 full tests passed, 3 skipped**, **52 focused Phase 3** and **54 Phase 2** tests each; hosted real-Kitty screenshots passed.
 
+**Phase 3 blocking-session cleanup:** PR #24 isolates explicit `show(block=True)` inside Kitty's alternate screen and restores the original terminal contents after scoped image deletion, rather than leaving empty rows. Hosted visual evidence confirmed before/after text markers are only one terminal row apart (18 px), with the plot confined to the alternate screen. Ordinary nonblocking terminal history remains persistent.
+
 Remaining Phase 3 work: deliberate oversize/viewport policy, debounced live resizing and image placement, richer REPL/pandas workflows, scrollback lifetime, and wheel/module-backend qualification. Rich inline composition remains Phase 4.

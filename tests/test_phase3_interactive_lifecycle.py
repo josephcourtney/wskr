@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+from contextlib import contextmanager
 from io import StringIO
 
 import pytest
@@ -25,6 +26,9 @@ class _Stream:
 
     def fileno(self) -> int:
         return self.fd
+
+    def flush(self) -> None:
+        """Stand in for an unbuffered terminal output stream."""
 
 
 def test_blocking_input_requires_same_foreground_tty(monkeypatch) -> None:
@@ -84,8 +88,18 @@ def test_explicit_block_renders_then_waits_and_closes(monkeypatch) -> None:
     monkeypatch.setattr(core, "_owns_foreground_terminal_input", lambda: True)
     monkeypatch.setattr("builtins.input", lambda _prompt: events.append("input"))
     monkeypatch.setattr(core.Gcf, "destroy_all", lambda: events.append("close"))
+
+    @contextmanager
+    def alternate():
+        events.append("enter-screen")
+        try:
+            yield
+        finally:
+            events.append("restore-screen")
+
+    monkeypatch.setattr(core, "_temporary_terminal_screen", alternate)
     core._BackendTermAgg.show(block=True)
-    assert events == ["render", "render", "input", "close"]
+    assert events == ["enter-screen", "render", "render", "input", "close", "restore-screen"]
 
 
 def test_blocking_show_rejects_unowned_input_before_render(monkeypatch) -> None:
@@ -114,9 +128,19 @@ def test_blocking_show_releases_figures_on_input_failure(monkeypatch, failure) -
     monkeypatch.setattr(core, "_owns_foreground_terminal_input", lambda: True)
     monkeypatch.setattr("builtins.input", fail_input)
     monkeypatch.setattr(core.Gcf, "destroy_all", lambda: events.append("close"))
+
+    @contextmanager
+    def alternate():
+        events.append("enter-screen")
+        try:
+            yield
+        finally:
+            events.append("restore-screen")
+
+    monkeypatch.setattr(core, "_temporary_terminal_screen", alternate)
     with pytest.raises(failure):
         core._BackendTermAgg.show(block=True)
-    assert events == ["render", "close"]
+    assert events == ["enter-screen", "render", "close", "restore-screen"]
 
 
 def test_blocking_show_with_no_registered_figures_returns_immediately(monkeypatch) -> None:
@@ -178,3 +202,71 @@ def test_native_kitty_idle_redraw_replaces_managed_image(monkeypatch) -> None:
 
     manager.destroy()
     assert sum(b"a=d,d=I" in packet for packet in packets) == 2
+
+
+def test_alternate_screen_writes_mode_switch_on_real_pty(monkeypatch) -> None:
+    master, slave = os.openpty()
+    try:
+        with monkeypatch.context() as patch:
+            patch.setattr(sys, "stdout", _Stream(slave))
+
+            # The session must be balanced even after an exception.
+            def fail() -> None:
+                msg = "test failure"
+                raise ValueError(msg)
+
+            with pytest.raises(ValueError, match="test failure"), core._temporary_terminal_screen():
+                fail()
+        assert os.read(master, 4096) == b"\x1b[?1049h\x1b[?1049l"
+    finally:
+        os.close(master)
+        os.close(slave)
+
+
+def test_blocking_render_failure_restores_screen_and_destroys_managers(monkeypatch) -> None:
+    events: list[str] = []
+
+    class Manager:
+        def show(self) -> None:
+            events.append("render")
+            msg = "broken PNG"
+            raise ValueError(msg)
+
+    @contextmanager
+    def alternate():
+        events.append("enter-screen")
+        try:
+            yield
+        finally:
+            events.append("restore-screen")
+
+    monkeypatch.setattr(core, "_temporary_terminal_screen", alternate)
+    monkeypatch.setattr(core, "_owns_foreground_terminal_input", lambda: True)
+    monkeypatch.setattr(core.Gcf, "get_all_fig_managers", lambda: [Manager()])
+    monkeypatch.setattr(core.Gcf, "destroy_all", lambda: events.append("close"))
+    with pytest.raises(ValueError, match="broken PNG"):
+        core._BackendTermAgg.show(block=True)
+    assert events == ["enter-screen", "render", "close", "restore-screen"]
+
+
+def test_alternate_screen_restores_tty_if_final_flush_fails(monkeypatch) -> None:
+    class BrokenFlush(_Stream):
+        count = 0
+
+        def flush(self) -> None:
+            self.count += 1
+            if self.count == 2:
+                msg = "flush failed"
+                raise OSError(msg)
+
+    master, slave = os.openpty()
+    try:
+        with monkeypatch.context() as patch:
+            stream = BrokenFlush(slave)
+            patch.setattr(sys, "stdout", stream)
+            with pytest.raises(OSError, match="flush failed"), core._temporary_terminal_screen():
+                pass
+        assert os.read(master, 4096) == b"\x1b[?1049h\x1b[?1049l"
+    finally:
+        os.close(master)
+        os.close(slave)
