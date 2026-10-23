@@ -5,7 +5,7 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
-- Added passive event-pumped resize detection and PNG retransmission for fitted nonblocking figures via `flush_events()` and `plt.pause()` without input ownership or background handlers. **Visible placement remains unreliable after window shrink** pending [issue #31](https://github.com/josephcourtney/wskr/issues/31).
+- Added debounced event-pumped fitted nonblocking redraw through `flush_events()` and `plt.pause()`, with persistent Kitty-relative image anchoring (Kitty 0.31+). Hosted real-Kitty screenshots verify short/tall figures through window shrink, expansion and interpreter exit without consuming terminal input.
 - Added bounded small-terminal figure paging for fitted blocking contact sheets, using measured viewport capacity, canonical n/p+Enter navigation, stable resize recomposition and scoped Kitty image cleanup.
 - Added measured-viewport contact-sheet composition for multiple figures during explicitly fitted blocking Matplotlib sessions, with nonoverlapping tiles, one scoped Kitty display, prompt space and resize-time recomposition.
 - Added passive, debounced terminal resize repainting for explicitly fitted foreground `show(block=True)` sessions, without installing signal handlers or modifying TTY input modes; the alternate screen and image ownership remain scoped.
