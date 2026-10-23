@@ -409,6 +409,8 @@ class WskrFigureCanvas(FigureCanvasAgg):
         interactive draw when interactive mode is enabled.
         """
         manager = self.manager
+        if manager is None:
+            return
         state = getattr(manager, "_nonblocking_resize", None)
         if isinstance(state, _NonblockingResizeState):
             state.flush(self.draw_idle if is_interactive() else manager.show)
