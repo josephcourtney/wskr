@@ -125,3 +125,20 @@ No SIGWINCH handler is installed or replaced, no termios mode is changed, and th
 [Real Kitty/Xvfb run 39938408364](https://github.com/josephcourtney/wskr/actions/runs/39938408364) passed a new screenshot regression: page one contains red and blue independent pyplot figures, page two contains only green, and the primary screen contains none after exit. The same workflow also passed baseline physical/virtual placements, static post-exit persistence, alternate-screen restoration and two-figure layout.
 
 **Remaining:** Native macOS Kitty paging and yabai-managed small-window visual confirmation, independent cursor-aware placements, nonblocking IPython/pandas event loops, and wheel qualification. With truly unusable or missing pixel measurements, the existing sequential fallback remains; this feature does not invent measurement precision or claim scrollback composition. Gate P3 remains open.
+
+## Event-pumped nonblocking resize: graphical rejection — October 23, 2026
+
+Merged [PR #29](https://github.com/josephcourtney/wskr/pull/29) introduced opt-in, debounced `canvas.flush_events()`/ `plt.pause()` refresh for previously displayed `WSKR_FIT=contain` figures without claiming terminal input. Ubuntu/macOS quality passed **288 tests, 3 skipped**, focused Phase 3 **87** and Phase 2 **54**, at [run 39941159016](https://github.com/josephcourtney/wskr/actions/runs/39941159016). The existing physical/virtual Kitty Xvfb scenarios passed; they did not test a live window shrink.
+
+A dedicated **real Kitty/Xvfb** acceptance scenario in [draft PR #30](https://github.com/josephcourtney/wskr/pull/30) resized a real X11 Kitty window from **999×684** to **612×432** measured pixel viewport while a Python application pumped `flush_events()`. A 9×2-inch, 100-DPI figure transmitted an initial **900×200** PNG and then a correctly fitted **612×136** PNG. Real screenshots showed these red/blue chart pixels:
+
+| Stage | Red | Blue |
+| --- | ---: | ---: |
+| Before resize | 16,008 | 21,525 |
+| After resize, before redraw | 16,008 | 12,792 |
+| After replacement upload/deletion | **0** | **0** |
+| After interpreter exit | **0** | **0** |
+
+Thus the original physical placement **survives** the window shrink (partly clipped); the event-pumped replacement loses visible placement. The source raster and width containment are correct, so unit/PTY PNG evidence is insufficient for placement acceptance. A 9×6-inch chart shows the same post-redraw disappearance. Reproduction and screenshot artifact references: [run 39942815378](https://github.com/josephcourtney/wskr/actions/runs/39942815378) and [issue #31](https://github.com/josephcourtney/wskr/issues/31).
+
+**Acceptance remains open:** implement a safe independent placement anchor and non-destructive replacement policy without assuming ownership of REPL/shell cursor, output or input. Do not claim general nonblocking resize until after/before and post-exit real Kitty screenshots pass. Fitted blocking/alternate-screen resizing is a separate, previously qualified path.
