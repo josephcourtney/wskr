@@ -7,9 +7,14 @@ its layout protocol is implemented in Phase 4.
 
 from __future__ import annotations
 
+import base64
+import math
 import os
 import secrets
 import sys
+from io import BytesIO
+
+from PIL import Image
 from typing import TYPE_CHECKING
 
 from wskr.core.errors import TransportRuntimeError, TransportUnavailableError
@@ -23,6 +28,21 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
 type WriteFrames = Callable[[Iterable[bytes]], None]
+
+# Transparent 1x1 RGBA PNG used as an invisible physical placement anchor.
+_ANCHOR_PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==")
+
+
+def _placement_cells(png: bytes) -> tuple[int, int] | None:
+    """Measure figure cell footprint; never invent pixel or terminal geometry."""
+    geometry = read_geometry()
+    if geometry is None or min(geometry.width_px, geometry.height_px, geometry.rows, geometry.columns) <= 0:
+        return None
+    with Image.open(BytesIO(png)) as source:
+        width, height = source.size
+    columns = max(1, min(geometry.columns, math.ceil(width * geometry.columns / geometry.width_px)))
+    rows = max(1, min(geometry.rows, math.ceil(height * geometry.rows / geometry.height_px)))
+    return columns, rows
 
 
 class KittyImageManager:
@@ -64,14 +84,33 @@ class KittyImageManager:
         self._images[image_id] = {placement_id}
         return image_id
 
+    def reserve_anchor(self, *, columns: int, rows: int) -> tuple[int, int]:
+        """Reserve a normal cursor-advancing rectangle with invisible pixels."""
+        self._ensure_open()
+        image_id = self._id(set(self._images))
+        placement_id = self._id(set())
+        self._writer(
+            transmit(
+                _ANCHOR_PNG,
+                image_id,
+                display=True,
+                placement_id=placement_id,
+                columns=columns,
+                rows=rows,
+            )
+        )
+        self._images[image_id] = {placement_id}
+        return image_id, placement_id
+
     def place(
         self,
         image_id: int,
         *,
-        columns: int,
-        rows: int,
+        columns: int | None = None,
+        rows: int | None = None,
         placement_id: int | None = None,
         virtual: bool = False,
+        parent: tuple[int, int] | None = None,
     ) -> int:
         """Create or replace a placement; virtual placements are Rich-ready."""
         self._ensure_open()
@@ -84,7 +123,7 @@ class KittyImageManager:
             raise ValueError(msg)
         limit = MAX_VIRTUAL_PLACEMENT_ID if virtual else MAX_ID
         pid = placement_id if placement_id is not None else self._id(occupied, limit=limit)
-        self._writer((placement(image_id, pid, columns, rows, virtual=virtual),))
+        self._writer((placement(image_id, pid, columns, rows, virtual=virtual, parent=parent),))
         occupied.add(pid)
         return pid
 
@@ -150,6 +189,7 @@ class NativeKittyTransport(ImageProtocol):
                 raise TransportUnavailableError(msg)
         self.manager = KittyImageManager(writer or send_frames)
         self._display_image_id: int | None = None
+        self._anchor: tuple[int, int] | None = None
         self.confirmed: bool | None = None
 
     def probe(
@@ -189,6 +229,40 @@ class NativeKittyTransport(ImageProtocol):
         self._display_image_id = image_id
         if previous is not None:
             self.manager.remove_image(previous)
+        if self._anchor is not None:
+            self.manager.remove_image(self._anchor[0])
+            self._anchor = None
+
+    def send_anchored_image(self, png_bytes: bytes) -> None:
+        """Replace a fitted figure relative to its original terminal placement.
+
+        The first, transparent parent reserves exactly one normal image region
+        and advances the terminal cursor. Later children are relative to that
+        parent and never follow the moved shell/REPL cursor. This uses Kitty's
+        P/Q relative-placement semantics, not terminal cursor addressing.
+        """
+        cells = _placement_cells(png_bytes)
+        if cells is None:
+            self.send_image(png_bytes)  # No invented geometry or anchor.
+            return
+        new_anchor = self._anchor is None
+        if new_anchor:
+            self._anchor = self.manager.reserve_anchor(columns=cells[0], rows=cells[1])
+        image_id: int | None = None
+        try:
+            image_id = self.manager.upload(png_bytes)
+            self.manager.place(image_id, parent=self._anchor)
+        except BaseException:
+            if image_id is not None:
+                self.manager.remove_image(image_id)
+            if new_anchor and self._anchor is not None:
+                self.manager.remove_image(self._anchor[0])
+                self._anchor = None
+            raise
+        previous = self._display_image_id
+        self._display_image_id = image_id
+        if previous is not None:
+            self.manager.remove_image(previous)
 
     def init_image(self, png_bytes: bytes) -> int:
         """Upload image without placing; retained for ImageProtocol compatibility."""
@@ -215,11 +289,15 @@ class NativeKittyTransport(ImageProtocol):
         if self._display_image_id is not None:
             self.manager.relinquish_image(self._display_image_id)
             self._display_image_id = None
+            if self._anchor is not None:
+                self.manager.relinquish_image(self._anchor[0])
+                self._anchor = None
 
     def close(self) -> None:
         """Delete still-managed images; retained terminal history survives."""
         self.manager.close()
         self._display_image_id = None
+        self._anchor = None
 
 
 __all__ = ["KittyImageManager", "NativeKittyTransport"]
