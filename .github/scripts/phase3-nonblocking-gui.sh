@@ -4,7 +4,7 @@ set -Eeuo pipefail
 
 out="${RUNNER_TEMP:-/tmp}/wskr-phase3-nonblocking"
 mkdir -p "$out"
-rm -f "$out/"{launch.ready,launch.proceed,initial.ready,resized.ready,resized.proceed,finished,frames.json}
+rm -f "$out/"{launch.ready,launch.proceed,initial.ready,resize.proceed,resized.ready,resized.proceed,finished,frames.json}
 log="$out/kitty.log"
 title="wskr-event-pump-acceptance"
 
@@ -59,13 +59,15 @@ await_marker initial.ready
 capture initial
 
 xdotool windowsize --sync "$window" 620 440
+capture before_redraw
+touch "$out/resize.proceed"
 await_marker resized.ready
 capture resized
 touch "$out/resized.proceed"
 await_marker finished
 capture exited
 
-uv run python - "$out/initial.png" "$out/resized.png" "$out/exited.png" "$out/frames.json" <<'PY'
+uv run python - "$out/initial.png" "$out/before_redraw.png" "$out/resized.png" "$out/exited.png" "$out/frames.json" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -83,9 +85,9 @@ def counts(path):
     return {"red": red, "blue": blue}
 
 
-initial, resized, exited = (counts(path) for path in sys.argv[1:4])
-frames = json.loads(Path(sys.argv[4]).read_text(encoding="utf-8"))
-print("Kitty nonblocking visible colors:", initial, resized, exited)
+initial, before_redraw, resized, exited = (counts(path) for path in sys.argv[1:5])
+frames = json.loads(Path(sys.argv[5]).read_text(encoding="utf-8"))
+print("Kitty nonblocking visible colors:", initial, before_redraw, resized, exited)
 print("Measured fitted PNG frames:", frames)
 assert len(frames) == 2, "unstable resize uploaded too many or too few images"
 assert frames[1]["viewport"][0] < frames[0]["viewport"][0] - 150, "actual window width did not shrink"
