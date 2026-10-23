@@ -19,6 +19,9 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
+_EXPECTED_FRAMES = 2
+
+
 def _wait_for(path: Path, *, label: str) -> None:
     deadline = time.monotonic() + 18
     while not path.exists() and time.monotonic() < deadline:
@@ -53,7 +56,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         with Image.open(BytesIO(png)) as image:
             size = image.size
         viewport = transport.get_window_size_px()
-        assert 0 < size[0] <= viewport[0] and 0 < size[1] <= viewport[1], (size, viewport)
+        if not 0 < size[0] <= viewport[0]:
+            msg = f"Displayed width exceeds measured Kitty viewport: {size}, {viewport}"
+            raise AssertionError(msg)
+        if not 0 < size[1] <= viewport[1]:
+            msg = f"Displayed height exceeds measured Kitty viewport: {size}, {viewport}"
+            raise AssertionError(msg)
         send(transport, png)
         sent.append({"raster": list(size), "viewport": list(viewport)})
         (args.directory / "frames.json").write_text(json.dumps(sent), encoding="utf-8")
@@ -64,18 +72,24 @@ def main(argv: Sequence[str] | None = None) -> None:
         ax.set(xlim=(0.2, 2.8), ylim=(0, 5), title="wskr event-pumped nonblocking resize")
         original = tuple(fig.get_size_inches()), fig.dpi
         plt.show(block=False)
-        assert len(sent) == 1, sent
+        if len(sent) != 1:
+            msg = f"Unexpected initial uploads: {sent}"
+            raise AssertionError(msg)
         (args.directory / "initial.ready").write_text("displayed\n", encoding="utf-8")
 
         deadline = time.monotonic() + 18
-        while len(sent) < 2 and time.monotonic() < deadline:
+        while len(sent) < _EXPECTED_FRAMES and time.monotonic() < deadline:
             fig.canvas.flush_events()  # real backend hook, no mock
             time.sleep(0.05)
-        if len(sent) < 2:
+        if len(sent) < _EXPECTED_FRAMES:
             msg = f"Event-pumped redraw did not occur: {sent}"
             raise TimeoutError(msg)
-        assert sent[-1]["raster"][0] < sent[0]["raster"][0] - 80, sent
-        assert (tuple(fig.get_size_inches()), fig.dpi) == original
+        if sent[-1]["raster"][0] >= sent[0]["raster"][0] - 80:
+            msg = f"Fitted raster failed to shrink: {sent}"
+            raise AssertionError(msg)
+        if (tuple(fig.get_size_inches()), fig.dpi) != original:
+            msg = "Terminal resize modified user-owned figure dimensions"
+            raise AssertionError(msg)
         (args.directory / "resized.ready").write_text("redrawn\n", encoding="utf-8")
         _wait_for(args.directory / "resized.proceed", label="resized Kitty screenshot")
 
