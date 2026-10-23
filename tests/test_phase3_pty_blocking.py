@@ -1,7 +1,7 @@
-"""Actual pyplot.show(block=True) lifecycle across a foreground POSIX PTY.
+"""End-to-end pyplot.show(block=True) in a foreground POSIX PTY.
 
-The child owns the controlling TTY. Its parent plays the role of a user by
-pressing Enter after the terminal backend presents an explicit prompt.
+The child owns the controlling TTY. The parent emulates an explicit Enter
+after the terminal backend renders and prompts the user.
 """
 
 from __future__ import annotations
@@ -30,55 +30,67 @@ print("BLOCK_DONE", flush=True)
 """
 
 
+def _exec_child() -> None:
+    os.environ["TERM"] = "xterm-kitty"
+    os.environ["WSKR_SCALE"] = "0.5"
+    try:
+        os.execv(sys.executable, [sys.executable, "-c", _SCRIPT])  # ruff: ignore[start-process-with-no-shell]
+    except OSError:
+        os._exit(127)
+
+
+def _capture_until_done(master: int) -> tuple[bytes, bool]:
+    output = bytearray()
+    sent_enter = False
+    deadline = time.monotonic() + 20
+    while time.monotonic() < deadline:
+        readable, _, _ = select.select([master], [], [], 0.2)
+        if readable:
+            try:
+                data = os.read(master, 65536)
+            except OSError as exc:
+                if exc.errno != errno.EIO:
+                    raise
+                data = b""
+            if not data:
+                break
+            output.extend(data)
+        if b"press Enter to close displayed figures" in output and not sent_enter:
+            os.write(master, b"\n")
+            sent_enter = True
+        if b"BLOCK_DONE" in output:
+            break
+    return bytes(output), sent_enter
+
+
+def _reap_child(child: int) -> int:
+    waited, code = os.waitpid(child, os.WNOHANG)
+    until = time.monotonic() + 3
+    while waited == 0 and time.monotonic() < until:
+        time.sleep(0.05)
+        waited, code = os.waitpid(child, os.WNOHANG)
+    if waited == 0:
+        os.kill(child, signal.SIGKILL)
+        _, code = os.waitpid(child, 0)
+    return code
+
+
 def test_real_foreground_pty_blocking_show_and_scoped_close() -> None:
     child, master = pty.fork()
     if child == 0:
-        os.environ["TERM"] = "xterm-kitty"
-        os.environ["WSKR_SCALE"] = "0.5"
-        try:
-            os.execv(sys.executable, [sys.executable, "-c", _SCRIPT])
-        except OSError:
-            os._exit(127)
+        _exec_child()
 
-    output = bytearray()
+    output = b""
     sent_enter = False
-    status: int | None = None
-    deadline = time.monotonic() + 20
     try:
-        while time.monotonic() < deadline:
-            readable, _, _ = select.select([master], [], [], 0.2)
-            if readable:
-                try:
-                    data = os.read(master, 65536)
-                except OSError as exc:
-                    if exc.errno != errno.EIO:
-                        raise
-                    data = b""
-                if data:
-                    output.extend(data)
-                else:
-                    break
-            if b"press Enter to close displayed figures" in output and not sent_enter:
-                os.write(master, b"\n")
-                sent_enter = True
-            if b"BLOCK_DONE" in output:
-                break
+        output, sent_enter = _capture_until_done(master)
     finally:
-        # Allow the child to finish its normal Python cleanup before
-        # resorting to a forced kill; never leak a foreground PTY process.
-        waited, code = os.waitpid(child, os.WNOHANG)
-        until = time.monotonic() + 3
-        while waited == 0 and time.monotonic() < until:
-            time.sleep(0.05)
-            waited, code = os.waitpid(child, os.WNOHANG)
-        if waited == 0:
-            os.kill(child, signal.SIGKILL)
-            _, code = os.waitpid(child, 0)
-        status = code
+        status = _reap_child(child)
         os.close(master)
 
-    assert sent_enter, bytes(output[-2000:])
-    assert b"BLOCK_DONE" in output, bytes(output[-2000:])
-    assert b"a=T" in output or b"a=t" in output  # Native Kitty PNG upload
-    assert b"a=d,d=I" in output  # Explicit user close, not retained history
-    assert status is not None and os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0
+    assert sent_enter, output[-2000:]
+    assert b"BLOCK_DONE" in output, output[-2000:]
+    assert b"a=T" in output or b"a=t" in output
+    assert b"a=d,d=I" in output
+    assert os.WIFEXITED(status)
+    assert os.WEXITSTATUS(status) == 0
