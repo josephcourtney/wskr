@@ -1,13 +1,14 @@
+from __future__ import annotations
+
 import atexit
 import math
 import os
 import select
 import sys
-from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from io import BytesIO
 from time import monotonic
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import matplotlib as mpl
 from matplotlib import _api, interactive, is_interactive  # ruff: ignore[import-private-name]
@@ -20,15 +21,21 @@ from PIL import Image
 from wskr.core.errors import TransportUnavailableError
 from wskr.protocol import ImageProtocol, get_image_protocol
 from wskr.render.matplotlib.figure import TerminalFigure
-from wskr.render.matplotlib.sheet import contact_sheet
+from wskr.render.matplotlib.sheet import SheetPages, contact_sheet, plan_sheet_pages
 from wskr.render.matplotlib.theme import resolve_rc_defaults
 from wskr.terminal import TerminalCapabilities, probe_profile
 from wskr.terminal.profile import Geometry, read_geometry
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+
 
 _MAX_DISPLAY_SCALE = 8.0
 _RESIZE_POLL_SECONDS = 0.1
 _RESIZE_QUIET_SECONDS = 0.2
 _BLOCKING_PROMPT = "wskr: press Enter to close displayed figures: "
+_MIN_SHEET_MANAGERS = 2
+_LONG_PAGE_PROMPT_COLS = 51
 _EXIT_STATE = {"exiting": False}
 
 
@@ -107,41 +114,69 @@ def _display_scale() -> float:
     return scale if math.isfinite(scale) and 0 < scale <= _MAX_DISPLAY_SCALE else 1.0
 
 
-def _show_blocking_managers(managers: list[FigureManagerBase], geometry: Geometry | None) -> None:
-    """Use one nonoverlapping Kitty placement for fitted multi-figure output."""
+def _sheet_for_managers(
+    managers: list[FigureManagerBase], geometry: Geometry | None
+) -> tuple[list[WskrFigureManager | BaseFigureManager], list[FigureCanvasAgg], SheetPages] | None:
+    """Identify the bounded contact-sheet case without claiming other figures."""
     if (
-        len(managers) > 1
-        and geometry is not None
-        and os.getenv("WSKR_FIT", "").lower() == "contain"
-        and not is_interactive()
+        len(managers) < _MIN_SHEET_MANAGERS
+        or geometry is None
+        or os.getenv("WSKR_FIT", "").lower() != "contain"
+        or is_interactive()
     ):
-        owned = [manager for manager in managers if isinstance(manager, (WskrFigureManager, BaseFigureManager))]
-        if len(owned) == len(managers):
-            canvases = [canvas for manager in owned if isinstance(canvas := manager.canvas, FigureCanvasAgg)]
-            if len(canvases) == len(owned):
-                try:
-                    png = contact_sheet(canvases, geometry, scale=_display_scale())
-                except ValueError:
-                    pass  # Insufficient measured terminal space: preserve old path.
-                else:
-                    owned[0].transport.send_image(png)
-                    output = sys.stdout
-                    if output is not None:
-                        output.flush()
-                        os.write(output.fileno(), f"\x1b[{geometry.rows};1H".encode())
-                    return
+        return None
+    owned = [manager for manager in managers if isinstance(manager, (WskrFigureManager, BaseFigureManager))]
+    if len(owned) != len(managers):
+        return None
+    canvases = [canvas for manager in owned if isinstance(canvas := manager.canvas, FigureCanvasAgg)]
+    if len(canvases) != len(owned):
+        return None
+    try:
+        plan = plan_sheet_pages(len(canvases), geometry)
+    except ValueError:
+        return None
+    return owned, canvases, plan
+
+
+def _show_blocking_managers(
+    managers: list[FigureManagerBase], geometry: Geometry | None, *, page_index: int = 0
+) -> SheetPages | None:
+    """Render one fitted page as a single scoped image, or use legacy show."""
+    selection = _sheet_for_managers(managers, geometry)
+    if selection is not None and geometry is not None:
+        owned, canvases, plan = selection
+        subset = canvases[plan.page_slice(page_index)]
+        try:
+            png = contact_sheet(subset, geometry, scale=_display_scale(), columns=plan.columns)
+        except ValueError:
+            pass  # No usable measured pixels: preserve the original fallback.
+        else:
+            owned[0].transport.send_image(png)
+            output = sys.stdout
+            if output is not None:
+                output.flush()
+                os.write(output.fileno(), f"\x1b[{geometry.rows};1H".encode())
+            return plan
     for manager in managers:
         manager.show()
+    return None
 
 
-def _redraw_foreground_figures(managers: list[FigureManagerBase]) -> None:
-    """Repaint the owned alternate screen from the top after a stable resize.
+def _page_prompt(plan: SheetPages | None, index: int, geometry: Geometry | None) -> str:
+    if plan is None or plan.total_pages <= 1:
+        return _BLOCKING_PROMPT
+    page = min(index, plan.total_pages - 1) + 1
+    width = geometry.columns if geometry is not None else 80
+    choices = (
+        f"Page {page}/{plan.total_pages}: n/p + Enter, blank closes: "
+        if width >= _LONG_PAGE_PROMPT_COLS
+        else f"{page}/{plan.total_pages} n/p, Enter closes: "
+    )
+    return choices if len(choices) < width else f"{page}/{plan.total_pages}> "
 
-    The previous physical Kitty images are replaced by the managers' scoped
-    send_image operation. Clearing the *alternate* screen only is safe here:
-    no ordinary shell scrollback or separately owned primary-screen content
-    is touched.
-    """
+
+def _redraw_foreground_figures(managers: list[FigureManagerBase], *, page_index: int = 0) -> SheetPages | None:
+    """Repaint the owned alternate screen and its selected page after resize."""
     output = sys.stdout
     if output is None:
         msg = "Blocking resize redraw requires TTY stdout"
@@ -149,17 +184,18 @@ def _redraw_foreground_figures(managers: list[FigureManagerBase]) -> None:
     output.flush()
     os.write(output.fileno(), b"\x1b[H\x1b[2J")
     geometry = read_geometry()
-    _show_blocking_managers(managers, geometry)
-    print(_BLOCKING_PROMPT, end="", flush=True)
+    plan = _show_blocking_managers(managers, geometry, page_index=page_index)
+    print(_page_prompt(plan, page_index, geometry), end="", flush=True)
+    return plan
 
 
 def _wait_for_foreground_resize(managers: list[FigureManagerBase], start: Geometry | None) -> None:
-    """Wait for Enter and debounce viewport changes without signal handlers.
+    """Own canonical input; navigate fitted pages and debounce resize changes.
 
-    The foreground owner may poll a canonical TTY for complete lines; no
-    input is read until the terminal itself reports a completed line. Geometry
-    is passively read through TIOCGWINSZ, preserving third-party SIGWINCH
-    handlers and terminal modes. Only explicitly fitted blocking plots opt in.
+    A navigation command is a *completed line* (n/p followed by Enter);
+    bare Enter closes. No raw keyboard mode, signal handlers, or foreign
+    REPL input are touched. Resizing can change page capacity and clamps
+    the selection to the last valid page before repainting.
     """
     input_stream = sys.stdin
     if input_stream is None:
@@ -169,12 +205,25 @@ def _wait_for_foreground_resize(managers: list[FigureManagerBase], start: Geomet
     current = start
     pending: Geometry | None = None
     pending_since = 0.0
-    print(_BLOCKING_PROMPT, end="", flush=True)
+    index = 0
+    selection = _sheet_for_managers(managers, start)
+    plan = selection[2] if selection is not None else None
+    print(_page_prompt(plan, index, current), end="", flush=True)
+
     while True:
         readable, _, _ = select.select([fd], [], [], _RESIZE_POLL_SECONDS)
         if readable:
-            input()
-            return
+            line = input()
+            command = line.strip().lower() if isinstance(line, str) else ""
+            if command in {"", "q"}:
+                return
+            if plan is not None and plan.total_pages > 1 and command in {"n", "p"}:
+                offset = 1 if command == "n" else -1
+                index = (index + offset) % plan.total_pages
+                _redraw_foreground_figures(managers, page_index=index)
+            else:
+                print(_page_prompt(plan, index, current), end="", flush=True)
+            continue
 
         observed = read_geometry()
         if observed is None or observed == current:
@@ -187,7 +236,13 @@ def _wait_for_foreground_resize(managers: list[FigureManagerBase], start: Geomet
         if monotonic() - pending_since < _RESIZE_QUIET_SECONDS:
             continue
 
-        _redraw_foreground_figures(managers)
+        selection = _sheet_for_managers(managers, observed)
+        plan = selection[2] if selection is not None else None
+        index = min(index, plan.total_pages - 1) if plan is not None else 0
+        if plan is None:
+            _redraw_foreground_figures(managers)
+        else:
+            _redraw_foreground_figures(managers, page_index=index)
         current = observed
         pending = None
 

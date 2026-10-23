@@ -5,6 +5,7 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- Added bounded small-terminal figure paging for fitted blocking contact sheets, using measured viewport capacity, canonical n/p+Enter navigation, stable resize recomposition and scoped Kitty image cleanup.
 - Added measured-viewport contact-sheet composition for multiple figures during explicitly fitted blocking Matplotlib sessions, with nonoverlapping tiles, one scoped Kitty display, prompt space and resize-time recomposition.
 - Added passive, debounced terminal resize repainting for explicitly fitted foreground `show(block=True)` sessions, without installing signal handlers or modifying TTY input modes; the alternate screen and image ownership remain scoped.
 - Added opt-in `WSKR_FIT=contain` display-only PNG containment using freshly measured terminal pixels at each render; preserve figure `figsize`, DPI and normal exports and default native-size output.
