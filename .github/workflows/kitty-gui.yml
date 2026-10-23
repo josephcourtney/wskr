@@ -10,6 +10,7 @@ on:
       - ".github/scripts/phase2-kitty-gui.sh"
       - ".github/scripts/phase3-alt-screen-gui.sh"
       - ".github/scripts/phase3-multifigure-gui.sh"
+      - ".github/scripts/phase3-paging-gui.sh"
       - ".github/workflows/kitty-gui.yml"
   workflow_dispatch:
 
@@ -45,6 +46,18 @@ jobs:
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
         run: xvfb-run -a -s "-screen 0 1280x900x24" bash .github/scripts/phase3-multifigure-gui.sh
+      - name: Check paged foreground Kitty panels
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: xvfb-run -a -s "-screen 0 1280x900x24" bash .github/scripts/phase3-paging-gui.sh
+      - name: Upload paging screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase3-kitty-paging
+          path: ${{ runner.temp }}/wskr-phase3-paging/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload multi-figure screenshots
         if: always()
         uses: actions/upload-artifact@v4
