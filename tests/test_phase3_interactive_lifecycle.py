@@ -210,9 +210,12 @@ def test_alternate_screen_writes_mode_switch_on_real_pty(monkeypatch) -> None:
         with monkeypatch.context() as patch:
             patch.setattr(sys, "stdout", _Stream(slave))
             # The session must be balanced even after an exception.
-            with pytest.raises(ValueError, match="test failure"), core._temporary_terminal_screen():
+            def fail() -> None:
                 msg = "test failure"
                 raise ValueError(msg)
+
+            with pytest.raises(ValueError, match="test failure"), core._temporary_terminal_screen():
+                fail()
         assert os.read(master, 4096) == b"\x1b[?1049h\x1b[?1049l"
     finally:
         os.close(master)
