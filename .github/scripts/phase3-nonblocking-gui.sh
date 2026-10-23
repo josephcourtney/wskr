@@ -2,11 +2,12 @@
 # Verify live, event-pumped nonblocking resize with real Kitty raster screenshots.
 set -Eeuo pipefail
 
-out="${RUNNER_TEMP:-/tmp}/wskr-phase3-nonblocking"
+case_height="${WSKR_CASE_HEIGHT:-2}"
+out="${RUNNER_TEMP:-/tmp}/wskr-phase3-nonblocking-${case_height}"
 mkdir -p "$out"
-rm -f "$out/"{launch.ready,launch.proceed,initial.ready,resize.proceed,resized.ready,resized.proceed,finished,frames.json}
+rm -f "$out/"{launch.ready,launch.proceed,initial.ready,resize.proceed,resized.ready,resized.proceed,expanded.ready,expanded.proceed,finished,frames.json}
 log="$out/kitty.log"
-title="wskr-event-pump-acceptance"
+title="wskr-event-pump-${case_height}"
 
 WSKR_FIT=contain WSKR_GUI_LOG_DIR="$out" kitty --config NONE --title "$title" --hold \
   uv run python scripts/phase3_nonblocking_resize_smoke.py --directory "$out" >"$log" 2>&1 &
@@ -65,10 +66,14 @@ touch "$out/resize.proceed"
 await_marker resized.ready
 capture resized
 touch "$out/resized.proceed"
+xdotool windowsize --sync "$window" 1000 700
+await_marker expanded.ready
+capture expanded
+touch "$out/expanded.proceed"
 await_marker finished
 capture exited
 
-uv run python - "$out/initial.png" "$out/before_redraw.png" "$out/resized.png" "$out/exited.png" "$out/frames.json" <<'PY'
+uv run python - "$out/initial.png" "$out/before_redraw.png" "$out/resized.png" "$out/expanded.png" "$out/exited.png" "$out/frames.json" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -86,14 +91,15 @@ def counts(path):
     return {"red": red, "blue": blue}
 
 
-initial, before_redraw, resized, exited = (counts(path) for path in sys.argv[1:5])
-frames = json.loads(Path(sys.argv[5]).read_text(encoding="utf-8"))
-print("Kitty nonblocking visible colors:", initial, before_redraw, resized, exited)
+initial, before_redraw, resized, expanded, exited = (counts(path) for path in sys.argv[1:6])
+frames = json.loads(Path(sys.argv[6]).read_text(encoding="utf-8"))
+print("Kitty nonblocking visible colors:", initial, before_redraw, resized, expanded, exited)
 print("Measured fitted PNG frames:", frames)
-assert len(frames) == 2, "unstable resize uploaded too many or too few images"
+assert len(frames) == 3, "unstable resizing uploaded too many or too few images"
 assert frames[1]["viewport"][0] < frames[0]["viewport"][0] - 150, "actual window width did not shrink"
 assert frames[1]["raster"][0] < frames[0]["raster"][0] - 80, "redraw used stale PNG dimensions"
-for stage, colors in (("initial", initial), ("resized", resized), ("exited", exited)):
+assert frames[2]["raster"][0] > frames[1]["raster"][0] + 80, "expansion used stale PNG dimensions"
+for stage, colors in (("initial", initial), ("resized", resized), ("expanded", expanded), ("exited", exited)):
     assert min(colors.values()) > 800, f"{stage}: plotted red/blue bars not visible in Kitty"
 PY
 
