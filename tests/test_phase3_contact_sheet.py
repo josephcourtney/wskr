@@ -6,6 +6,7 @@ import os
 from io import BytesIO
 
 import pytest
+from matplotlib.backend_bases import FigureManagerBase
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 from PIL import Image
@@ -132,12 +133,9 @@ def test_unfitted_blocking_session_uses_individual_manager_show(monkeypatch) -> 
     monkeypatch.delenv("WSKR_FIT", raising=False)
     calls: list[int] = []
 
-    class Manager:
-        def __init__(self, number: int) -> None:
-            self.number = number
-
+    class Manager(FigureManagerBase):
         def show(self) -> None:
-            calls.append(self.number)
+            calls.append(self.num)
 
-    core._show_blocking_managers([Manager(1), Manager(2)], Geometry(25, 80, 800, 480))
+    core._show_blocking_managers([Manager(_canvas("red"), 1), Manager(_canvas("blue"), 2)], Geometry(25, 80, 800, 480))
     assert calls == [1, 2]
