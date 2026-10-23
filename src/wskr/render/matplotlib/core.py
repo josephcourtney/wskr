@@ -63,6 +63,29 @@ def _owns_foreground_terminal_input() -> bool:
         return False
 
 
+@contextmanager
+def _temporary_terminal_screen() -> Generator[None]:
+    """Isolate explicitly blocking graphics from the shell's scrollback.
+
+    Kitty's alternate-screen buffer is restored on exit. Deleting a graphics
+    placement alone removes its pixels, but cannot retract the terminal rows
+    underneath it; the alternate screen avoids leaving those empty rows in
+    the shell's primary screen. Never use this for nonblocking output.
+    """
+    output = sys.stdout
+    if output is None:
+        msg = "Cannot enter temporary screen without TTY stdout"
+        raise RuntimeError(msg)
+    output.flush()
+    fd = output.fileno()
+    os.write(fd, b"\x1b[?1049h")
+    try:
+        yield
+    finally:
+        output.flush()
+        os.write(fd, b"\x1b[?1049l")
+
+
 def render_figure_to_terminal(
     canvas: FigureCanvasAgg,
     transport: ImageProtocol,
@@ -262,15 +285,20 @@ class TerminalBackend(_Backend):
             msg = "Blocking terminal show requires foreground stdin and stdout on the same TTY"
             raise RuntimeError(msg)
 
-        for manager in managers:
-            manager.show()
         if block is True:
-            try:
-                input("wskr: press Enter to close displayed figures: ")
-            finally:
-                # This is deliberate interactive closure, not interpreter exit.
-                # Do not retain its images in Kitty history.
-                Gcf.destroy_all()
+            # The entire plot session, including its cleanup, belongs to the
+            # alternate screen. On return the shell regains its original text
+            # and cursor instead of a hole where the image used to be.
+            with _temporary_terminal_screen():
+                try:
+                    for manager in managers:
+                        manager.show()
+                    input("wskr: press Enter to close displayed figures: ")
+                finally:
+                    Gcf.destroy_all()
+        else:
+            for manager in managers:
+                manager.show()
 
 
 FigureCanvas = WskrFigureCanvas
