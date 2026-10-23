@@ -3,10 +3,10 @@ import math
 import os
 import select
 import sys
-from time import monotonic
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from io import BytesIO
+from time import monotonic
 from typing import Any
 
 import matplotlib as mpl
