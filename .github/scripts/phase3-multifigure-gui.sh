@@ -56,29 +56,28 @@ import sys
 from PIL import Image
 
 
-def counts(path):
+def positions(path):
     with Image.open(path) as image:
         raster = image.convert("RGB")
-        halves = [{"red": 0, "blue": 0}, {"red": 0, "blue": 0}]
+        points = {"red": [], "blue": []}
         for y in range(raster.height):
             for x in range(raster.width):
                 r, g, b = raster.getpixel((x, y))
-                slot = halves[int(x >= raster.width // 2)]
                 if r > 215 and g < 50 and b < 50:
-                    slot["red"] += 1
+                    points["red"].append(x)
                 if b > 215 and r < 50 and g < 50:
-                    slot["blue"] += 1
-        return halves
+                    points["blue"].append(x)
+        return points
 
 
-present = counts(sys.argv[1])
-restored = counts(sys.argv[2])
-print(f"contact sheet color separation: {present}; restored: {restored}")
-assert present[0]["red"] > 4000, "first/red figure not visible on left"
-assert present[1]["blue"] > 4000, "second/blue figure not visible on right"
-assert present[0]["blue"] < 40, "blue figure overlaps red figure"
-assert present[1]["red"] < 40, "red figure overlaps blue figure"
-assert sum(sum(half.values()) for half in restored) < 80, "figures remained after closing"
+present = positions(sys.argv[1])
+restored = positions(sys.argv[2])
+print("contact sheet:", {kind: (len(x), min(x) if x else None, max(x) if x else None) for kind, x in present.items()})
+print("restored:", {kind: len(x) for kind, x in restored.items()})
+assert len(present["red"]) > 4000, "first/red figure not visible"
+assert len(present["blue"]) > 4000, "second/blue figure not visible"
+assert max(present["red"]) + 2 < min(present["blue"]), "figures overlap or wrong horizontal order"
+assert sum(len(x) for x in restored.values()) < 80, "figures remained after closing"
 PY
 
 finish
