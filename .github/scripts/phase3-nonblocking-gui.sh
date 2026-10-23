@@ -8,7 +8,7 @@ rm -f "$out/"{launch.ready,launch.proceed,initial.ready,resize.proceed,resized.r
 log="$out/kitty.log"
 title="wskr-event-pump-acceptance"
 
-WSKR_FIT=contain kitty --config NONE --title "$title" --hold \
+WSKR_FIT=contain WSKR_GUI_LOG_DIR="$out" kitty --config NONE --title "$title" --hold \
   uv run python scripts/phase3_nonblocking_resize_smoke.py --directory "$out" >"$log" 2>&1 &
 pid=$!
 finish() {
@@ -28,6 +28,7 @@ await_marker() {
   done
   echo "Real Kitty nonblocking stage $marker did not finish:" >&2
   cat "$log" >&2
+  if [[ -s "$out/python-error.txt" ]]; then cat "$out/python-error.txt" >&2; fi
   exit 1
 }
 
