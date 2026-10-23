@@ -68,7 +68,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     from wskr.protocol.kitty_native import NativeKittyTransport  # ruff: ignore[import-outside-top-level]
 
     sent: list[dict[str, list[int]]] = []
-    send = NativeKittyTransport.send_image
+    send = NativeKittyTransport.send_anchored_image
 
     def record_send(transport: NativeKittyTransport, png: bytes) -> None:
         with Image.open(BytesIO(png)) as image:
@@ -84,7 +84,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         sent.append({"raster": list(size), "viewport": list(viewport)})
         (args.directory / "frames.json").write_text(json.dumps(sent), encoding="utf-8")
 
-    with patch.object(NativeKittyTransport, "send_image", record_send):
+    with patch.object(NativeKittyTransport, "send_anchored_image", record_send):
         fig = _make_figure()
         original = tuple(fig.get_size_inches()), fig.dpi
         plt.show(block=False)
