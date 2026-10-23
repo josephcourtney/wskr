@@ -24,12 +24,17 @@ def _canvas(color: str) -> FigureCanvasAgg:
 
 def _color_count(image: Image.Image, color: str, *, start: int, end: int) -> int:
     pixels = image.convert("RGB")
-    return sum(
-        1
-        for x in range(start, end, 3)
-        for y in range(0, pixels.height, 3)
-        if (r := pixels.getpixel((x, y)))[{"red": 0, "blue": 2}[color]] > 220 and r[1 if color == "red" else 0] < 70
-    )
+    raw = pixels.tobytes()
+    selected = 0
+    for x in range(start, end, 3):
+        for y in range(0, pixels.height, 3):
+            offset = (y * pixels.width + x) * 3
+            red, green, blue = raw[offset : offset + 3]
+            if color == "red" and red > 220 and green < 70:
+                selected += 1
+            elif color == "blue" and blue > 220 and red < 70:
+                selected += 1
+    return selected
 
 
 def test_contact_sheet_preserves_two_distinct_figures_without_overlap() -> None:
