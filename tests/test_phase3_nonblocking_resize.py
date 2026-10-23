@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import fcntl
+import os
+import struct
+import termios
 from io import BytesIO
 
 import pytest
@@ -169,3 +173,58 @@ def test_no_input_or_signal_ownership_during_event_pump(monkeypatch) -> None:
         assert len(transport.frames) == 2
     finally:
         manager.destroy()
+
+
+def test_real_pty_resize_is_observed_without_terminal_input(monkeypatch) -> None:
+    """Use the kernel's TIOCSWINSZ/TIOCGWINSZ path, not a mocked profile."""
+    initial = Geometry(24, 80, 800, 480)
+    changed = Geometry(20, 60, 200, 120)
+    current: list[Geometry | None] = [initial]
+    clock = [0.0]
+    master, slave = os.openpty()
+
+    class Output:
+        def isatty(self) -> bool:
+            return True
+
+        def fileno(self) -> int:
+            return slave
+
+        def flush(self) -> None:
+            pass
+
+    def set_geometry(value: Geometry) -> None:
+        fcntl.ioctl(
+            slave,
+            termios.TIOCSWINSZ,
+            struct.pack("HHHH", value.rows, value.columns, value.width_px, value.height_px),
+        )
+
+    try:
+        with monkeypatch.context() as patch:
+            patch.setenv("WSKR_FIT", "contain")
+            patch.setattr(core.sys, "stdout", Output())
+            patch.setattr(core, "monotonic", lambda: clock[0])
+            patch.setattr(core, "is_interactive", lambda: False)
+            patch.setattr("builtins.input", lambda *_args: pytest.fail("input consumed by event pump"))
+            transport = _Transport(current)
+            figure = Figure(figsize=(4, 3), dpi=100)
+            figure.subplots().plot([0, 1], [1, 2])
+            canvas = core.WskrFigureCanvas(figure)
+            manager = core.WskrFigureManager(canvas, 8111, transport_factory=lambda: transport)
+            try:
+                set_geometry(initial)
+                assert core.read_geometry() == initial
+                manager.show()
+                current[0] = changed
+                set_geometry(changed)
+                assert core.read_geometry() == changed
+                canvas.flush_events()
+                clock[0] = 0.25
+                canvas.flush_events()
+                assert [_pixels(png) for png in transport.frames] == [(400, 300), (160, 120)]
+            finally:
+                manager.destroy()
+    finally:
+        os.close(master)
+        os.close(slave)
