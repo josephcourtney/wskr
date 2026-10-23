@@ -109,26 +109,22 @@ def _display_scale() -> float:
 
 def _show_blocking_managers(managers: list[FigureManagerBase], geometry: Geometry | None) -> None:
     """Use one nonoverlapping Kitty placement for fitted multi-figure output."""
-    if (
-        len(managers) > 1
-        and geometry is not None
-        and os.getenv("WSKR_FIT", "").lower() == "contain"
-        and not is_interactive()
-        and all(isinstance(manager, (WskrFigureManager, BaseFigureManager)) for manager in managers)
-    ):
-        canvases = [manager.canvas for manager in managers]
-        if all(isinstance(canvas, FigureCanvasAgg) for canvas in canvases):
-            try:
-                png = contact_sheet(canvases, geometry, scale=_display_scale())
-            except ValueError:
-                pass  # Insufficient measured terminal space: preserve old path.
-            else:
-                managers[0].transport.send_image(png)
-                output = sys.stdout
-                if output is not None:
-                    output.flush()
-                    os.write(output.fileno(), f"\x1b[{geometry.rows};1H".encode())
-                return
+    if len(managers) > 1 and geometry is not None and os.getenv("WSKR_FIT", "").lower() == "contain" and not is_interactive():
+        owned = [manager for manager in managers if isinstance(manager, (WskrFigureManager, BaseFigureManager))]
+        if len(owned) == len(managers):
+            canvases = [canvas for manager in owned if isinstance(canvas := manager.canvas, FigureCanvasAgg)]
+            if len(canvases) == len(owned):
+                try:
+                    png = contact_sheet(canvases, geometry, scale=_display_scale())
+                except ValueError:
+                    pass  # Insufficient measured terminal space: preserve old path.
+                else:
+                    owned[0].transport.send_image(png)
+                    output = sys.stdout
+                    if output is not None:
+                        output.flush()
+                        os.write(output.fileno(), f"\x1b[{geometry.rows};1H".encode())
+                    return
     for manager in managers:
         manager.show()
 
