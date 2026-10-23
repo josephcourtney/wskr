@@ -11,6 +11,7 @@ on:
       - ".github/scripts/phase3-alt-screen-gui.sh"
       - ".github/scripts/phase3-multifigure-gui.sh"
       - ".github/scripts/phase3-paging-gui.sh"
+      - ".github/scripts/phase3-nonblocking-gui.sh"
       - ".github/workflows/kitty-gui.yml"
   workflow_dispatch:
 
@@ -33,7 +34,7 @@ jobs:
       - name: Install Kitty, Xvfb, and screenshot tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends kitty xvfb x11-apps imagemagick
+          sudo apt-get install -y -qq --no-install-recommends kitty xvfb x11-apps imagemagick xdotool
       - name: Render and inspect two native Kitty placements
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
@@ -50,6 +51,18 @@ jobs:
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
         run: xvfb-run -a -s "-screen 0 1280x900x24" bash .github/scripts/phase3-paging-gui.sh
+      - name: Check event-pumped nonblocking resized Kitty graphics
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: xvfb-run -a -s "-screen 0 1280x900x24" bash .github/scripts/phase3-nonblocking-gui.sh
+      - name: Upload nonblocking resize screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase3-kitty-nonblocking-resize
+          path: ${{ runner.temp }}/wskr-phase3-nonblocking/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload paging screenshots
         if: always()
         uses: actions/upload-artifact@v4
