@@ -38,7 +38,7 @@ defaults = resolve_rc_defaults(profile)
 print(profile.columns.value, profile.cell_width_px.source, defaults)
 ```
 
-Only backend-owned **initial** figure defaults can use measured terminal dimensions. Display does not change figure size or DPI; optional `WSKR_SCALE` rescales only the transmitted raster. Unattended automatic OSC color probing remains disabled without input ownership. Live-theme and window-resize orchestration remain Phase 3 work.
+Only backend-owned **initial** figure defaults can use measured terminal dimensions. Display never changes figure size or DPI. `WSKR_SCALE` changes only the transmitted raster; opt-in `WSKR_FIT=contain` constrains that raster to the attached terminal's **measured pixel viewport** at each display. With unknown pixel geometry, no fit is attempted. Unattended automatic OSC color probing remains disabled without input ownership. Resize-triggered redraw and placement remain Phase 3 work.
 
 ## Basic Matplotlib usage
 
@@ -61,6 +61,14 @@ MPLBACKEND=wskr_kitty uv run python example.py
 ```
 
 The explicit module path may also be selected as `module://wskr.render.matplotlib.kitty`. This is a terminal-display backend: normal `fig.savefig("plot.png")` and `fig.savefig("plot.svg")` remain the ordinary Matplotlib interfaces for files.
+
+To **fit oversized plots to the currently measured Kitty pixel viewport**, without changing Matplotlib `figsize`, `dpi` or file exports:
+
+```sh
+WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python example.py
+```
+
+The default (unset `WSKR_FIT`) remains native-size output. Fit preserves aspect ratio and does not upscale by itself. If `WSKR_SCALE` is also set, it applies first and containment caps the resulting size. The viewport is remeasured **on subsequent draws**; automatic redraw on a window resize is not implemented. A PNG fitting the viewport in pixel dimensions does not guarantee the terminal cursor is at the top or prevent existing scrollback from scrolling.
 
 **Current behavior:** displaying a figure preserves its `figsize`/`dpi` and ordinary `savefig` outputs. Multiple managers survive `show()`, explicit `plt.close()` removes owned terminal images, and ordinary noninteractive Kitty plots remain in terminal history after Python exits. `show(block=None|False)` returns promptly; an explicit `plt.show(block=True)` requires foreground input and output on the **same Kitty TTY**, displays the figures on a temporary alternate screen, waits for Enter, and then restores the prior terminal contents and closes managed figures **without leaving image-sized blank rows**. The native Kitty canvas supports guarded interactive `draw_idle` uploads. Run `WSKR_SCALE=0.4 just visual-smoke matplotlib` for display scaling and persistence. Responsive window resizing and richer REPL/pandas integration still require Phase 3 work.
 

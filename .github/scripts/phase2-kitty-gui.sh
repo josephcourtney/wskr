@@ -114,4 +114,54 @@ PY
 finish
 trap - EXIT
 
-echo "Native placement and post-process-exit persistent Kitty rendering passed."
+# A full-resolution user-owned figure (1800x1800) must be fit to the
+# *actual* pixel viewport with opt-in WSKR_FIT, not resized in Matplotlib.
+ready="$out/phase3-fit.ready"
+fit_file="$out/phase3-fit-dimensions.txt"
+log="$out/phase3-fit-kitty.log"
+rm -f "$ready" "$fit_file"
+WSKR_FIT=contain kitty --config NONE --title "wskr-phase3-fit" --hold \
+  uv run python scripts/phase3_exit_smoke.py --ready-file "$ready" --fit-file "$fit_file" >"$log" 2>&1 &
+pid=$!
+trap finish EXIT
+seen=0
+for _ in $(seq 1 120); do
+  if [[ -s "$ready" && -s "$fit_file" ]]; then
+    seen=1
+    break
+  fi
+  if ! kill -0 "$pid" 2>/dev/null; then
+    break
+  fi
+  sleep 0.25
+done
+if [[ "$seen" != 1 ]]; then
+  echo "Oversized figure not fitted against live Kitty geometry:" >&2
+  cat "$log" >&2
+  exit 1
+fi
+echo "phase3-fit real Kitty measured dimensions: $(cat "$fit_file")"
+sleep 0.7
+xwd -root -silent -out "$out/phase3-fit.xwd"
+convert "$out/phase3-fit.xwd" "$out/phase3-fit.png"
+uv run python - "$out/phase3-fit.png" <<'PY'
+import sys
+from PIL import Image
+
+counts = {"cyan": 0, "magenta": 0, "yellow": 0}
+with Image.open(sys.argv[1]) as source:
+    for red, green, blue in source.convert("RGB").getdata():
+        if red < 100 and green > 130 and blue > 130:
+            counts["cyan"] += 1
+        if red > 130 and green < 100 and blue > 130:
+            counts["magenta"] += 1
+        if red > 130 and green > 130 and blue < 100:
+            counts["yellow"] += 1
+print(f"phase3-fit: pixel colors={counts}")
+if min(counts.values()) < 40:
+    raise SystemExit("Contained Matplotlib bars missing from real Kitty capture")
+PY
+finish
+trap - EXIT
+
+echo "Native placement, persistent output and live-pixel viewport fit passed."

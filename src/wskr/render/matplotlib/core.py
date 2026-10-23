@@ -15,6 +15,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 from PIL import Image
 
+from wskr.core.errors import TransportUnavailableError
 from wskr.protocol import ImageProtocol, get_image_protocol
 from wskr.render.matplotlib.figure import TerminalFigure
 from wskr.render.matplotlib.theme import resolve_rc_defaults
@@ -102,19 +103,35 @@ def render_figure_to_terminal(
     display; that alone is not permission to overwrite the figure's explicit
     size. Figure-creation defaults are resolved separately by TerminalBackend.
 
-    The caps argument is retained for compatibility; viewport-driven
-    placement and resize notifications belong to later Phase 3 work.
+    An explicit WSKR_FIT=contain opt-in reads pixel geometry at each display
+    to contain the transmitted PNG without changing the figure. Automatic
+    resize-triggered redraw and placement changes belong to later Phase 3 work.
+    The caps argument is retained for compatibility.
     """
     buf = BytesIO()
     canvas.print_png(buf)
     png = buf.getvalue()
-    # An explicit display scale changes only the transmitted raster. In
-    # particular, it must not resize artists or alter ordinary savefig output.
+    # The display-only controls never touch Figure geometry, axes or savefig.
+    # Explicit WSKR_SCALE is applied before optional containment; WSKR_FIT
+    # requires actual attached-terminal pixel measurements, never guessed DPI.
     try:
         scale = float(os.getenv("WSKR_SCALE", "1.0"))
     except ValueError:
         scale = 1.0
-    if math.isfinite(scale) and 0 < scale <= _MAX_DISPLAY_SCALE and scale != 1:
+    if not math.isfinite(scale) or not 0 < scale <= _MAX_DISPLAY_SCALE:
+        scale = 1.0
+
+    if os.getenv("WSKR_FIT", "").lower() == "contain":
+        try:
+            viewport_w, viewport_h = transport.get_window_size_px()
+        except (OSError, TransportUnavailableError):
+            viewport_w, viewport_h = 0, 0
+        if viewport_w > 0 and viewport_h > 0:
+            source_w, source_h = canvas.get_width_height()
+            if source_w > 0 and source_h > 0:
+                scale = min(scale, viewport_w / source_w, viewport_h / source_h)
+
+    if scale != 1:
         with Image.open(BytesIO(png)) as original:
             width, height = original.size
             new_size = (max(1, round(width * scale)), max(1, round(height * scale)))
