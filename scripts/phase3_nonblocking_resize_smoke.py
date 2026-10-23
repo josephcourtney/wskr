@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
+import traceback
 from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -112,4 +114,9 @@ def main(argv: Sequence[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        if output_dir := os.getenv("WSKR_GUI_LOG_DIR"):
+            Path(output_dir, "python-error.txt").write_text(traceback.format_exc(), encoding="utf-8")
+        raise
