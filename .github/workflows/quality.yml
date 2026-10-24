@@ -60,6 +60,10 @@ jobs:
           tests/test_canvas.py
           tests/test_backend_profile_defaults.py
           tests/test_terminal_figure.py
+      - name: Build the distributable wheel
+        run: uv build --no-sources
+      - name: Qualify installed wheel backend selection and exports
+        run: uv run python scripts/phase0_wheel_smoke.py
       - name: Phase 2 protocol and PTY tests
         run: >-
           uv run pytest -q
