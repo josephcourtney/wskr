@@ -15,12 +15,13 @@ import argparse
 import json
 import os
 import platform
+import shutil
 import subprocess  # ruff: ignore[suspicious-subprocess-import] - fixed local subprocess argv
 import sys
 import time
 import traceback
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -227,7 +228,7 @@ def main() -> int:
         return 0
 
     directory = Path("artifacts/phase3-native-resize") / (
-        datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + f"-{args.mode}-h{args.height}"
+        datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + f"-{args.mode}-h{args.height}"
     )
     directory.mkdir(parents=True, exist_ok=False)
     print(f"Evidence directory: {directory}")
@@ -246,17 +247,21 @@ def main() -> int:
         check=False,
     )
     if completed.returncode:
-        print(f"FAILED: plotting child exited {completed.returncode}; see {directory}/error.txt", file=sys.stderr)
+        archive = shutil.make_archive(str(directory), "zip", root_dir=directory)
+        print(f"FAILED: plotting child exited {completed.returncode}; evidence: {archive}", file=sys.stderr)
         return 1
 
     report = _read_json(directory / "report.json")
     try:
         _visible(_capture(report, directory, "after_python_exit"))
     except (OSError, RuntimeError, AssertionError, subprocess.TimeoutExpired) as exc:
-        print(f"FAILED: post-exit persistence: {exc}", file=sys.stderr)
+        archive = shutil.make_archive(str(directory), "zip", root_dir=directory)
+        print(f"FAILED: post-exit persistence: {exc}; evidence: {archive}", file=sys.stderr)
         return 1
     _save(report, directory)
+    archive = shutil.make_archive(str(directory), "zip", root_dir=directory)
     print(f"PROTOCOL + SCREENSHOT PIXEL CHECKS PASSED: {directory}/report.json")
+    print(f"Evidence archive: {archive}")
     print("Review the five Kitty-window screenshots for correct placement, clipping and scrollback.")
     return 0
 
