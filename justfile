@@ -65,6 +65,10 @@ visual-smoke mode="matplotlib":
 native-resize mode="unmanaged" height="2":
   WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python scripts/phase3_native_macos_resize.py --mode '{{mode}}' --height {{height}}
 
+# Destructive diagnostic: removes scrollback in the test Kitty window.
+native-resize-clean mode="unmanaged" height="2":
+  WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python scripts/phase3_native_macos_resize.py --mode '{{mode}}' --height {{height}} --clean-scrollback
+
 # Complete validation plus isolated Kitty screenshots and one run-specific ZIP.
 evidence *args:
   uv run python scripts/phase1_evidence.py {{args}}

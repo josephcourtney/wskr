@@ -16,6 +16,18 @@ just native-resize yabai 2
 just native-resize yabai 6
 ```
 
+For the **clean-history diagnostic only**, launch a new disposable Kitty window and use:
+
+```sh
+just native-resize-clean unmanaged 2
+```
+
+**Warning:** This opt-in command erases the test window's visible text and
+scrollback immediately before the figure is displayed. Do not run it in a
+window whose history you want to retain. The normal `native-resize` command
+does **not** clear history. Compare a clean run with a normal run to determine
+whether existing terminal content and reflow affect placement.
+
 Run each case in a freshly opened window. For `unmanaged`, disable yabai
 management of that Kitty window; for `yabai`, use an actively managed Kitty
 window and resize it via yabai. **The mode argument labels evidence; it does
@@ -80,3 +92,30 @@ The first user-run **unmanaged** Kitty 0.49.2 test on macOS 27.0.1 reached a mea
 The original anchor may have moved into scrollback as the terminal row count fell from 68 to 18, with relative placements following their parent. This remains a **hypothesis**, not an established root cause. Real Kitty/Xvfb Linux acceptance had passed and remains distinct from this native Mac failure. [Tracking issue #31](https://github.com/josephcourtney/wskr/issues/31).
 
 Do not claim native macOS visual acceptance until resolved and rerun. For diagnostic reruns, preserve the expanded and post-exit stages even if the resized image disappears. The revised harness continues through both states after recording an earlier visual failure; it reports failure after collecting the complete archive.
+
+## Follow-up native macOS evidence, October 24, 2026
+
+The second unmanaged 9×2 run on Kitty 0.49.2, macOS 27.0.1, using PR #36's
+external prompts and persistent evidence collection, measured:
+
+| Stage | Viewport | Fitted raster | Red/blue chart pixels |
+| --- | --- | --- | --- |
+| Initial | 1638×1863, 117×69 cells | 900×200 | 42,183 / 55,917 |
+| Before redraw, after shrink | 686×432, 49×16 cells | original image | 0 / 0 |
+| After redraw | 686×432, 49×16 cells | **686×152** | **0 / 0** |
+| After expansion | 1316×945, 94×35 cells | 900×200 | 0 / 0, but captured image was almost entirely black |
+| After child Python exits | 1316×945, 94×35 cells | retained 900×200 | **42,183 / 55,917** |
+
+The image was not visible in the valid resized screenshot even though its
+correctly fitted bytes were sent; it **reappeared** after the plotting
+interpreter exited. This does not establish why visibility changed.
+The expanded-stage capture is invalid as evidence because 97.4% of the
+screenshot pixels were near-black, consistent with an incorrect window
+capture/picker overlay. The revised harness rejects/retries near-black
+screenshots and preserves invalid attempts with `.invalid-*.png` names.
+
+The **clean-scrollback** mode deliberately isolates reflow of pre-existing
+terminal text. It is only a diagnostic, not a claim that ordinary
+scrollback-rich REPL use is fixed. Do not close issue #31 based on a clean-only
+pass; separately qualify normal-history usage or explicitly document its
+scrollback semantics.
