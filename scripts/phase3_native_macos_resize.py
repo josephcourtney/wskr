@@ -33,6 +33,7 @@ from PIL import Image
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from matplotlib.figure import Figure
     from wskr.terminal.profile import Geometry
 
 
@@ -40,6 +41,10 @@ _VISIBLE_PIXELS = 800
 _MIN_START_WIDTH = 950
 _MAX_SMALL_WIDTH = 790
 _MIN_SMALL_HEIGHT = 320
+_MIN_START_HEIGHT = 650
+_MIN_RASTER_CHANGE = 80
+_RED_THRESHOLD = 215
+_OTHER_THRESHOLD = 55
 
 
 def _read_json(path: Path) -> dict:
@@ -55,8 +60,8 @@ def _colors(path: Path) -> dict[str, int]:
         pixels = np.asarray(source.convert("RGB"))
     r, g, b = pixels[:, :, 0], pixels[:, :, 1], pixels[:, :, 2]
     return {
-        "red": int(np.count_nonzero((r > 215) & (g < 55) & (b < 55))),
-        "blue": int(np.count_nonzero((b > 215) & (r < 55) & (g < 55))),
+        "red": int(np.count_nonzero((r > _RED_THRESHOLD) & (g < _OTHER_THRESHOLD) & (b < _OTHER_THRESHOLD))),
+        "blue": int(np.count_nonzero((b > _RED_THRESHOLD) & (r < _OTHER_THRESHOLD) & (g < _OTHER_THRESHOLD))),
     }
 
 
@@ -83,7 +88,7 @@ def _visible(stage: dict) -> None:
 
 
 def _geometry() -> Geometry:
-    from wskr.terminal.profile import read_geometry
+    from wskr.terminal.profile import read_geometry  # ruff: ignore[import-outside-top-level]
 
     geometry = read_geometry()
     if geometry is None or min(geometry.rows, geometry.columns, geometry.width_px, geometry.height_px) <= 0:
@@ -111,13 +116,24 @@ def _capture(report: dict, directory: Path, stage: str) -> dict:
     return result
 
 
-def _pump(figure: object, frames: list[dict], target: int) -> None:
+def _pump(figure: Figure, frames: list[dict], target: int) -> None:
     deadline = time.monotonic() + 5.0
     while len(frames) < target and time.monotonic() < deadline:
         figure.canvas.flush_events()
         time.sleep(0.05)
     if len(frames) != target:
         msg = f"Expected {target} fitted PNG uploads; observed {len(frames)}: {frames}"
+        raise AssertionError(msg)
+
+
+
+def _verify_source(figure: Figure, frames: list[dict], original: tuple[tuple[float, ...], float]) -> None:
+    initial, small, large = (frame["raster"] for frame in frames)
+    if not initial[0] - small[0] > _MIN_RASTER_CHANGE or not large[0] - small[0] > _MIN_RASTER_CHANGE:
+        msg = f"Expected real fitted raster shrink/re-expansion, got {frames}"
+        raise AssertionError(msg)
+    if (tuple(figure.get_size_inches()), figure.dpi) != original:
+        msg = "Source Matplotlib figure geometry or DPI was changed."
         raise AssertionError(msg)
 
 
@@ -150,7 +166,7 @@ def _worker(directory: Path, height: int, mode: str) -> None:
 
     _until_valid(
         "Enlarge Kitty to at least 950 physical pixels wide, then Enter: ",
-        lambda g: g.width_px >= _MIN_START_WIDTH and g.height_px >= 650,
+        lambda g: g.width_px >= _MIN_START_WIDTH and g.height_px >= _MIN_START_HEIGHT,
     )
 
     fig, ax = plt.subplots(figsize=(9, height), dpi=100)
@@ -191,13 +207,7 @@ def _worker(directory: Path, height: int, mode: str) -> None:
         _pump(fig, report["frames"], 3)
         _visible(_capture(report, directory, "expanded"))
 
-    initial, small, large = (frame["raster"] for frame in report["frames"])
-    if not initial[0] - small[0] > 80 or not large[0] - small[0] > 80:
-        msg = f"Expected real fitted raster shrink/re-expansion, got {report['frames']}"
-        raise AssertionError(msg)
-    if (tuple(fig.get_size_inches()), fig.dpi) != original:
-        msg = "Source Matplotlib figure geometry or DPI was changed."
-        raise AssertionError(msg)
+    _verify_source(fig, report["frames"], original)
     report["passed_protocol_checks"] = True
     _save(report, directory)
     print("Child rendering complete; plotting Python will exit now.", flush=True)
