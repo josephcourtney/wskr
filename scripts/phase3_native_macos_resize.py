@@ -49,6 +49,8 @@ _OTHER_THRESHOLD = 55
 _NEAR_BLACK_MAX = 15
 _MAX_BLANK_FRACTION = 0.95
 _SCREENSHOT_ATTEMPTS = 3
+_MAX_HISTORY_LINES = 200
+_HISTORY_PAYLOAD_WIDTH = 112
 
 
 def _read_json(path: Path) -> dict:
@@ -80,6 +82,25 @@ def _clear_scrollback() -> None:
     """Destructively reset scrollback only in the explicitly opted-in test."""
     sys.stdout.flush()
     os.write(sys.stdout.fileno(), b"\x1b[3J\x1b[2J\x1b[H")
+
+
+def _history_fixture(lines: int) -> str:
+    """Deterministic long lines that reflow after a narrow window resize."""
+    if not 0 <= lines <= _MAX_HISTORY_LINES:
+        msg = f"History fixture must contain 0-{_MAX_HISTORY_LINES} lines"
+        raise ValueError(msg)
+    return "".join(
+        f"WSKR_HISTORY_{index:04d} " + "=" * (_HISTORY_PAYLOAD_WIDTH - 18) + "\\n"
+        for index in range(lines)
+    )
+
+
+def _seed_history(lines: int) -> None:
+    """Populate only the disposable diagnostic terminal, before any figure."""
+    text = _history_fixture(lines)
+    if text:
+        sys.stdout.write(text)
+        sys.stdout.flush()
 
 
 def _screenshot(directory: Path, stage: str) -> dict:
@@ -179,7 +200,7 @@ def _verify_source(figure: Figure, frames: list[dict], original: tuple[tuple[flo
         raise AssertionError(msg)
 
 
-def _worker(directory: Path, height: int, mode: str, *, clean_scrollback: bool) -> None:
+def _worker(directory: Path, height: int, mode: str, *, clean_scrollback: bool, history_lines: int) -> None:
     import matplotlib as mpl  # ruff: ignore[import-outside-top-level]
 
     mpl.use("module://wskr.render.matplotlib.kitty")
@@ -196,6 +217,9 @@ def _worker(directory: Path, height: int, mode: str, *, clean_scrollback: bool) 
     report: dict = {
         "mode": mode,
         "clean_scrollback": clean_scrollback,
+        "history_lines": history_lines,
+        "history_line_width": _HISTORY_PAYLOAD_WIDTH,
+        "placement_contract": "terminal_history",
         "height_inches": height,
         "backend": backend,
         "macos": platform.mac_ver()[0],
@@ -215,6 +239,7 @@ def _worker(directory: Path, height: int, mode: str, *, clean_scrollback: bool) 
 
     if clean_scrollback:
         _clear_scrollback()
+    _seed_history(history_lines)
     fig, ax = plt.subplots(figsize=(9, height), dpi=100)
     ax.bar([1, 2], [3, 4], color=("red", "blue"))
     ax.set_title("wskr native macOS nonblocking resize")
@@ -270,8 +295,18 @@ def main() -> int:
         action="store_true",
         help="Erase terminal scrollback before display; use a disposable Kitty window",
     )
+    parser.add_argument(
+        "--history-lines",
+        type=int,
+        default=0,
+        help="Controlled long-line terminal history before plotting; requires --clean-scrollback",
+    )
     parser.add_argument("--directory", type=Path)
     args = parser.parse_args()
+    if not 0 <= args.history_lines <= _MAX_HISTORY_LINES:
+        parser.error(f"--history-lines must be between 0 and {_MAX_HISTORY_LINES}")
+    if args.history_lines and not args.clean_scrollback:
+        parser.error("--history-lines requires --clean-scrollback in a disposable Kitty window")
     if sys.platform != "darwin" or not sys.stdin.isatty() or not sys.stdout.isatty():
         parser.error("This acceptance test requires an interactive native macOS Kitty TTY.")
     if os.getenv("WSKR_FIT") != "contain":
@@ -283,7 +318,13 @@ def main() -> int:
         if args.directory is None:
             parser.error("--worker requires --directory")
         try:
-            _worker(args.directory, args.height, args.mode, clean_scrollback=args.clean_scrollback)
+            _worker(
+                args.directory,
+                args.height,
+                args.mode,
+                clean_scrollback=args.clean_scrollback,
+                history_lines=args.history_lines,
+            )
         except BaseException:
             (args.directory / "error.txt").write_text(traceback.format_exc(), encoding="utf-8")
             raise
@@ -293,6 +334,7 @@ def main() -> int:
         datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         + f"-{args.mode}-h{args.height}"
         + ("-clean" if args.clean_scrollback else "")
+        + (f"-history{args.history_lines}" if args.history_lines else "")
     )
     directory.mkdir(parents=True, exist_ok=False)
     print(f"Evidence directory: {directory}")
@@ -308,6 +350,7 @@ def main() -> int:
             "--directory",
             str(directory.resolve()),
             *(["--clean-scrollback"] if args.clean_scrollback else []),
+            *(["--history-lines", str(args.history_lines)] if args.history_lines else []),
         ],
         check=False,
     )
