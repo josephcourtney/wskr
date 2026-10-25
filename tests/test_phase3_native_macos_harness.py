@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from PIL import Image, ImageDraw
 
-from scripts.phase3_native_macos_resize import _colors, _record_visibility, _screenshot, _visible
+from scripts.phase3_native_macos_resize import _colors, _dialog, _record_visibility, _screenshot, _visible
 
 pytestmark = pytest.mark.medium
 
@@ -76,3 +76,41 @@ def test_visual_failures_are_recorded_without_aborting_remaining_stages() -> Non
         {"stage": "expanded", "screenshot": "expanded.png", "colors": {"red": 900, "blue": 900}},
     )
     assert len(report["visual_failures"]) == 1
+
+
+def test_resize_instructions_use_gui_without_tty_writes(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[list[str]] = []
+
+    def show_dialog(
+        argv: list[str],
+        *,
+        check: bool,
+        capture_output: bool,
+        text: bool,
+        timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        assert not check and capture_output and text and timeout == 180
+        return subprocess.CompletedProcess(argv, 0, stdout="button returned:Continue")
+
+    monkeypatch.setattr(subprocess, "run", show_dialog)
+    _dialog("Shrink Kitty")
+    assert len(calls) == 1
+    assert calls[0][:2] == ["/usr/bin/osascript", "-e"]
+    assert 'display dialog "Shrink Kitty"' in calls[0][2]
+
+
+def test_resize_dialog_cancellation_is_explicit(monkeypatch: pytest.MonkeyPatch) -> None:
+    def cancel_dialog(
+        argv: list[str],
+        *,
+        check: bool,
+        capture_output: bool,
+        text: bool,
+        timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(argv, 1, stdout="", stderr="User canceled")
+
+    monkeypatch.setattr(subprocess, "run", cancel_dialog)
+    with pytest.raises(RuntimeError, match="cancelled"):
+        _dialog("Shrink Kitty")
