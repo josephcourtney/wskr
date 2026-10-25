@@ -61,12 +61,12 @@ class LiveViewport:
         if output is None:
             msg = "Live viewport lost its terminal output"
             raise RuntimeError(msg)
-        output.flush()
-        os.write(output.fileno(), b"\x1b[H\x1b[2J")
         canvas = self._figure.canvas
         if not isinstance(canvas, FigureCanvasAgg):
             msg = "Live viewport requires an Agg Figure canvas"
             raise TypeError(msg)
+        output.flush()
+        os.write(output.fileno(), b"\x1b[H\x1b[2J")
         core.render_figure_to_terminal(canvas, self._transport)
         self._displayed = read_geometry()
         self._pending = None
@@ -127,13 +127,13 @@ def owned_viewport(
     try:
         factory = transport_factory or NativeKittyTransport
         transport = factory()
-        with core._temporary_terminal_screen():
-            session = LiveViewport(figure, transport)
-            try:
+        session = LiveViewport(figure, transport)
+        try:
+            with core._temporary_terminal_screen():
                 session.refresh()
                 yield session
-            finally:
-                session._finish()
+        finally:
+            session._finish()
     finally:
         core._BLOCKING_RENDER.reset(token)
         _OWNER_LOCK.release()
