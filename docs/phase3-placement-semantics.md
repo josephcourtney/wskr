@@ -47,9 +47,13 @@ placement that has moved out of view has become a viewport-following plot.
   absent from the shrunk viewport; post-exit screenshot shows it again.
 - macOS Kitty 0.49.2 **cleaned scrollback** 9×2: the image remains visible
   after shrink, expansion, and interpreter exit.
-- The contrast suggests that history/reflow matters, but a controlled test
-  is needed to isolate a text-history effect from unrelated window/session
-  differences. It does not prove Kitty has a bug.
+- A controlled native 9×2 comparison using the same Kitty environment,
+  cleared initial scrollback, and either 0 or 96 deterministic 112-column
+  history lines now **reproduces history-dependent visibility**: the clean
+  figure stays visible during fitting, while the seeded-history figure leaves
+  the narrow viewport and returns when the window expands. This does not
+  establish a Kitty implementation bug or the exact internal location of
+  the anchor.
 
 Issue: <https://github.com/josephcourtney/wskr/issues/31>.
 
