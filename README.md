@@ -106,6 +106,37 @@ A transport is not considered supported merely because it is registered. The fut
 | [POLICY.md](POLICY.md) | Authoritative document/history policy |
 | [AGENTS.md](AGENTS.md) | Contributor instructions specific to wskr |
 
+## Experimental foreground-owned live viewport
+
+For an application that **owns** Kitty's foreground terminal, the opt-in
+`owned_viewport` context manager provides a live, viewport-positioned plot
+without moving historical inline images or consuming shell/REPL input:
+
+```python
+import time
+import matplotlib.pyplot as plt
+from wskr.render.matplotlib.live import owned_viewport
+
+fig, ax = plt.subplots()
+line, = ax.plot([0, 1, 2], [0, 1, 0])
+with owned_viewport(fig) as screen:
+    for i in range(40):
+        line.set_ydata([0, (i % 10) / 10, 0])
+        screen.refresh()
+        screen.poll_resize()
+        time.sleep(0.1)
+```
+
+Run inside Kitty with `WSKR_FIT=contain MPLBACKEND=wskr_kitty`. This
+experimental session requires foreground stdin/stdout on the same TTY,
+enters the alternate screen, and **restores the previous screen when
+it exits**; its plots do not persist in shell history. Call
+`screen.poll_resize()` repeatedly in your application loop to debounce
+resizing; no hidden background loop or automatic idle redraw is started.
+Do not use it inside an IPython/REPL session that owns the terminal.
+Native live-viewport GUI acceptance remains pending. See
+[ADR-004](docs/adr/0004-explicit-owned-viewport.md).
+
 ## Native macOS Kitty resize acceptance
 
 Run `just native-resize unmanaged 2` from a fresh Kitty window, and repeat for heights 6 and for yabai-managed Kitty. The local screenshot harness requires an actual under-790-pixel-wide viewport and captures selected Kitty-window screenshots, without pasting source into terminal scrollback. See [native Phase 3 qualification procedure](docs/phase3-native-macos-acceptance.md). This test must be performed locally; a successful hosted run is not native macOS GUI signoff.
