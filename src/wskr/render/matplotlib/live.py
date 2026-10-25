@@ -111,7 +111,7 @@ def owned_viewport(
     input, read stdin, change user Figure dimensions, or retain images after
     the owned session ends. Normal pyplot history output is unchanged.
     """
-    if not core._owns_foreground_terminal_input():
+    if not core._owns_foreground_terminal_input():  # ruff: ignore[private-member-access] - shared ownership gate
         msg = "Live viewport requires foreground stdin and stdout on the same TTY"
         raise RuntimeError(msg)
     if os.getenv("WSKR_FIT", "").lower() != "contain":
@@ -123,17 +123,17 @@ def owned_viewport(
     if not _OWNER_LOCK.acquire(blocking=False):
         msg = "A live viewport already owns this process's terminal graphics"
         raise RuntimeError(msg)
-    token = core._BLOCKING_RENDER.set(True)
+    token = core._BLOCKING_RENDER.set(True)  # ruff: ignore[private-member-access] - suppress history redraw
     try:
         factory = transport_factory or NativeKittyTransport
         transport = factory()
         session = LiveViewport(figure, transport)
         try:
-            with core._temporary_terminal_screen():
+            with core._temporary_terminal_screen():  # ruff: ignore[private-member-access] - scoped screen
                 session.refresh()
                 yield session
         finally:
-            session._finish()
+            session._finish()  # ruff: ignore[private-member-access] - only owner closes
     finally:
-        core._BLOCKING_RENDER.reset(token)
+        core._BLOCKING_RENDER.reset(token)  # ruff: ignore[private-member-access] - restore token
         _OWNER_LOCK.release()
