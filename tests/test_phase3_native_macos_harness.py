@@ -8,7 +8,15 @@ from pathlib import Path
 import pytest
 from PIL import Image, ImageDraw
 
-from scripts.phase3_native_macos_resize import _clear_scrollback, _colors, _dialog, _mostly_black, _record_visibility, _screenshot, _visible
+from scripts.phase3_native_macos_resize import (
+    _clear_scrollback,
+    _colors,
+    _dialog,
+    _mostly_black,
+    _record_visibility,
+    _screenshot,
+    _visible,
+)
 
 pytestmark = pytest.mark.medium
 
@@ -128,9 +136,7 @@ def test_black_screenshot_is_invalid(tmp_path: Path) -> None:
     assert not _mostly_black(bars)
 
 
-def test_black_screenshot_retries_without_accepting_zero_bars(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_black_screenshot_retries_without_accepting_zero_bars(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     attempts = [0]
     prompts: list[str] = []
 
