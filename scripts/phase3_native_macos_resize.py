@@ -1,0 +1,265 @@
+"""Native macOS Kitty window-resize acceptance; explicitly requires visual screenshots.
+
+Run in a fresh Kitty window:
+    WSKR_FIT=contain uv run python scripts/phase3_native_macos_resize.py --mode unmanaged --height 2
+
+Only the selected Kitty *window* is captured. Screen Recording permission
+may be required. The parent process captures the retained image after the
+plotting child interpreter exits; no editor, heredoc, or pasted source code
+is displayed inside the terminal.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import platform
+import subprocess  # ruff: ignore[suspicious-subprocess-import] - fixed local subprocess argv
+import sys
+import time
+import traceback
+from dataclasses import asdict
+from datetime import datetime, timezone
+from io import BytesIO
+from pathlib import Path
+from typing import TYPE_CHECKING
+from unittest.mock import patch
+
+import numpy as np
+from PIL import Image
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from wskr.terminal.profile import Geometry
+
+
+_VISIBLE_PIXELS = 800
+_MIN_START_WIDTH = 950
+_MAX_SMALL_WIDTH = 790
+_MIN_SMALL_HEIGHT = 320
+
+
+def _read_json(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _save(report: dict, directory: Path) -> None:
+    (directory / "report.json").write_text(json.dumps(report, indent=2, default=str) + "\n", encoding="utf-8")
+
+
+def _colors(path: Path) -> dict[str, int]:
+    with Image.open(path) as source:
+        pixels = np.asarray(source.convert("RGB"))
+    r, g, b = pixels[:, :, 0], pixels[:, :, 1], pixels[:, :, 2]
+    return {
+        "red": int(np.count_nonzero((r > 215) & (g < 55) & (b < 55))),
+        "blue": int(np.count_nonzero((b > 215) & (r < 55) & (g < 55))),
+    }
+
+
+def _screenshot(directory: Path, stage: str) -> dict:
+    path = directory / f"{stage}.png"
+    print(f"Screenshot {stage}: click the Kitty window to capture it.", flush=True)
+    completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed argv
+        ["/usr/sbin/screencapture", "-x", "-i", "-w", "-o", str(path)],
+        check=False,
+        timeout=180,
+    )
+    if completed.returncode or not path.is_file():
+        msg = f"Kitty-window screenshot failed or was cancelled ({stage}). Check Screen Recording permission."
+        raise RuntimeError(msg)
+    result = {"stage": stage, "screenshot": str(path), "colors": _colors(path)}
+    print(f"{stage}: red={result['colors']['red']}, blue={result['colors']['blue']}", flush=True)
+    return result
+
+
+def _visible(stage: dict) -> None:
+    if min(stage["colors"].values()) < _VISIBLE_PIXELS:
+        msg = f"{stage['stage']}: red and blue bars are not both visible; see {stage['screenshot']}"
+        raise AssertionError(msg)
+
+
+def _geometry() -> Geometry:
+    from wskr.terminal.profile import read_geometry
+
+    geometry = read_geometry()
+    if geometry is None or min(geometry.rows, geometry.columns, geometry.width_px, geometry.height_px) <= 0:
+        msg = "Attached Kitty did not report valid cell and pixel geometry."
+        raise RuntimeError(msg)
+    return geometry
+
+
+def _until_valid(prompt: str, predicate: Callable[[Geometry], bool]) -> Geometry:
+    for _ in range(6):
+        geometry = _geometry()
+        print(f"Kitty geometry: {geometry.columns}x{geometry.rows} cells, {geometry.width_px}x{geometry.height_px} px")
+        if predicate(geometry):
+            return geometry
+        input(prompt)
+    msg = "Requested window geometry was not reached after six attempts."
+    raise RuntimeError(msg)
+
+
+def _capture(report: dict, directory: Path, stage: str) -> dict:
+    result = _screenshot(directory, stage)
+    result["geometry"] = asdict(_geometry())
+    report["stages"].append(result)
+    _save(report, directory)
+    return result
+
+
+def _pump(figure: object, frames: list[dict], target: int) -> None:
+    deadline = time.monotonic() + 5.0
+    while len(frames) < target and time.monotonic() < deadline:
+        figure.canvas.flush_events()
+        time.sleep(0.05)
+    if len(frames) != target:
+        msg = f"Expected {target} fitted PNG uploads; observed {len(frames)}: {frames}"
+        raise AssertionError(msg)
+
+
+def _worker(directory: Path, height: int, mode: str) -> None:
+    import matplotlib as mpl  # ruff: ignore[import-outside-top-level]
+
+    mpl.use("module://wskr.render.matplotlib.kitty")
+    import matplotlib.pyplot as plt  # ruff: ignore[import-outside-top-level]
+
+    from wskr.protocol.kitty_native import NativeKittyTransport  # ruff: ignore[import-outside-top-level]
+
+    plt.ioff()
+    backend = str(plt.get_backend())
+    if backend.lower() != "module://wskr.render.matplotlib.kitty":
+        msg = f"Wrong Matplotlib backend: {backend}"
+        raise RuntimeError(msg)
+
+    report: dict = {
+        "mode": mode,
+        "height_inches": height,
+        "backend": backend,
+        "macos": platform.mac_ver()[0],
+        "kitty_version": os.getenv("KITTY_VERSION", "unknown"),
+        "stages": [],
+        "frames": [],
+        "passed_protocol_checks": False,
+        "visual_review_required": True,
+    }
+    _save(report, directory)
+
+    _until_valid(
+        "Enlarge Kitty to at least 950 physical pixels wide, then Enter: ",
+        lambda g: g.width_px >= _MIN_START_WIDTH and g.height_px >= 650,
+    )
+
+    fig, ax = plt.subplots(figsize=(9, height), dpi=100)
+    ax.bar([1, 2], [3, 4], color=("red", "blue"))
+    ax.set_title("wskr native macOS nonblocking resize")
+    original = (tuple(fig.get_size_inches()), fig.dpi)
+    send = NativeKittyTransport.send_anchored_image
+
+    def record(transport: NativeKittyTransport, png: bytes) -> None:
+        with Image.open(BytesIO(png)) as image:
+            size = image.size
+        geometry = _geometry()
+        if not 0 < size[0] <= geometry.width_px or not 0 < size[1] <= geometry.height_px:
+            msg = f"Raster {size} exceeds viewport {geometry}"
+            raise AssertionError(msg)
+        send(transport, png)
+        report["frames"].append({"raster": list(size), "geometry": asdict(geometry)})
+        _save(report, directory)
+
+    with patch.object(NativeKittyTransport, "send_anchored_image", record):
+        plt.show(block=False)
+        if len(report["frames"]) != 1:
+            msg = f"Expected initial anchored frame: {report['frames']}"
+            raise AssertionError(msg)
+        _visible(_capture(report, directory, "initial"))
+
+        input("Shrink Kitty below 790 px W but keep at least 320 px H; press Enter: ")
+        _until_valid(
+            "Shrink farther (under 790 px W, at least 320 px H), then Enter: ",
+            lambda g: g.width_px < _MAX_SMALL_WIDTH and g.height_px >= _MIN_SMALL_HEIGHT,
+        )
+        _capture(report, directory, "before_redraw")
+        _pump(fig, report["frames"], 2)
+        _visible(_capture(report, directory, "resized"))
+
+        input("Expand Kitty back above 950 px wide; press Enter: ")
+        _until_valid("Expand Kitty beyond 950 px W, then Enter: ", lambda g: g.width_px >= _MIN_START_WIDTH)
+        _pump(fig, report["frames"], 3)
+        _visible(_capture(report, directory, "expanded"))
+
+    initial, small, large = (frame["raster"] for frame in report["frames"])
+    if not initial[0] - small[0] > 80 or not large[0] - small[0] > 80:
+        msg = f"Expected real fitted raster shrink/re-expansion, got {report['frames']}"
+        raise AssertionError(msg)
+    if (tuple(fig.get_size_inches()), fig.dpi) != original:
+        msg = "Source Matplotlib figure geometry or DPI was changed."
+        raise AssertionError(msg)
+    report["passed_protocol_checks"] = True
+    _save(report, directory)
+    print("Child rendering complete; plotting Python will exit now.", flush=True)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--mode", choices=("unmanaged", "yabai"), required=True)
+    parser.add_argument("--height", type=int, choices=(2, 6), required=True)
+    parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--directory", type=Path)
+    args = parser.parse_args()
+    if sys.platform != "darwin" or not sys.stdin.isatty() or not sys.stdout.isatty():
+        parser.error("This acceptance test requires an interactive native macOS Kitty TTY.")
+    if os.getenv("WSKR_FIT") != "contain":
+        parser.error("Set WSKR_FIT=contain to qualify fitted Kitty rendering.")
+    if not (os.getenv("KITTY_WINDOW_ID") or os.getenv("TERM") == "xterm-kitty"):
+        parser.error("Run this test inside a real Kitty window (not a non-Kitty terminal).")
+
+    if args.worker:
+        if args.directory is None:
+            parser.error("--worker requires --directory")
+        try:
+            _worker(args.directory, args.height, args.mode)
+        except BaseException:
+            (args.directory / "error.txt").write_text(traceback.format_exc(), encoding="utf-8")
+            raise
+        return 0
+
+    directory = Path("artifacts/phase3-native-resize") / (
+        datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + f"-{args.mode}-h{args.height}"
+    )
+    directory.mkdir(parents=True, exist_ok=False)
+    print(f"Evidence directory: {directory}")
+    completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - direct child, inherited TTY
+        [
+            sys.executable,
+            str(Path(__file__).resolve()),
+            "--worker",
+            "--mode",
+            args.mode,
+            "--height",
+            str(args.height),
+            "--directory",
+            str(directory.resolve()),
+        ],
+        check=False,
+    )
+    if completed.returncode:
+        print(f"FAILED: plotting child exited {completed.returncode}; see {directory}/error.txt", file=sys.stderr)
+        return 1
+
+    report = _read_json(directory / "report.json")
+    try:
+        _visible(_capture(report, directory, "after_python_exit"))
+    except (OSError, RuntimeError, AssertionError, subprocess.TimeoutExpired) as exc:
+        print(f"FAILED: post-exit persistence: {exc}", file=sys.stderr)
+        return 1
+    _save(report, directory)
+    print(f"PROTOCOL + SCREENSHOT PIXEL CHECKS PASSED: {directory}/report.json")
+    print("Review the five Kitty-window screenshots for correct placement, clipping and scrollback.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
