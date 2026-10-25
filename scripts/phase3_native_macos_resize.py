@@ -88,6 +88,15 @@ def _visible(stage: dict) -> None:
         raise AssertionError(msg)
 
 
+def _record_visibility(report: dict, stage: dict) -> None:
+    """Record a visual failure and keep running to capture recovery evidence."""
+    try:
+        _visible(stage)
+    except AssertionError as exc:
+        report.setdefault("visual_failures", []).append(str(exc))
+        print(f"VISUAL FAILURE (continuing to capture expansion and exit): {exc}", file=sys.stderr, flush=True)
+
+
 def _geometry() -> Geometry:
     from wskr.terminal.profile import read_geometry  # ruff: ignore[import-outside-top-level]
 
@@ -159,6 +168,7 @@ def _worker(directory: Path, height: int, mode: str) -> None:
         "kitty_version": os.getenv("KITTY_VERSION", "unknown"),
         "stages": [],
         "frames": [],
+        "visual_failures": [],
         "passed_protocol_checks": False,
         "visual_review_required": True,
     }
@@ -191,7 +201,7 @@ def _worker(directory: Path, height: int, mode: str) -> None:
         if len(report["frames"]) != 1:
             msg = f"Expected initial anchored frame: {report['frames']}"
             raise AssertionError(msg)
-        _visible(_capture(report, directory, "initial"))
+        _record_visibility(report, _capture(report, directory, "initial"))
 
         input("Shrink Kitty below 790 px W but keep at least 320 px H; press Enter: ")
         _until_valid(
@@ -200,12 +210,12 @@ def _worker(directory: Path, height: int, mode: str) -> None:
         )
         _capture(report, directory, "before_redraw")
         _pump(fig, report["frames"], 2)
-        _visible(_capture(report, directory, "resized"))
+        _record_visibility(report, _capture(report, directory, "resized"))
 
         input("Expand Kitty back above 950 px wide; press Enter: ")
         _until_valid("Expand Kitty beyond 950 px W, then Enter: ", lambda g: g.width_px >= _MIN_START_WIDTH)
         _pump(fig, report["frames"], 3)
-        _visible(_capture(report, directory, "expanded"))
+        _record_visibility(report, _capture(report, directory, "expanded"))
 
     _verify_source(fig, report["frames"], original)
     report["passed_protocol_checks"] = True
@@ -263,13 +273,16 @@ def main() -> int:
 
     report = _read_json(directory / "report.json")
     try:
-        _visible(_capture(report, directory, "after_python_exit"))
-    except (OSError, RuntimeError, AssertionError, subprocess.TimeoutExpired) as exc:
+        _record_visibility(report, _capture(report, directory, "after_python_exit"))
+    except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
         archive = shutil.make_archive(str(directory), "zip", root_dir=directory)
         print(f"FAILED: post-exit persistence: {exc}; evidence: {archive}", file=sys.stderr)
         return 1
     _save(report, directory)
     archive = shutil.make_archive(str(directory), "zip", root_dir=directory)
+    if report.get("visual_failures"):
+        print(f"FAILED VISUAL ACCEPTANCE: {len(report['visual_failures'])} stage(s); evidence: {archive}", file=sys.stderr)
+        return 1
     print(f"PROTOCOL + SCREENSHOT PIXEL CHECKS PASSED: {directory}/report.json")
     print(f"Evidence archive: {archive}")
     print("Review the five Kitty-window screenshots for correct placement, clipping and scrollback.")
