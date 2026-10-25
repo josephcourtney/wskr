@@ -12,6 +12,7 @@ on:
       - ".github/scripts/phase3-multifigure-gui.sh"
       - ".github/scripts/phase3-paging-gui.sh"
       - ".github/scripts/phase3-nonblocking-gui.sh"
+      - ".github/scripts/phase3-owned-live-gui.sh"
       - ".github/workflows/kitty-gui.yml"
   workflow_dispatch:
 
@@ -61,6 +62,18 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: "1"
           WSKR_CASE_HEIGHT: "6"
         run: xvfb-run -a -s "-screen 0 1280x900x24" bash .github/scripts/phase3-nonblocking-gui.sh
+      - name: Qualify exclusively owned live viewport in real Kitty
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: xvfb-run -a -s "-screen 0 1280x900x24" bash .github/scripts/phase3-owned-live-gui.sh
+      - name: Upload owned live viewport screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase3-kitty-owned-live
+          path: ${{ runner.temp }}/wskr-phase3-owned-live/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload nonblocking resize screenshots
         if: always()
         uses: actions/upload-artifact@v4
