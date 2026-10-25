@@ -133,6 +133,7 @@ def test_owned_live_rejects_unowned_or_unfitted_terminal(monkeypatch: pytest.Mon
 
 def test_nested_owned_session_is_rejected_without_clobbering_screen(monkeypatch: pytest.MonkeyPatch) -> None:
     _geometry, transport, writes = _session(monkeypatch)
+
     def attempt_nested_owner() -> None:
         with (
             pytest.raises(RuntimeError, match="already owns"),
