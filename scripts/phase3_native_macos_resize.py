@@ -79,7 +79,7 @@ def _mostly_black(path: Path) -> bool:
 def _clear_scrollback() -> None:
     """Destructively reset scrollback only in the explicitly opted-in test."""
     sys.stdout.flush()
-    os.write(sys.stdout.fileno(), b"\\x1b[3J\\x1b[2J\\x1b[H")
+    os.write(sys.stdout.fileno(), b"\x1b[3J\x1b[2J\x1b[H")
 
 
 def _screenshot(directory: Path, stage: str) -> dict:
