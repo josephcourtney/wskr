@@ -5,6 +5,7 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- Added experimental `owned_viewport(fig)` for foreground-owned live Kitty applications. It explicitly acquires an alternate screen, permits application-driven refresh and debounced resize polling, restores shell history on exit and leaves nonblocking historical Matplotlib output unchanged. Hosted real-Kitty graphical shrink/expand/restore acceptance passes; native macOS/yabai remains pending.
 - Added debounced event-pumped fitted nonblocking redraw through `flush_events()` and `plt.pause()`, with persistent Kitty-relative image anchoring (Kitty 0.31+). Hosted real-Kitty screenshots verify short/tall figures through window shrink, expansion and interpreter exit without consuming terminal input.
 - Added bounded small-terminal figure paging for fitted blocking contact sheets, using measured viewport capacity, canonical n/p+Enter navigation, stable resize recomposition and scoped Kitty image cleanup.
 - Added measured-viewport contact-sheet composition for multiple figures during explicitly fitted blocking Matplotlib sessions, with nonoverlapping tiles, one scoped Kitty display, prompt space and resize-time recomposition.

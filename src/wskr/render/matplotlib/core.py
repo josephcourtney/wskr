@@ -402,7 +402,7 @@ class WskrFigureCanvas(FigureCanvasAgg):
             if not do_draw:
                 return
             super().draw()
-            if is_interactive() and self.figure.get_axes() and self.manager is not None:
+            if is_interactive() and not _BLOCKING_RENDER.get() and self.figure.get_axes() and self.manager is not None:
                 self.manager.show()
 
     draw_idle = draw
@@ -414,6 +414,8 @@ class WskrFigureCanvas(FigureCanvasAgg):
         resize redraws only an already displayed figure, using the guarded
         interactive draw when interactive mode is enabled.
         """
+        if _BLOCKING_RENDER.get():
+            return
         manager = self.manager
         if manager is None:
             return
