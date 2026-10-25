@@ -265,7 +265,11 @@ def main() -> int:
     parser.add_argument("--mode", choices=("unmanaged", "yabai"), required=True)
     parser.add_argument("--height", type=int, choices=(2, 6), required=True)
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument("--clean-scrollback", action="store_true", help="Erase terminal scrollback before display; use a disposable Kitty window")
+    parser.add_argument(
+        "--clean-scrollback",
+        action="store_true",
+        help="Erase terminal scrollback before display; use a disposable Kitty window",
+    )
     parser.add_argument("--directory", type=Path)
     args = parser.parse_args()
     if sys.platform != "darwin" or not sys.stdin.isatty() or not sys.stdout.isatty():
@@ -286,7 +290,9 @@ def main() -> int:
         return 0
 
     directory = Path("artifacts/phase3-native-resize") / (
-        datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + f"-{args.mode}-h{args.height}" + ("-clean" if args.clean_scrollback else "")
+        datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        + f"-{args.mode}-h{args.height}"
+        + ("-clean" if args.clean_scrollback else "")
     )
     directory.mkdir(parents=True, exist_ok=False)
     print(f"Evidence directory: {directory}")
