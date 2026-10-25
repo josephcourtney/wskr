@@ -46,6 +46,9 @@ _MIN_START_HEIGHT = 650
 _MIN_RASTER_CHANGE = 80
 _RED_THRESHOLD = 215
 _OTHER_THRESHOLD = 55
+_NEAR_BLACK_MAX = 15
+_MAX_BLANK_FRACTION = 0.95
+_SCREENSHOT_ATTEMPTS = 3
 
 
 def _read_json(path: Path) -> dict:
@@ -66,17 +69,37 @@ def _colors(path: Path) -> dict[str, int]:
     }
 
 
+def _mostly_black(path: Path) -> bool:
+    """Identify invalid black captures, not ordinary dark terminal backgrounds."""
+    with Image.open(path) as source:
+        pixels = np.asarray(source.convert("RGB"))
+    return bool(np.mean(np.max(pixels, axis=2) <= _NEAR_BLACK_MAX) > _MAX_BLANK_FRACTION)
+
+
+def _clear_scrollback() -> None:
+    """Destructively reset scrollback only in the explicitly opted-in test."""
+    sys.stdout.flush()
+    os.write(sys.stdout.fileno(), b"\\x1b[3J\\x1b[2J\\x1b[H")
+
+
 def _screenshot(directory: Path, stage: str) -> dict:
     path = directory / f"{stage}.png"
-    completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed argv
-        ["/usr/sbin/screencapture", "-x", "-i", "-w", "-o", str(path)],
-        check=False,
-        timeout=180,
-    )
-    if completed.returncode or not path.is_file():
-        msg = f"Kitty-window screenshot failed or was cancelled ({stage}). Check Screen Recording permission."
-        raise RuntimeError(msg)
-    return {"stage": stage, "screenshot": str(path), "colors": _colors(path)}
+    for attempt in range(_SCREENSHOT_ATTEMPTS):
+        completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed argv
+            ["/usr/sbin/screencapture", "-x", "-i", "-w", "-o", str(path)],
+            check=False,
+            timeout=180,
+        )
+        if completed.returncode or not path.is_file():
+            msg = f"Kitty-window screenshot failed or was cancelled ({stage}). Check Screen Recording permission."
+            raise RuntimeError(msg)
+        if not _mostly_black(path):
+            return {"stage": stage, "screenshot": str(path), "colors": _colors(path)}
+        path.rename(directory / f"{stage}.invalid-{attempt + 1}.png")
+        if attempt + 1 < _SCREENSHOT_ATTEMPTS:
+            _dialog("Blank screenshot captured; select the visible Kitty window and click Continue")
+    msg = f"{stage}: three blank screenshots; invalid captures are retained for inspection."
+    raise RuntimeError(msg)
 
 
 def _visible(stage: dict) -> None:
@@ -156,7 +179,7 @@ def _verify_source(figure: Figure, frames: list[dict], original: tuple[tuple[flo
         raise AssertionError(msg)
 
 
-def _worker(directory: Path, height: int, mode: str) -> None:
+def _worker(directory: Path, height: int, mode: str, *, clean_scrollback: bool) -> None:
     import matplotlib as mpl  # ruff: ignore[import-outside-top-level]
 
     mpl.use("module://wskr.render.matplotlib.kitty")
@@ -172,6 +195,7 @@ def _worker(directory: Path, height: int, mode: str) -> None:
 
     report: dict = {
         "mode": mode,
+        "clean_scrollback": clean_scrollback,
         "height_inches": height,
         "backend": backend,
         "macos": platform.mac_ver()[0],
@@ -189,6 +213,8 @@ def _worker(directory: Path, height: int, mode: str) -> None:
         lambda g: g.width_px >= _MIN_START_WIDTH and g.height_px >= _MIN_START_HEIGHT,
     )
 
+    if clean_scrollback:
+        _clear_scrollback()
     fig, ax = plt.subplots(figsize=(9, height), dpi=100)
     ax.bar([1, 2], [3, 4], color=("red", "blue"))
     ax.set_title("wskr native macOS nonblocking resize")
@@ -239,6 +265,7 @@ def main() -> int:
     parser.add_argument("--mode", choices=("unmanaged", "yabai"), required=True)
     parser.add_argument("--height", type=int, choices=(2, 6), required=True)
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--clean-scrollback", action="store_true", help="Erase terminal scrollback before display; use a disposable Kitty window")
     parser.add_argument("--directory", type=Path)
     args = parser.parse_args()
     if sys.platform != "darwin" or not sys.stdin.isatty() or not sys.stdout.isatty():
@@ -252,14 +279,14 @@ def main() -> int:
         if args.directory is None:
             parser.error("--worker requires --directory")
         try:
-            _worker(args.directory, args.height, args.mode)
+            _worker(args.directory, args.height, args.mode, clean_scrollback=args.clean_scrollback)
         except BaseException:
             (args.directory / "error.txt").write_text(traceback.format_exc(), encoding="utf-8")
             raise
         return 0
 
     directory = Path("artifacts/phase3-native-resize") / (
-        datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + f"-{args.mode}-h{args.height}"
+        datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + f"-{args.mode}-h{args.height}" + ("-clean" if args.clean_scrollback else "")
     )
     directory.mkdir(parents=True, exist_ok=False)
     print(f"Evidence directory: {directory}")
@@ -274,6 +301,7 @@ def main() -> int:
             str(args.height),
             "--directory",
             str(directory.resolve()),
+            *(["--clean-scrollback"] if args.clean_scrollback else []),
         ],
         check=False,
     )
