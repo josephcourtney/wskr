@@ -76,8 +76,7 @@ def _screenshot(directory: Path, stage: str) -> dict:
     if completed.returncode or not path.is_file():
         msg = f"Kitty-window screenshot failed or was cancelled ({stage}). Check Screen Recording permission."
         raise RuntimeError(msg)
-    result = {"stage": stage, "screenshot": str(path), "colors": _colors(path)}
-    return result
+    return {"stage": stage, "screenshot": str(path), "colors": _colors(path)}
 
 
 def _visible(stage: dict) -> None:
