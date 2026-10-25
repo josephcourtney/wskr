@@ -133,12 +133,15 @@ def test_owned_live_rejects_unowned_or_unfitted_terminal(monkeypatch: pytest.Mon
 
 def test_nested_owned_session_is_rejected_without_clobbering_screen(monkeypatch: pytest.MonkeyPatch) -> None:
     _geometry, transport, writes = _session(monkeypatch)
-    with live.owned_viewport(_figure(), transport_factory=lambda: transport):
+    def attempt_nested_owner() -> None:
         with (
             pytest.raises(RuntimeError, match="already owns"),
             live.owned_viewport(_figure(), transport_factory=lambda: pytest.fail("nested created transport")),
         ):
             pytest.fail("nested session entered")
+
+    with live.owned_viewport(_figure(), transport_factory=lambda: transport):
+        attempt_nested_owner()
     assert writes.count(b"\x1b[?1049h") == 1
     assert writes.count(b"\x1b[?1049l") == 1
 
