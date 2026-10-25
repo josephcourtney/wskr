@@ -16,6 +16,22 @@ just native-resize yabai 2
 just native-resize yabai 6
 ```
 
+For controlled history-dependent placement testing, see
+[the Phase 3 placement contract and A/B protocol](phase3-placement-semantics.md).
+The matching experiments use separate disposable windows:
+
+```sh
+just native-resize-clean unmanaged 2
+just native-resize-history unmanaged 2 96
+```
+
+Both erase the test window's screen/scrollback; the second then adds 96
+deterministic long history lines before displaying the plot. This isolates
+history/reflow more systematically than comparing arbitrary shell scrollback.
+The history experiment may legitimately record missing visible pixels without
+losing image data: inspect the entire evidence package and distinguish the
+history-position contract from a viewport-pinning requirement.
+
 For the **clean-history diagnostic only**, launch a new disposable Kitty window and use:
 
 ```sh
