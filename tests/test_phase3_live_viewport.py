@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import sys
 from io import BytesIO
 
 import pytest
@@ -97,7 +96,7 @@ def test_live_owned_session_refreshes_at_top_and_restores_shell(monkeypatch: pyt
 
 
 def test_resize_poll_waits_for_measured_stability(monkeypatch: pytest.MonkeyPatch) -> None:
-    geometry, transport, _ = _session(monkeypatch)
+    geometry, transport, _writes = _session(monkeypatch)
     time = [0.0]
     monkeypatch.setattr(live, "monotonic", lambda: time[0])
     with live.owned_viewport(_figure(), transport_factory=lambda: transport) as view:
@@ -114,33 +113,36 @@ def test_resize_poll_waits_for_measured_stability(monkeypatch: pytest.MonkeyPatc
 
 
 def test_owned_live_rejects_unowned_or_unfitted_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
-    geometry, transport, writes = _session(monkeypatch)
+    _geometry, transport, writes = _session(monkeypatch)
     monkeypatch.setattr(core, "_owns_foreground_terminal_input", lambda: False)
-    with pytest.raises(RuntimeError, match="foreground"):
-        with live.owned_viewport(_figure(), transport_factory=lambda: transport):
-            pytest.fail("unowned session was entered")
+    with pytest.raises(RuntimeError, match="foreground"), live.owned_viewport(
+        _figure(), transport_factory=lambda: transport
+    ):
+        pytest.fail("unowned session was entered")
     monkeypatch.setattr(core, "_owns_foreground_terminal_input", lambda: True)
     monkeypatch.delenv("WSKR_FIT")
-    with pytest.raises(RuntimeError, match="WSKR_FIT"):
-        with live.owned_viewport(_figure(), transport_factory=lambda: transport):
-            pytest.fail("unfitted session was entered")
+    with pytest.raises(RuntimeError, match="WSKR_FIT"), live.owned_viewport(
+        _figure(), transport_factory=lambda: transport
+    ):
+        pytest.fail("unfitted session was entered")
     assert not writes
     assert transport.closed == 0
 
 
 def test_nested_owned_session_is_rejected_without_clobbering_screen(monkeypatch: pytest.MonkeyPatch) -> None:
-    geometry, transport, writes = _session(monkeypatch)
+    _geometry, transport, writes = _session(monkeypatch)
     with live.owned_viewport(_figure(), transport_factory=lambda: transport):
-        with pytest.raises(RuntimeError, match="already owns"):
-            with live.owned_viewport(_figure(), transport_factory=lambda: pytest.fail("nested created transport")):
-                pytest.fail("nested session entered")
+        with pytest.raises(RuntimeError, match="already owns"), live.owned_viewport(
+            _figure(), transport_factory=lambda: pytest.fail("nested created transport")
+        ):
+            pytest.fail("nested session entered")
     assert writes.count(b"\x1b[?1049h") == 1
     assert writes.count(b"\x1b[?1049l") == 1
 
 
 @pytest.mark.parametrize("exc", [ValueError, KeyboardInterrupt])
 def test_failure_restores_alt_screen_and_disposes_scoped_transport(monkeypatch: pytest.MonkeyPatch, exc) -> None:
-    geometry, transport, writes = _session(monkeypatch)
+    _geometry, transport, writes = _session(monkeypatch)
     with pytest.raises(exc), live.owned_viewport(_figure(), transport_factory=lambda: transport):
         raise exc
     assert transport.closed == 1
@@ -149,22 +151,23 @@ def test_failure_restores_alt_screen_and_disposes_scoped_transport(monkeypatch: 
 
 
 def test_screen_entry_failure_still_closes_transport(monkeypatch: pytest.MonkeyPatch) -> None:
-    geometry, transport, writes = _session(monkeypatch)
+    _geometry, transport, _writes = _session(monkeypatch)
 
     def fail(_fd: int, _data: bytes) -> int:
         msg = "broken terminal"
         raise OSError(msg)
 
     monkeypatch.setattr(os, "write", fail)
-    with pytest.raises(OSError, match="broken terminal"):
-        with live.owned_viewport(_figure(), transport_factory=lambda: transport):
-            pytest.fail("no screen acquired")
+    with pytest.raises(OSError, match="broken terminal"), live.owned_viewport(
+        _figure(), transport_factory=lambda: transport
+    ):
+        pytest.fail("no screen acquired")
     assert transport.closed == 1
     assert not core._BLOCKING_RENDER.get()
 
 
 def test_owned_render_suppresses_normal_interactive_manager_upload(monkeypatch: pytest.MonkeyPatch) -> None:
-    geometry, transport, writes = _session(monkeypatch)
+    _geometry, transport, _writes = _session(monkeypatch)
     fig = Figure(figsize=(3, 2), dpi=100)
     canvas = core.WskrFigureCanvas(fig)
     fig.subplots().plot([0, 1], [1, 0])
@@ -185,7 +188,7 @@ def test_owned_render_suppresses_normal_interactive_manager_upload(monkeypatch: 
 
 
 def test_live_session_does_not_claim_stdin(monkeypatch: pytest.MonkeyPatch) -> None:
-    geometry, transport, writes = _session(monkeypatch)
+    _geometry, transport, _writes = _session(monkeypatch)
     monkeypatch.setattr("builtins.input", lambda *_args: pytest.fail("live viewport read stdin"))
     with live.owned_viewport(_figure(), transport_factory=lambda: transport) as view:
         view.poll_resize()
