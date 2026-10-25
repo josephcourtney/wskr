@@ -60,6 +60,11 @@ phase3:
 visual-smoke mode="matplotlib":
   uv run python scripts/phase1_visual_smoke.py --mode '{{mode}}'
 
+# Native macOS Kitty visual evidence; run inside a fresh Kitty window.
+# Requires click-to-select screenshots of *only* the Kitty window.
+native-resize mode="unmanaged" height="2":
+  WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python scripts/phase3_native_macos_resize.py --mode '{{mode}}' --height {{height}}
+
 # Complete validation plus isolated Kitty screenshots and one run-specific ZIP.
 evidence *args:
   uv run python scripts/phase1_evidence.py {{args}}
