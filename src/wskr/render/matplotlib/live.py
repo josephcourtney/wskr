@@ -130,10 +130,13 @@ def owned_viewport(
         session = LiveViewport(figure, transport)
         try:
             with core._temporary_terminal_screen():  # ruff: ignore[private-member-access] - scoped screen
-                session.refresh()
-                yield session
+                try:
+                    session.refresh()
+                    yield session
+                finally:
+                    session._finish()  # ruff: ignore[private-member-access] - clean before restoring screen
         finally:
-            session._finish()  # ruff: ignore[private-member-access] - only owner closes
+            session._finish()  # ruff: ignore[private-member-access] - also handles screen-entry failures
     finally:
         core._BLOCKING_RENDER.reset(token)  # ruff: ignore[private-member-access] - restore token
         _OWNER_LOCK.release()
