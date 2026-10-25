@@ -202,3 +202,35 @@ def test_live_session_does_not_claim_stdin(monkeypatch: pytest.MonkeyPatch) -> N
         view.poll_resize()
         view.refresh()
     assert len(transport.frames) == 2
+
+
+def test_owned_images_are_closed_before_alternate_screen_restores(monkeypatch: pytest.MonkeyPatch) -> None:
+    _geometry, transport, writes = _session(monkeypatch)
+    original_close = transport.close
+
+    def close_inside_screen() -> None:
+        assert writes[-1] != b"\x1b[?1049l", "Kitty placements deleted after restoring shell"
+        original_close()
+
+    monkeypatch.setattr(transport, "close", close_inside_screen)
+    with live.owned_viewport(_figure(), transport_factory=lambda: transport):
+        pass
+    assert transport.closed == 1
+    assert writes[-1] == b"\x1b[?1049l"
+
+
+def test_initial_render_failure_restores_screen_and_releases_transport(monkeypatch: pytest.MonkeyPatch) -> None:
+    _geometry, transport, writes = _session(monkeypatch)
+
+    def fail_send(_png: bytes) -> None:
+        msg = "broken PNG upload"
+        raise OSError(msg)
+
+    monkeypatch.setattr(transport, "send_image", fail_send)
+    with (
+        pytest.raises(OSError, match="broken PNG upload"),
+        live.owned_viewport(_figure(), transport_factory=lambda: transport),
+    ):
+        pytest.fail("entry rendered despite failed upload")
+    assert transport.closed == 1
+    assert writes[-1] == b"\x1b[?1049l"
