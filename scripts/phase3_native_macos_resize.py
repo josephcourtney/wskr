@@ -68,7 +68,6 @@ def _colors(path: Path) -> dict[str, int]:
 
 def _screenshot(directory: Path, stage: str) -> dict:
     path = directory / f"{stage}.png"
-    print(f"Screenshot {stage}: click the Kitty window to capture it.", flush=True)
     completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed argv
         ["/usr/sbin/screencapture", "-x", "-i", "-w", "-o", str(path)],
         check=False,
@@ -77,15 +76,21 @@ def _screenshot(directory: Path, stage: str) -> dict:
     if completed.returncode or not path.is_file():
         msg = f"Kitty-window screenshot failed or was cancelled ({stage}). Check Screen Recording permission."
         raise RuntimeError(msg)
-    result = {"stage": stage, "screenshot": str(path), "colors": _colors(path)}
-    print(f"{stage}: red={result['colors']['red']}, blue={result['colors']['blue']}", flush=True)
-    return result
+    return {"stage": stage, "screenshot": str(path), "colors": _colors(path)}
 
 
 def _visible(stage: dict) -> None:
     if min(stage["colors"].values()) < _VISIBLE_PIXELS:
         msg = f"{stage['stage']}: red and blue bars are not both visible; see {stage['screenshot']}"
         raise AssertionError(msg)
+
+
+def _record_visibility(report: dict, stage: dict) -> None:
+    """Record a visual failure and keep running to capture recovery evidence."""
+    try:
+        _visible(stage)
+    except AssertionError as exc:
+        report.setdefault("visual_failures", []).append(str(exc))
 
 
 def _geometry() -> Geometry:
@@ -98,13 +103,27 @@ def _geometry() -> Geometry:
     return geometry
 
 
+def _dialog(prompt: str) -> None:
+    """Use a separate native GUI prompt so plot anchors do not scroll."""
+    script = f'display dialog "{prompt}" buttons {{"Cancel", "Continue"}} default button "Continue"'
+    completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed argv
+        ["/usr/bin/osascript", "-e", script],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=180,
+    )
+    if completed.returncode or "Continue" not in completed.stdout:
+        msg = f"Native resize acceptance dialog cancelled or failed: {completed.stderr.strip()}"
+        raise RuntimeError(msg)
+
+
 def _until_valid(prompt: str, predicate: Callable[[Geometry], bool]) -> Geometry:
     for _ in range(6):
         geometry = _geometry()
-        print(f"Kitty geometry: {geometry.columns}x{geometry.rows} cells, {geometry.width_px}x{geometry.height_px} px")
         if predicate(geometry):
             return geometry
-        input(prompt)
+        _dialog(prompt)
     msg = "Requested window geometry was not reached after six attempts."
     raise RuntimeError(msg)
 
@@ -159,13 +178,14 @@ def _worker(directory: Path, height: int, mode: str) -> None:
         "kitty_version": os.getenv("KITTY_VERSION", "unknown"),
         "stages": [],
         "frames": [],
+        "visual_failures": [],
         "passed_protocol_checks": False,
         "visual_review_required": True,
     }
     _save(report, directory)
 
     _until_valid(
-        "Enlarge Kitty to at least 950 physical pixels wide, then Enter: ",
+        "Enlarge Kitty to at least 950 physical pixels wide and 650 tall; click Continue",
         lambda g: g.width_px >= _MIN_START_WIDTH and g.height_px >= _MIN_START_HEIGHT,
     )
 
@@ -191,26 +211,27 @@ def _worker(directory: Path, height: int, mode: str) -> None:
         if len(report["frames"]) != 1:
             msg = f"Expected initial anchored frame: {report['frames']}"
             raise AssertionError(msg)
-        _visible(_capture(report, directory, "initial"))
+        _record_visibility(report, _capture(report, directory, "initial"))
 
-        input("Shrink Kitty below 790 px W but keep at least 320 px H; press Enter: ")
+        _dialog("Shrink Kitty below 790 physical px wide, keep above 320 px tall; click Continue")
         _until_valid(
-            "Shrink farther (under 790 px W, at least 320 px H), then Enter: ",
+            "Shrink farther (under 790 physical px wide, above 320 px tall); click Continue",
             lambda g: g.width_px < _MAX_SMALL_WIDTH and g.height_px >= _MIN_SMALL_HEIGHT,
         )
         _capture(report, directory, "before_redraw")
         _pump(fig, report["frames"], 2)
-        _visible(_capture(report, directory, "resized"))
+        _record_visibility(report, _capture(report, directory, "resized"))
 
-        input("Expand Kitty back above 950 px wide; press Enter: ")
-        _until_valid("Expand Kitty beyond 950 px W, then Enter: ", lambda g: g.width_px >= _MIN_START_WIDTH)
+        _dialog("Expand Kitty above 950 physical px wide; click Continue")
+        _until_valid(
+            "Expand Kitty beyond 950 physical px wide; click Continue", lambda g: g.width_px >= _MIN_START_WIDTH
+        )
         _pump(fig, report["frames"], 3)
-        _visible(_capture(report, directory, "expanded"))
+        _record_visibility(report, _capture(report, directory, "expanded"))
 
     _verify_source(fig, report["frames"], original)
     report["passed_protocol_checks"] = True
     _save(report, directory)
-    print("Child rendering complete; plotting Python will exit now.", flush=True)
 
 
 def main() -> int:
@@ -263,13 +284,18 @@ def main() -> int:
 
     report = _read_json(directory / "report.json")
     try:
-        _visible(_capture(report, directory, "after_python_exit"))
-    except (OSError, RuntimeError, AssertionError, subprocess.TimeoutExpired) as exc:
+        _record_visibility(report, _capture(report, directory, "after_python_exit"))
+    except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
         archive = shutil.make_archive(str(directory), "zip", root_dir=directory)
         print(f"FAILED: post-exit persistence: {exc}; evidence: {archive}", file=sys.stderr)
         return 1
     _save(report, directory)
     archive = shutil.make_archive(str(directory), "zip", root_dir=directory)
+    if report.get("visual_failures"):
+        print(
+            f"FAILED VISUAL ACCEPTANCE: {len(report['visual_failures'])} stage(s); evidence: {archive}", file=sys.stderr
+        )
+        return 1
     print(f"PROTOCOL + SCREENSHOT PIXEL CHECKS PASSED: {directory}/report.json")
     print(f"Evidence archive: {archive}")
     print("Review the five Kitty-window screenshots for correct placement, clipping and scrollback.")
