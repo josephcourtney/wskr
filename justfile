@@ -69,6 +69,11 @@ native-resize mode="unmanaged" height="2":
 native-resize-clean mode="unmanaged" height="2":
   WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python scripts/phase3_native_macos_resize.py --mode '{{mode}}' --height {{height}} --clean-scrollback
 
+# Destructive controlled A/B: erase scrollback, then seed fixed-width history.
+# Run in a separate disposable Kitty window for each line-count condition.
+native-resize-history mode="unmanaged" height="2" lines="96":
+  WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python scripts/phase3_native_macos_resize.py --mode '{{mode}}' --height {{height}} --clean-scrollback --history-lines {{lines}}
+
 # Complete validation plus isolated Kitty screenshots and one run-specific ZIP.
 evidence *args:
   uv run python scripts/phase1_evidence.py {{args}}
