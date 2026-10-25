@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from PIL import Image, ImageDraw
 
-from scripts.phase3_native_macos_resize import _colors, _screenshot, _visible
+from scripts.phase3_native_macos_resize import _colors, _record_visibility, _screenshot, _visible
 
 pytestmark = pytest.mark.medium
 
@@ -59,3 +59,20 @@ def test_screenshot_cancellation_is_explicit(monkeypatch: pytest.MonkeyPatch, tm
     monkeypatch.setattr(subprocess, "run", cancel)
     with pytest.raises(RuntimeError, match="failed or was cancelled"):
         _screenshot(tmp_path, "initial")
+
+
+def test_visual_failures_are_recorded_without_aborting_remaining_stages() -> None:
+    report: dict = {"visual_failures": []}
+    _record_visibility(
+        report,
+        {"stage": "resized", "screenshot": "resized.png", "colors": {"red": 0, "blue": 0}},
+    )
+    assert len(report["visual_failures"]) == 1
+    assert "resized" in report["visual_failures"][0]
+
+    # The final visible frame does not erase prior acceptance failures.
+    _record_visibility(
+        report,
+        {"stage": "expanded", "screenshot": "expanded.png", "colors": {"red": 900, "blue": 900}},
+    )
+    assert len(report["visual_failures"]) == 1
