@@ -282,6 +282,13 @@ def _worker(directory: Path, height: int, mode: str, *, clean_scrollback: bool, 
     _save(report, directory)
 
 
+def _validate_history_args(parser: argparse.ArgumentParser, *, lines: int, clean_scrollback: bool) -> None:
+    if not 0 <= lines <= _MAX_HISTORY_LINES:
+        parser.error(f"--history-lines must be between 0 and {_MAX_HISTORY_LINES}")
+    if lines and not clean_scrollback:
+        parser.error("--history-lines requires --clean-scrollback in a disposable Kitty window")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("unmanaged", "yabai"), required=True)
@@ -300,10 +307,7 @@ def main() -> int:
     )
     parser.add_argument("--directory", type=Path)
     args = parser.parse_args()
-    if not 0 <= args.history_lines <= _MAX_HISTORY_LINES:
-        parser.error(f"--history-lines must be between 0 and {_MAX_HISTORY_LINES}")
-    if args.history_lines and not args.clean_scrollback:
-        parser.error("--history-lines requires --clean-scrollback in a disposable Kitty window")
+    _validate_history_args(parser, lines=args.history_lines, clean_scrollback=args.clean_scrollback)
     if sys.platform != "darwin" or not sys.stdin.isatty() or not sys.stdout.isatty():
         parser.error("This acceptance test requires an interactive native macOS Kitty TTY.")
     if os.getenv("WSKR_FIT") != "contain":
