@@ -98,3 +98,35 @@ scroll position). A clean-only passing run is not sufficient to close issue
 For future native acceptance, repeat the 9×6 figure and yabai-managed
 windows. The historical-output contract and a potential future
 viewport-pinned live-display mode should have **separate acceptance gates**.
+
+## Controlled native result — October 25, 2026 UTC
+
+Two unmanaged 9×2-inch macOS Kitty 0.49.2 runs, using `just native-resize-clean unmanaged 2` (0 seeded lines) versus `just native-resize-history unmanaged 2 96`, both cleared the terminal history initially. They use slightly different but comparable terminal dimensions.
+
+| Stage | 0 history lines | 96 history lines |
+| --- | --- | --- |
+| Initial | 2520×1377 viewport; visible 900×200 PNG | 2142×1350 viewport; visible 900×200 PNG |
+| Before redraw | 574×351; plot still visible, partly clipped | 588×324; final history text visible, plot absent |
+| After fitted redraw | 574×128 PNG, **plot visible** | 588×131 PNG, **plot absent** |
+| After expansion | 2142×1350; 900×200 visible | 1890×1296; 900×200 visible again |
+| After Python exit | Final image retained and visible | Final image retained and visible |
+
+For the clean run, red/blue bar pixels in the resized screenshot were
+**16,767 / 22,671**; the 96-line run had **0 / 0** despite the correct raster
+upload. Its resized screenshot clearly shows `WSKR_HISTORY_0093` through
+`0095`, establishing that this is not a blank screenshot-picker capture.
+In the initial seeded-history screenshot the plot sits near the viewport's
+bottom (red/blue pixel y≈1161–1331), compared with near the top (y≈28–198)
+in the clean run. After expansion it reappears near the bottom.
+
+The comparison demonstrates **history-dependent viewport visibility**. It
+does not measure Kitty's internal scrollback anchor position, distinguish
+all possible terminal reflow mechanisms, or establish that relative
+placement semantics are violated. Preserve the distinction between a
+history-resident figure and an intentionally viewport-pinned live figure.
+The latter is not currently implemented, and should require a separate
+explicit ownership and acceptance contract.
+
+Source evidence archives: `20261025T030202Z-unmanaged-h2-clean.zip` and
+`20261025T030304Z-unmanaged-h2-clean-history96.zip`, supplied during
+native acceptance review. See [issue #31](https://github.com/josephcourtney/wskr/issues/31).
