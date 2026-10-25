@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from matplotlib.figure import Figure
+
     from wskr.terminal.profile import Geometry
 
 
