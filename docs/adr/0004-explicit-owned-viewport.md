@@ -44,4 +44,4 @@ The experimental API is in a distinct module, not retrofitted into `plt.show(blo
 
 Positive: distinct contracts with no hidden shell interference, bounded lifecycle and testable viewport repaint. Negative: the caller must opt in, provide a foreground TTY and drive updates; alternate-screen contents are discarded when the scope ends.
 
-Portable tests verify ownership, input isolation, fallback/cleanup and debounced resizing. Native Kitty screenshots must independently qualify display and real window resizing, particularly on macOS and with yabai. Until then, the new API remains experimental.
+Portable tests verify ownership, input isolation, failure cleanup and debounced resizing. Hosted real Kitty/Xvfb screenshots confirm initial display, shrink, expansion and alternate-screen restoration. Independent **native macOS and yabai** graphical qualification remains outstanding, so the API remains experimental.
