@@ -224,7 +224,9 @@ def _worker(directory: Path, height: int, mode: str) -> None:
         _record_visibility(report, _capture(report, directory, "resized"))
 
         _dialog("Expand Kitty above 950 physical px wide; click Continue")
-        _until_valid("Expand Kitty beyond 950 physical px wide; click Continue", lambda g: g.width_px >= _MIN_START_WIDTH)
+        _until_valid(
+            "Expand Kitty beyond 950 physical px wide; click Continue", lambda g: g.width_px >= _MIN_START_WIDTH
+        )
         _pump(fig, report["frames"], 3)
         _record_visibility(report, _capture(report, directory, "expanded"))
 
@@ -291,7 +293,9 @@ def main() -> int:
     _save(report, directory)
     archive = shutil.make_archive(str(directory), "zip", root_dir=directory)
     if report.get("visual_failures"):
-        print(f"FAILED VISUAL ACCEPTANCE: {len(report['visual_failures'])} stage(s); evidence: {archive}", file=sys.stderr)
+        print(
+            f"FAILED VISUAL ACCEPTANCE: {len(report['visual_failures'])} stage(s); evidence: {archive}", file=sys.stderr
+        )
         return 1
     print(f"PROTOCOL + SCREENSHOT PIXEL CHECKS PASSED: {directory}/report.json")
     print(f"Evidence archive: {archive}")
