@@ -115,14 +115,16 @@ def test_resize_poll_waits_for_measured_stability(monkeypatch: pytest.MonkeyPatc
 def test_owned_live_rejects_unowned_or_unfitted_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
     _geometry, transport, writes = _session(monkeypatch)
     monkeypatch.setattr(core, "_owns_foreground_terminal_input", lambda: False)
-    with pytest.raises(RuntimeError, match="foreground"), live.owned_viewport(
-        _figure(), transport_factory=lambda: transport
+    with (
+        pytest.raises(RuntimeError, match="foreground"),
+        live.owned_viewport(_figure(), transport_factory=lambda: transport),
     ):
         pytest.fail("unowned session was entered")
     monkeypatch.setattr(core, "_owns_foreground_terminal_input", lambda: True)
     monkeypatch.delenv("WSKR_FIT")
-    with pytest.raises(RuntimeError, match="WSKR_FIT"), live.owned_viewport(
-        _figure(), transport_factory=lambda: transport
+    with (
+        pytest.raises(RuntimeError, match="WSKR_FIT"),
+        live.owned_viewport(_figure(), transport_factory=lambda: transport),
     ):
         pytest.fail("unfitted session was entered")
     assert not writes
@@ -132,8 +134,9 @@ def test_owned_live_rejects_unowned_or_unfitted_terminal(monkeypatch: pytest.Mon
 def test_nested_owned_session_is_rejected_without_clobbering_screen(monkeypatch: pytest.MonkeyPatch) -> None:
     _geometry, transport, writes = _session(monkeypatch)
     with live.owned_viewport(_figure(), transport_factory=lambda: transport):
-        with pytest.raises(RuntimeError, match="already owns"), live.owned_viewport(
-            _figure(), transport_factory=lambda: pytest.fail("nested created transport")
+        with (
+            pytest.raises(RuntimeError, match="already owns"),
+            live.owned_viewport(_figure(), transport_factory=lambda: pytest.fail("nested created transport")),
         ):
             pytest.fail("nested session entered")
     assert writes.count(b"\x1b[?1049h") == 1
@@ -158,8 +161,9 @@ def test_screen_entry_failure_still_closes_transport(monkeypatch: pytest.MonkeyP
         raise OSError(msg)
 
     monkeypatch.setattr(os, "write", fail)
-    with pytest.raises(OSError, match="broken terminal"), live.owned_viewport(
-        _figure(), transport_factory=lambda: transport
+    with (
+        pytest.raises(OSError, match="broken terminal"),
+        live.owned_viewport(_figure(), transport_factory=lambda: transport),
     ):
         pytest.fail("no screen acquired")
     assert transport.closed == 1
