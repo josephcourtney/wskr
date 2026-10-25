@@ -12,9 +12,11 @@ from scripts.phase3_native_macos_resize import (
     _clear_scrollback,
     _colors,
     _dialog,
+    _history_fixture,
     _mostly_black,
     _record_visibility,
     _screenshot,
+    _seed_history,
     _visible,
 )
 
@@ -172,3 +174,44 @@ def test_clean_scrollback_uses_erase_saved_lines_only_when_called(monkeypatch: p
     monkeypatch.setattr("scripts.phase3_native_macos_resize.os.write", lambda fd, data: calls.append((fd, data)))
     _clear_scrollback()
     assert calls == [(42, bytes([27]) + b"[3J" + bytes([27]) + b"[2J" + bytes([27]) + b"[H")]
+
+
+def test_seeded_history_lines_are_deterministic_and_reflowable() -> None:
+    assert _history_fixture(0) == ""
+    payload = _history_fixture(3)
+    rows = payload.splitlines()
+    assert len(rows) == 3
+    assert len(rows[0]) == 112
+    assert all(len(row) == 112 for row in rows)
+    assert rows[0].startswith("WSKR_HISTORY_0000 ")
+    assert rows[2].startswith("WSKR_HISTORY_0002 ")
+    assert payload.endswith("\n")
+    assert "\x1b" not in payload
+
+
+def test_seeded_history_rejects_unbounded_output() -> None:
+    with pytest.raises(ValueError, match="History fixture"):
+        _history_fixture(-1)
+    with pytest.raises(ValueError, match="History fixture"):
+        _history_fixture(201)
+
+
+def test_seeded_history_prints_only_before_plotting(monkeypatch: pytest.MonkeyPatch) -> None:
+    writes: list[str] = []
+    flushed = [False]
+
+    class Output:
+        def write(self, value: str) -> None:
+            writes.append(value)
+
+        def flush(self) -> None:
+            flushed[0] = True
+
+    monkeypatch.setattr("scripts.phase3_native_macos_resize.sys.stdout", Output())
+    _seed_history(0)
+    assert writes == []
+    assert not flushed[0]
+    _seed_history(2)
+    assert len(writes) == 1
+    assert writes[0] == _history_fixture(2)
+    assert flushed[0]
