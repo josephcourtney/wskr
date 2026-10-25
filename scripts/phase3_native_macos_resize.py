@@ -126,7 +126,6 @@ def _pump(figure: Figure, frames: list[dict], target: int) -> None:
         raise AssertionError(msg)
 
 
-
 def _verify_source(figure: Figure, frames: list[dict], original: tuple[tuple[float, ...], float]) -> None:
     initial, small, large = (frame["raster"] for frame in frames)
     if not initial[0] - small[0] > _MIN_RASTER_CHANGE or not large[0] - small[0] > _MIN_RASTER_CHANGE:
