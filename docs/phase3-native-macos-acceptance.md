@@ -32,6 +32,8 @@ pixels wide**, keeping at least **320 pixels tall**, and finally expand above
 950 pixels wide. It prints the **actual TIOCGWINSZ width/height**; macOS
 Retina pixel counts are not equivalent to window-manager logical point sizes.
 
+Once the plot is displayed, resize instructions appear in native macOS dialogs (via `osascript`) rather than being printed into Kitty. The harness intentionally avoids new terminal text during resize, because writing multi-line prompts into a small viewport can scroll the original image anchor out of view and confound the test. Click **Continue** in each dialog after resizing.
+
 At each stage, the system's `screencapture -i -w` picker asks you to click
 **the Kitty window**. Only that selected window is saved (not the entire
 desktop). If macOS denies screenshot access, grant Screen Recording
@@ -77,4 +79,4 @@ The first user-run **unmanaged** Kitty 0.49.2 test on macOS 27.0.1 reached a mea
 
 The original anchor may have moved into scrollback as the terminal row count fell from 68 to 18, with relative placements following their parent. This remains a **hypothesis**, not an established root cause. Real Kitty/Xvfb Linux acceptance had passed and remains distinct from this native Mac failure. [Tracking issue #31](https://github.com/josephcourtney/wskr/issues/31).
 
-Do not claim native macOS visual acceptance until resolved and rerun. For diagnostic reruns, preserve the expanded and post-exit stages even if the resized image disappears.
+Do not claim native macOS visual acceptance until resolved and rerun. For diagnostic reruns, preserve the expanded and post-exit stages even if the resized image disappears. The revised harness continues through both states after recording an earlier visual failure; it reports failure after collecting the complete archive.
