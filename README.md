@@ -106,6 +106,10 @@ A transport is not considered supported merely because it is registered. The fut
 | [POLICY.md](POLICY.md) | Authoritative document/history policy |
 | [AGENTS.md](AGENTS.md) | Contributor instructions specific to wskr |
 
+## Native macOS Kitty resize acceptance
+
+Run `just native-resize unmanaged 2` from a fresh Kitty window, and repeat for heights 6 and for yabai-managed Kitty. The local screenshot harness requires an actual under-790-pixel-wide viewport and captures selected Kitty-window screenshots, without pasting source into terminal scrollback. See [native Phase 3 qualification procedure](docs/phase3-native-macos-acceptance.md). This test must be performed locally; a successful hosted run is not native macOS GUI signoff.
+
 ## Automated run-specific evidence
 
 For one reproducible output containing validation logs, Matplotlib, Rich, and native physical/virtual placement screenshots, reference PNGs, a manifest and SHA-256 hashes:
