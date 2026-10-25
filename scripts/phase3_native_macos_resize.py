@@ -89,10 +89,7 @@ def _history_fixture(lines: int) -> str:
     if not 0 <= lines <= _MAX_HISTORY_LINES:
         msg = f"History fixture must contain 0-{_MAX_HISTORY_LINES} lines"
         raise ValueError(msg)
-    return "".join(
-        f"WSKR_HISTORY_{index:04d} " + "=" * (_HISTORY_PAYLOAD_WIDTH - 18) + "\n"
-        for index in range(lines)
-    )
+    return "".join(f"WSKR_HISTORY_{index:04d} " + "=" * (_HISTORY_PAYLOAD_WIDTH - 18) + "\n" for index in range(lines))
 
 
 def _seed_history(lines: int) -> None:
