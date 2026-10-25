@@ -17,7 +17,7 @@ from matplotlib.figure import Figure
 from PIL import Image
 
 from wskr.protocol.kitty_native import NativeKittyTransport
-from wskr.render.matplotlib.live import owned_viewport
+from wskr.render.matplotlib.live import LiveViewport, owned_viewport
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -32,7 +32,7 @@ def _await(path: Path) -> None:
         raise TimeoutError(msg)
 
 
-def _poll(view) -> None:
+def _poll(view: LiveViewport) -> None:
     deadline = time.monotonic() + 18
     while time.monotonic() < deadline:
         if view.poll_resize():
