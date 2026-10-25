@@ -90,7 +90,10 @@ def test_resize_instructions_use_gui_without_tty_writes(monkeypatch: pytest.Monk
         timeout: int,
     ) -> subprocess.CompletedProcess[str]:
         calls.append(argv)
-        assert not check and capture_output and text and timeout == 180
+        assert not check
+        assert capture_output
+        assert text
+        assert timeout == 180
         return subprocess.CompletedProcess(argv, 0, stdout="button returned:Continue")
 
     monkeypatch.setattr(subprocess, "run", show_dialog)
