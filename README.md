@@ -134,8 +134,7 @@ it exits**; its plots do not persist in shell history. Call
 `screen.poll_resize()` repeatedly in your application loop to debounce
 resizing; no hidden background loop or automatic idle redraw is started.
 Do not use it inside an IPython/REPL session that owns the terminal.
-Native live-viewport GUI acceptance remains pending. See
-[ADR-004](docs/adr/0004-explicit-owned-viewport.md).
+Hosted real-Kitty/Xvfb shrink/expand/restore screenshots now pass; **native macOS/yabai GUI qualification remains pending**. For a local interactive demonstration, run `just live-viewport-demo` in Kitty. See [ADR-004](docs/adr/0004-explicit-owned-viewport.md).
 
 ## Native macOS Kitty resize acceptance
 
