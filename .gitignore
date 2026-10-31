@@ -4,3 +4,4 @@ capture_tmp*.png
 .coverage*
 **/__pycache__/
 /artifacts/evidence/
+/artifacts/phase3-owned-live-native/
