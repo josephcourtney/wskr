@@ -25,7 +25,7 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 from unittest.mock import patch
 
 import numpy as np
@@ -40,7 +40,6 @@ from wskr.terminal.profile import read_geometry
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from wskr.render.matplotlib.live import LiveViewport
     from wskr.terminal.profile import Geometry
 
 _MIN_START_WIDTH = 950
@@ -138,7 +137,11 @@ def _record_stage(directory: Path, report: dict, stage: str, *, expect_visible: 
     _save(directory, report)
 
 
-def _poll_for_redraw(view: LiveViewport, frames: list[dict], expected: int) -> None:
+class _ResizePoller(Protocol):
+    def poll_resize(self) -> bool: ...
+
+
+def _poll_for_redraw(view: _ResizePoller, frames: list[dict], expected: int) -> None:
     deadline = time.monotonic() + 8
     while time.monotonic() < deadline:
         if view.poll_resize() and len(frames) >= expected:
