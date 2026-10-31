@@ -61,6 +61,11 @@ phase3:
 live-viewport-demo:
   WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python scripts/phase3_owned_live_demo.py
 
+# Native macOS owned-viewport acceptance (mode labels the setup, does not configure yabai).
+# Captures selected Kitty-window screenshots and checks restoration after exit.
+owned-native mode="unmanaged" height="2":
+  WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python scripts/phase3_owned_live_native_acceptance.py --mode '{{mode}}' --height {{height}}
+
 # Manual visual smoke run, inside Kitty. For Rich, set WSKR_PROTOCOL=kitty.
 visual-smoke mode="matplotlib":
   uv run python scripts/phase1_visual_smoke.py --mode '{{mode}}'
