@@ -140,4 +140,6 @@ def test_yabai_service_unavailable_is_reported(monkeypatch: pytest.MonkeyPatch) 
         raise gui.AcceptanceError(msg)
 
     monkeypatch.setattr(gui, "_run", fake_command)
-    assert "failed to connect" in gui._yabai_status()
+    status = gui._yabai_status()
+    assert status is not None
+    assert "failed to connect" in status
