@@ -53,7 +53,7 @@ jobs:
       - name: Phase 3 figure ownership and lifecycle tests
         run: >-
           uv run pytest -q
-          tests/test_phase3_figure_ownership.py tests/test_phase3_viewport_fit.py tests/test_phase3_interactive_lifecycle.py tests/test_phase3_pty_blocking.py tests/test_phase3_blocking_resize.py tests/test_phase3_nonblocking_resize.py tests/test_phase3_live_viewport.py tests/test_phase3_native_macos_harness.py tests/test_phase3_contact_sheet.py tests/test_phase3_paging.py
+          tests/test_phase3_figure_ownership.py tests/test_phase3_viewport_fit.py tests/test_phase3_interactive_lifecycle.py tests/test_phase3_pty_blocking.py tests/test_phase3_blocking_resize.py tests/test_phase3_nonblocking_resize.py tests/test_phase3_live_viewport.py tests/test_phase3_owned_live_native_acceptance.py tests/test_phase3_native_macos_harness.py tests/test_phase3_contact_sheet.py tests/test_phase3_paging.py
           tests/test_phase0_baseline.py
           tests/test_mpl_base.py
           tests/test_mpl_kitty.py
