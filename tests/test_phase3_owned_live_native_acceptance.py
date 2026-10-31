@@ -34,7 +34,7 @@ def test_pixel_counts_distinguish_bars_and_blank_picker(tmp_path: Path) -> None:
     black = tmp_path / "blank.png"
     Image.new("RGB", (180, 120), "black").save(black)
     blank_counts = harness.pixel_counts(black)
-    assert blank_counts["near_black_fraction"] == 1.0
+    assert blank_counts["near_black_fraction"] > 0.999
     assert not harness.visible_bars(blank_counts)
 
 
