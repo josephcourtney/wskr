@@ -17,7 +17,7 @@ import json
 import os
 import platform
 import shutil
-import subprocess
+import subprocess  # ruff: ignore[suspicious-subprocess-import] - fixed local command argv
 import sys
 import time
 import traceback
@@ -52,6 +52,10 @@ _MIN_VISIBLE_PIXELS = 800
 _MAX_BLACK_FRACTION = 0.95
 _NEAR_BLACK = 15
 _MAX_CAPTURE_ATTEMPTS = 3
+_RED_THRESHOLD = 215
+_OTHER_THRESHOLD = 55
+_TALL_FIGURE_HEIGHT = 6
+_EXPECTED_FRAME_COUNT = 3
 
 
 def pixel_counts(path: Path) -> dict[str, int | float]:
@@ -60,8 +64,8 @@ def pixel_counts(path: Path) -> dict[str, int | float]:
         array = np.asarray(image.convert("RGB"))
     r, g, b = array[..., 0], array[..., 1], array[..., 2]
     return {
-        "red": int(np.count_nonzero((r > 215) & (g < 55) & (b < 55))),
-        "blue": int(np.count_nonzero((b > 215) & (r < 55) & (g < 55))),
+        "red": int(np.count_nonzero((r > _RED_THRESHOLD) & (g < _OTHER_THRESHOLD) & (b < _OTHER_THRESHOLD))),
+        "blue": int(np.count_nonzero((b > _RED_THRESHOLD) & (r < _OTHER_THRESHOLD) & (g < _OTHER_THRESHOLD))),
         "near_black_fraction": round(float(np.mean(np.max(array, axis=2) <= _NEAR_BLACK)), 5),
     }
 
@@ -71,7 +75,9 @@ def visible_bars(measurement: dict[str, int | float]) -> bool:
 
 
 def _command(argv: list[str], *, timeout: int = 180) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(argv, check=False, capture_output=True, text=True, timeout=timeout)
+    return subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed local argv
+        argv, check=False, capture_output=True, text=True, timeout=timeout
+    )
 
 
 def _dialog(message: str) -> None:
@@ -96,7 +102,7 @@ def _wait_geometry(predicate: Callable[[Geometry], bool], message: str) -> Geome
         measurement = _geometry()
         if predicate(measurement):
             return measurement
-        _dialog(message + f" (currently {measurement.width_px}×{measurement.height_px} physical px)")
+        _dialog(message + f" (currently {measurement.width_px}x{measurement.height_px} physical px)")
     msg = "Requested Kitty window size was not reached"
     raise RuntimeError(msg)
 
@@ -167,7 +173,7 @@ def _probe_unowned() -> int:
 
 
 def _check_unowned() -> None:
-    result = subprocess.run(
+    result = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed interpreter and script
         [sys.executable, str(Path(__file__).resolve()), "--probe-unowned"],
         stdin=subprocess.DEVNULL,
         capture_output=True,
@@ -208,7 +214,7 @@ def _run(directory: Path, mode: str, height: int) -> dict:
     _record_stage(directory, report, "primary_before", expect_visible=False)
     _wait_geometry(
         lambda g: g.width_px >= _MIN_START_WIDTH and g.height_px >= _MIN_START_HEIGHT,
-        "Enlarge test Kitty to at least 950×650 physical pixels and click Continue",
+        "Enlarge test Kitty to at least 950x650 physical pixels and click Continue",
     )
 
     fig = _make_figure(height)
@@ -231,7 +237,7 @@ def _run(directory: Path, mode: str, height: int) -> dict:
             msg = "Expected exactly one initial PNG upload"
             raise AssertionError(msg)
         _record_stage(directory, report, "initial", expect_visible=True)
-        minimum_height = 500 if height == 6 else _MIN_SMALL_HEIGHT
+        minimum_height = 500 if height == _TALL_FIGURE_HEIGHT else _MIN_SMALL_HEIGHT
         _dialog(
             "Shrink Kitty below 790 physical pixels wide while keeping at least "
             + str(minimum_height)
@@ -253,7 +259,7 @@ def _run(directory: Path, mode: str, height: int) -> dict:
 
     _record_stage(directory, report, "primary_restored", expect_visible=False)
     frames = report["frames"]
-    if len(frames) != 3:
+    if len(frames) != _EXPECTED_FRAME_COUNT:
         report["failures"].append(f"Expected 3 PNGs, got {len(frames)}")
     else:
         a, b, c = (f["raster"][0] for f in frames)
@@ -294,7 +300,7 @@ def main() -> int:
         report = _run(directory, args.mode, args.height)
         if not report["failures"]:
             result = 0
-    except BaseException:
+    except (Exception, KeyboardInterrupt):
         (directory / "error.txt").write_text(traceback.format_exc(), encoding="utf-8")
     archive = shutil.make_archive(str(directory), "zip", root_dir=directory)
     print(f"Native owned viewport evidence: {archive}")
