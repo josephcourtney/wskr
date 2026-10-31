@@ -300,7 +300,7 @@ def main() -> int:
         report = _run(directory, args.mode, args.height)
         if not report["failures"]:
             result = 0
-    except (Exception, KeyboardInterrupt):
+    except BaseException:  # ruff: ignore[blind-except] - archive all native GUI failures, including Ctrl-C
         (directory / "error.txt").write_text(traceback.format_exc(), encoding="utf-8")
     archive = shutil.make_archive(str(directory), "zip", root_dir=directory)
     print(f"Native owned viewport evidence: {archive}")
