@@ -102,13 +102,11 @@ def test_yabai_without_bsp_split_fails_closed(monkeypatch: pytest.MonkeyPatch) -
 
 def test_prepare_yabai_floating_waits_for_accessibility(monkeypatch: pytest.MonkeyPatch) -> None:
     # The first response reproduces yabai's incomplete new-window placeholder.
-    windows = iter(
-        [
-            {"id": 1585, "is-floating": False, "is-visible": False, "has-ax-reference": False},
-            {"id": 1585, "is-floating": False, "is-visible": True, "has-ax-reference": True},
-            {"id": 1585, "is-floating": True, "is-visible": True, "has-ax-reference": True},
-        ]
-    )
+    windows = iter([
+        {"id": 1585, "is-floating": False, "is-visible": False, "has-ax-reference": False},
+        {"id": 1585, "is-floating": False, "is-visible": True, "has-ax-reference": True},
+        {"id": 1585, "is-floating": True, "is-visible": True, "has-ax-reference": True},
+    ])
     calls = []
     monkeypatch.setattr(gui, "_query_yabai", lambda _title: next(windows))
     monkeypatch.setattr(gui, "_run", lambda args, **_kwargs: calls.append(args) or "")
