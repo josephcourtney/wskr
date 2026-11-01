@@ -1,7 +1,7 @@
 """Terminal capabilities and helpers."""
 
 from .capabilities import TerminalCapabilities
-from .profile import Geometry, Source, TerminalProfile, Value, probe_profile, read_geometry
+from .profile import Geometry, Source, TerminalProfile, Value, current_profile, probe_owned_profile, probe_profile, read_geometry, use_profile
 
 __all__ = [
     "Geometry",
@@ -9,6 +9,9 @@ __all__ = [
     "TerminalCapabilities",
     "TerminalProfile",
     "Value",
+    "current_profile",
+    "probe_owned_profile",
     "probe_profile",
     "read_geometry",
+    "use_profile",
 ]
