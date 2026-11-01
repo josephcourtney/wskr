@@ -174,6 +174,38 @@ def test_small_resize_rechecks_physical_screen_width(monkeypatch: pytest.MonkeyP
     assert attempts[-1]["observed_width_px"] == 705
 
 
+def test_bsp_calibration_from_native_vertical_split_measurements() -> None:
+    # Native evidence: 75% BSP share yielded 2492 physical pixels; target 720.
+    share = gui._bsp_target_share(current_share=0.75, observed_width=2492)
+    assert 0.21 < share < 0.22
+    assert gui._bsp_target_share(current_share=0.25, observed_width=826) < 0.22
+
+
+def test_bsp_resize_retries_using_measured_width(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    widths = iter([826, 714])
+    shares: list[float] = []
+
+    def fake_resize(*_args, bsp_share: float | None = None, **_kwargs) -> str:
+        assert bsp_share is not None
+        shares.append(bsp_share)
+        return "yabai_bsp_ratio"
+
+    def fake_measure(*_args, **_kwargs) -> dict:
+        return {"width_px": next(widths), "height_px": 1850}
+
+    monkeypatch.setattr(gui, "_resize", fake_resize)
+    monkeypatch.setattr(gui, "_wait_new_width", fake_measure)
+    attempts = gui._resize_to_fit(
+        "socket", 1, "test", mode="yabai-bsp", height=6,
+        wide_measurement={"width_px": 2492}, out=tmp_path / "probe.png",
+    )
+    assert len(attempts) == 2
+    assert shares[1] < shares[0]
+    assert attempts[0]["observed_width_px"] == 826
+    assert attempts[-1]["observed_width_px"] == 714
+    assert attempts[-1]["bsp_share"] == round(shares[1], 4)
+
+
 def test_bsp_layout_fails_cleanly_if_it_cannot_fit(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(gui, "_resize", lambda *_args, **_kwargs: "yabai_bsp_ratio")
     monkeypatch.setattr(gui, "_wait_new_width", lambda *_args, **_kwargs: {"width_px": 1350, "height_px": 800})
