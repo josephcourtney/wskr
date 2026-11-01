@@ -369,9 +369,9 @@ def _exercise_case(directory: Path, report: dict, socket: str, title: str, mode:
 
 def _report_status(report: dict) -> str:
     """Distinguish an unexercised topology from a genuine acceptance failure."""
-    if "skip_reason" in report:
-        return "SKIP"
-    return "FAIL" if report["failures"] else "PASS"
+    if report["failures"]:
+        return "FAIL"
+    return "SKIP" if "skip_reason" in report else "PASS"
 
 
 def _case(root: Path, output: Path, mode: str, height: int) -> Path:
