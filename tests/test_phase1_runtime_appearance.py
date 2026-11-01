@@ -76,12 +76,16 @@ def test_runtime_font_and_cell_geometry_scale_without_physical_dpi():
     prof = probe_profile(
         geometry=Geometry(30, 100, 1000, 600),
         kitty_query=lambda field: (
-            b"\x1bP1+r"
-            + f"kitty-query-{field}".encode().hex().encode()
-            + b"="
-            + ("240" if field in ("dpi_x", "dpi_y") else "12").encode().hex().encode()
-            + b"\x1b\\"
-        ) if field in ("dpi_x", "dpi_y", "font_size") else b"invalid",
+            (
+                b"\x1bP1+r"
+                + f"kitty-query-{field}".encode().hex().encode()
+                + b"="
+                + ("240" if field in ("dpi_x", "dpi_y") else "12").encode().hex().encode()
+                + b"\x1b\\"
+            )
+            if field in ("dpi_x", "dpi_y", "font_size")
+            else b"invalid"
+        ),
     )
     defaults = resolve_rc_defaults(prof, dpi=100)
     assert defaults["figure.dpi"] == 100
