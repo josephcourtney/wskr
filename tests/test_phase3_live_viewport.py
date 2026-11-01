@@ -258,8 +258,11 @@ def test_owned_live_theme_updates_only_backend_owned_surfaces(monkeypatch: pytes
     with mpl.rc_context():
         mpl.rcdefaults()
         fig = TerminalFigure(
-            figsize=(3, 2), dpi=100, facecolor="#000000",
-            _wskr_defaults=old_style, _wskr_bg_owned=True,
+            figsize=(3, 2),
+            dpi=100,
+            facecolor="#000000",
+            _wskr_defaults=old_style,
+            _wskr_bg_owned=True,
         )
         FigureCanvasAgg(fig)
         ax = fig.add_subplot(111)
