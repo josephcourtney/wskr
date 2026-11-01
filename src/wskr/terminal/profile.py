@@ -99,20 +99,54 @@ _CSI_SIZE = re.compile(rb"^\x1b\[([46]);([0-9]{1,6});([0-9]{1,6})t$")
 
 
 def _query_csi_pixels(query: Callable[[bytes], bytes], *, command: int, response: int) -> tuple[int, int] | None:
-    """Parse only a matched CSI window/cell-size reply from an input owner.
-
-    The supplied callback handles input ownership and timeouts; this parser
-    never opens a TTY and cannot mistake an unrelated reply for a measurement.
-    """
+    """Parse only a matched CSI size reply from an input-owning caller."""
     try:
         reply = query(f"\x1b[{command}t".encode("ascii"))
         match = _CSI_SIZE.fullmatch(reply)
         if match is None or int(match[1]) != response:
             return None
         height, width = int(match[2]), int(match[3])
-        return (width, height) if height > 0 and width > 0 else None
     except (OSError, RuntimeError, ValueError, TimeoutError):
         return None
+    return (width, height) if height > 0 and width > 0 else None
+
+
+def _axis_pixels(
+    kernel: int, cells: int, window: int, cell: int
+) -> tuple[Value[int], Value[float]]:
+    """Choose measured kernel/query values, inferring only missing geometry."""
+    pixel = kernel if kernel > 0 else window
+    pixel_source = Source.MEASURED if pixel > 0 else Source.UNKNOWN
+    cell_size = float(cell) if cell > 0 else None
+    cell_source = Source.MEASURED if cell_size is not None else Source.UNKNOWN
+    if pixel <= 0 and cell_size is not None:
+        pixel = round(cells * cell_size)
+        pixel_source = Source.INFERRED
+    if cell_size is None and pixel > 0:
+        cell_size = pixel / cells
+        cell_source = Source.INFERRED
+    pixel_value = Value(pixel, pixel_source) if pixel > 0 else Value()
+    cell_value = Value(cell_size, cell_source) if cell_size is not None else Value()
+    return pixel_value, cell_value
+
+
+def _geometry_measurements(
+    geom: Geometry, query: Callable[[bytes], bytes] | None
+) -> tuple[Value[int], Value[int], Value[float], Value[float]]:
+    """Apply terminal and kernel authority independently on each dimension."""
+    window = (
+        _query_csi_pixels(query, command=14, response=4)
+        if query is not None and (geom.width_px <= 0 or geom.height_px <= 0)
+        else None
+    )
+    cell = _query_csi_pixels(query, command=16, response=6) if query is not None else None
+    width, cell_width = _axis_pixels(
+        geom.width_px, geom.columns, window[0] if window else 0, cell[0] if cell else 0
+    )
+    height, cell_height = _axis_pixels(
+        geom.height_px, geom.rows, window[1] if window else 0, cell[1] if cell else 0
+    )
+    return width, height, cell_width, cell_height
 
 
 def probe_profile(
@@ -132,37 +166,7 @@ def probe_profile(
     if geom is None or geom.rows <= 0 or geom.columns <= 0:
         return TerminalProfile()
 
-    queried_window = (
-        _query_csi_pixels(geometry_query, command=14, response=4)
-        if geometry_query is not None and (geom.width_px <= 0 or geom.height_px <= 0)
-        else None
-    )
-    queried_cells = _query_csi_pixels(geometry_query, command=16, response=6) if geometry_query is not None else None
-    cell_w = float(queried_cells[0]) if queried_cells is not None else None
-    cell_h = float(queried_cells[1]) if queried_cells is not None else None
-    pixel_w = geom.width_px if geom.width_px > 0 else queried_window[0] if queried_window else 0
-    pixel_h = geom.height_px if geom.height_px > 0 else queried_window[1] if queried_window else 0
-    width_source = Source.MEASURED if pixel_w > 0 else Source.UNKNOWN
-    height_source = Source.MEASURED if pixel_h > 0 else Source.UNKNOWN
-    if pixel_w <= 0 and cell_w is not None:
-        pixel_w = round(geom.columns * cell_w)
-        width_source = Source.INFERRED
-    if pixel_h <= 0 and cell_h is not None:
-        pixel_h = round(geom.rows * cell_h)
-        height_source = Source.INFERRED
-
-    cell_w_source = Source.MEASURED if cell_w is not None else Source.UNKNOWN
-    cell_h_source = Source.MEASURED if cell_h is not None else Source.UNKNOWN
-    if cell_w is None and pixel_w > 0:
-        cell_w = pixel_w / geom.columns
-        cell_w_source = Source.INFERRED
-    if cell_h is None and pixel_h > 0:
-        cell_h = pixel_h / geom.rows
-        cell_h_source = Source.INFERRED
-    width = Value(pixel_w, width_source) if pixel_w > 0 else Value()
-    height = Value(pixel_h, height_source) if pixel_h > 0 else Value()
-    cell_width = Value(cell_w, cell_w_source) if cell_w is not None else Value()
-    cell_height = Value(cell_h, cell_h_source) if cell_h is not None else Value()
+    width, height, cell_width, cell_height = _geometry_measurements(geom, geometry_query)
     colors: dict[int, RGB] = {}
     if color_query is not None:
         indices = [(10, None), (11, None)]
