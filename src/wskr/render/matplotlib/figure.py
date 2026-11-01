@@ -12,8 +12,9 @@ from typing import TYPE_CHECKING
 
 import matplotlib as mpl
 from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 from matplotlib.colors import to_rgba
+from matplotlib.figure import Figure
+from matplotlib.text import Text
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -31,49 +32,58 @@ class TerminalAxes(Axes):
         self._wskr_bg_initial = self.get_facecolor()
         self._wskr_ready = True
 
-    def set_facecolor(self, color: Any) -> None:
+    def set_facecolor(self, color: str | tuple[float, ...]) -> None:
         if getattr(self, "_wskr_ready", False):
             self._wskr_bg_owned = False
         super().set_facecolor(color)
 
-    def set_title(self, label: Any, *args: Any, **kwargs: Any):
-        if getattr(self, "_wskr_ready", False) and (
-            "color" in kwargs or isinstance(kwargs.get("fontdict"), dict) and "color" in kwargs["fontdict"]
-        ):
+    @staticmethod
+    def _has_explicit_color(kwargs: dict[str, Any]) -> bool:
+        fontdict = kwargs.get("fontdict")
+        return "color" in kwargs or (isinstance(fontdict, dict) and "color" in fontdict)
+
+    def set_title(self, label: str, *args, **kwargs) -> Text:
+        if getattr(self, "_wskr_ready", False) and self._has_explicit_color(kwargs):
             self._wskr_explicit_text.add("title")
         return super().set_title(label, *args, **kwargs)
 
-    def set_xlabel(self, xlabel: Any, *args: Any, **kwargs: Any):
-        if getattr(self, "_wskr_ready", False) and (
-            "color" in kwargs or isinstance(kwargs.get("fontdict"), dict) and "color" in kwargs["fontdict"]
-        ):
+    def set_xlabel(self, xlabel: str, *args, **kwargs) -> Text:
+        if getattr(self, "_wskr_ready", False) and self._has_explicit_color(kwargs):
             self._wskr_explicit_text.add("xlabel")
         return super().set_xlabel(xlabel, *args, **kwargs)
 
-    def set_ylabel(self, ylabel: Any, *args: Any, **kwargs: Any):
-        if getattr(self, "_wskr_ready", False) and (
-            "color" in kwargs or isinstance(kwargs.get("fontdict"), dict) and "color" in kwargs["fontdict"]
-        ):
+    def set_ylabel(self, ylabel: str, *args, **kwargs) -> Text:
+        if getattr(self, "_wskr_ready", False) and self._has_explicit_color(kwargs):
             self._wskr_explicit_text.add("ylabel")
         return super().set_ylabel(ylabel, *args, **kwargs)
 
     def refresh_owned_colors(self, previous: dict[str, Any], new: dict[str, Any]) -> bool:
         """Update only unchanged backend-provenance surfaces and primary labels."""
         changed = False
-        if self._wskr_bg_owned and "axes.facecolor" in previous and "axes.facecolor" in new:
-            if self.get_facecolor() == to_rgba(previous["axes.facecolor"]):
-                self._wskr_ready = False
-                try:
-                    super().set_facecolor(new["axes.facecolor"])
-                finally:
-                    self._wskr_ready = True
-                changed = True
+        if (
+            self._wskr_bg_owned
+            and "axes.facecolor" in previous
+            and "axes.facecolor" in new
+            and mpl.rcParams["axes.facecolor"] == mpl.rcParamsDefault["axes.facecolor"]
+            and self.get_facecolor() == to_rgba(previous["axes.facecolor"])
+        ):
+            self._wskr_ready = False
+            try:
+                super().set_facecolor(new["axes.facecolor"])
+            finally:
+                self._wskr_ready = True
+            changed = True
         for name, artist, key in (
             ("title", self.title, "text.color"),
             ("xlabel", self.xaxis.label, "axes.labelcolor"),
             ("ylabel", self.yaxis.label, "axes.labelcolor"),
         ):
-            if name in self._wskr_explicit_text or key not in previous or key not in new:
+            if (
+                name in self._wskr_explicit_text
+                or key not in previous
+                or key not in new
+                or mpl.rcParams[key] != mpl.rcParamsDefault[key]
+            ):
                 continue
             if to_rgba(artist.get_color()) == to_rgba(previous[key]):
                 artist.set_color(new[key])
