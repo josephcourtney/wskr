@@ -524,7 +524,11 @@ class TerminalBackend(_Backend):
     def draw_if_interactive(cls):
         manager = Gcf.get_active()
         if mpl.is_interactive() and manager and manager.canvas.figure.get_axes():
-            manager.show()
+            canvas = manager.canvas
+            if isinstance(canvas, WskrFigureCanvas):
+                canvas.draw_idle()
+            else:
+                manager.show()
 
     @classmethod
     def show(cls, *, block: bool | None = None) -> None:
