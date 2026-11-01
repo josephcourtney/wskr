@@ -275,15 +275,19 @@ def _resize_to_fit(
     attempts: list[dict] = []
     previous_request = _WIDTH_LARGE
     bsp_share = (
-        _bsp_target_share(current_share=_BSP_WIDE_SHARE, observed_width=prior_width)
-        if mode == "yabai-bsp"
-        else None
+        _bsp_target_share(current_share=_BSP_WIDE_SHARE, observed_width=prior_width) if mode == "yabai-bsp" else None
     )
     previous_share = _BSP_WIDE_SHARE
     for attempt in range(_MAX_RESIZE_ATTEMPTS):
         method = _resize(
-            socket, window_id, title, mode=mode, small=True, height=height,
-            requested_width=request, bsp_share=bsp_share,
+            socket,
+            window_id,
+            title,
+            mode=mode,
+            small=True,
+            height=height,
+            requested_width=request,
+            bsp_share=bsp_share,
         )
         smaller = bsp_share < previous_share if bsp_share is not None else request < previous_request
         measured = _wait_new_width(socket, window_id, prior_width, smaller=smaller, out=out)
