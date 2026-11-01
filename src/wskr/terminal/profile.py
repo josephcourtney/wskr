@@ -259,6 +259,32 @@ def probe_owned_profile(
     return probe_profile(color_query=osc, geometry_query=csi, kitty_query=kitty, palette=palette)
 
 
+def _osc_measurements(
+    color_query: Callable[[bytes], bytes] | None,
+    palette: bool,
+) -> tuple[Value[RGB], Value[RGB], Value[tuple[RGB | None, ...]]]:
+    """Read a terminal's portable colors only through an owned query callback."""
+    colors: dict[int, RGB] = {}
+    if color_query is not None:
+        requests = [(10, None), (11, None)]
+        if palette:
+            requests.extend((4, i) for i in range(16))
+        for code, index in requests:
+            request = f"\x1b]{code};{index};?\x07".encode() if index is not None else f"\x1b]{code};?\x07".encode()
+            try:
+                colors[code if index is None else 100 + index] = parse_osc_color(color_query(request), code, index)
+            except (OSError, RuntimeError, ValueError, TimeoutError):
+                continue
+    foreground = colors.get(10)
+    background = colors.get(11)
+    entries = tuple(colors.get(100 + i) for i in range(16))
+    return (
+        Value(foreground, Source.MEASURED) if foreground is not None else Value(),
+        Value(background, Source.MEASURED) if background is not None else Value(),
+        Value(entries, Source.MEASURED) if any(item is not None for item in entries) else Value(),
+    )
+
+
 def probe_profile(
     *,
     geometry: Geometry | None = None,
@@ -281,25 +307,9 @@ def probe_profile(
         else (Value(), Value(), Value(), Value())
     )
     kitty = _kitty_measurements(kitty_query)
-    colors: dict[int, RGB] = {}
-    if color_query is not None:
-        indices = [(10, None), (11, None)]
-        if palette:
-            indices.extend((4, i) for i in range(16))
-        for code, index in indices:
-            request = f"\x1b]{code};{index};?\x07".encode() if index is not None else f"\x1b]{code};?\x07".encode()
-            try:
-                response = color_query(request)
-                rgb = parse_osc_color(response, code, index)
-            except (OSError, RuntimeError, ValueError, TimeoutError):
-                continue
-            colors[code if index is None else 100 + index] = rgb
-    fg = colors.get(10)
-    bg = colors.get(11)
-    # Both are live observations; prefer standard OSC for portability.
-    foreground = Value(fg, Source.MEASURED) if fg is not None else kitty.get("foreground", Value())
-    background = Value(bg, Source.MEASURED) if bg is not None else kitty.get("background", Value())
-    entries = tuple(colors.get(100 + i) for i in range(16))
+    osc_fg, osc_bg, osc_palette = _osc_measurements(color_query, palette)
+    foreground = osc_fg if osc_fg.value is not None else kitty.get("foreground", Value())
+    background = osc_bg if osc_bg.value is not None else kitty.get("background", Value())
     return TerminalProfile(
         rows=Value(geom.rows, Source.MEASURED) if valid_geom and geom is not None else Value(),
         columns=Value(geom.columns, Source.MEASURED) if valid_geom and geom is not None else Value(),
@@ -309,7 +319,7 @@ def probe_profile(
         cell_height_px=cell_height,
         foreground=foreground,
         background=background,
-        ansi_palette=Value(entries, Source.MEASURED) if any(e is not None for e in entries) else Value(),
+        ansi_palette=osc_palette,
         font_family=kitty.get("font_family", Value()),
         font_size_pt=kitty.get("font_size", Value()),
         dpi_x=kitty.get("dpi_x", Value()),
