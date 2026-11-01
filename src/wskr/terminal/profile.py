@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import fcntl
 import math
+import os
 import re
 import struct
 import sys
@@ -222,8 +223,16 @@ def probe_owned_profile(
     if not owns_input or on_unmatched is None:
         msg = "Terminal profile probing requires exclusive input ownership and an unmatched-byte handler"
         raise TerminalQueryError(msg)
-    if sys.stdout is None or not sys.stdout.isatty():
-        msg = "Terminal profile probing requires a foreground TTY"
+    if sys.stdin is None or sys.stdout is None or not sys.stdin.isatty() or not sys.stdout.isatty():
+        msg = "Terminal profile probing requires foreground stdin/stdout on the same TTY"
+        raise TerminalQueryError(msg)
+    try:
+        input_fd, output_fd = sys.stdin.fileno(), sys.stdout.fileno()
+        owner = os.ttyname(input_fd) == os.ttyname(output_fd) and os.tcgetpgrp(input_fd) == os.getpgrp()
+    except (OSError, ValueError):
+        owner = False
+    if not owner:
+        msg = "Terminal profile probing requires foreground stdin/stdout on the same TTY"
         raise TerminalQueryError(msg)
 
     def osc(request: bytes) -> bytes:
