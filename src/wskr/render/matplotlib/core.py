@@ -24,7 +24,7 @@ from wskr.protocol import ImageProtocol, get_image_protocol
 from wskr.render.matplotlib.figure import TerminalFigure
 from wskr.render.matplotlib.sheet import SheetPages, contact_sheet, plan_sheet_pages
 from wskr.render.matplotlib.theme import resolve_rc_defaults
-from wskr.terminal import TerminalCapabilities, probe_profile
+from wskr.terminal import TerminalCapabilities, current_profile, probe_profile
 from wskr.terminal.profile import Geometry, read_geometry
 
 if TYPE_CHECKING:
@@ -504,7 +504,7 @@ class TerminalBackend(_Backend):
 
         user_dpi = kwargs.get("dpi")
         dpi = float(mpl.rcParams["figure.dpi"] if user_dpi is None else user_dpi)
-        defaults = resolve_rc_defaults(probe_profile(), dpi=dpi)
+        defaults = resolve_rc_defaults(current_profile() or probe_profile(), dpi=dpi)
         # Iterating rcParams gives Matplotlib's statically valid configuration
         # keys. An arbitrary string returned by the resolver is not such a key.
         backend_owned = {
