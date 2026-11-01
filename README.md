@@ -84,7 +84,7 @@ just phase3           # Matplotlib lifecycle tests
 just test-native-gui  # native macOS: isolated Kitty/yabai acceptance matrix
 ```
 
-The supported wheel selection and PNG/SVG exports are qualified separately from real Kitty graphics. Latest recorded post-merge Ubuntu/macOS quality after [PR #34](https://github.com/josephcourtney/wskr/pull/34): **337 passed, 3 skipped** per platform. [PR #43](https://github.com/josephcourtney/wskr/pull/43) records six independently reviewed native macOS owned-viewport scenarios; this does not qualify history-anchored output. See [Phase 2 evidence](docs/phase2-validation.md), [Phase 3 evidence](docs/phase3-validation.md), and the [native acceptance guide](docs/phase3-owned-live-automated-acceptance.md).
+The supported wheel selection and PNG/SVG exports are qualified separately from real Kitty graphics. Latest recorded Ubuntu/macOS quality for [PR #44](https://github.com/josephcourtney/wskr/pull/44): **351 passed, 3 skipped** per platform, with installed-wheel and hosted real-Kitty regressions passing. [PR #43](https://github.com/josephcourtney/wskr/pull/43) records six independently reviewed native macOS owned-viewport scenarios; this does not qualify history-anchored output. See [Phase 2 evidence](docs/phase2-validation.md), [Phase 3 evidence](docs/phase3-validation.md), and the [native acceptance guide](docs/phase3-owned-live-automated-acceptance.md).
 
 Project roles follow [POLICY.md](POLICY.md): [DESIGN](DESIGN.md) contains stable requirements, [PLAN](PLAN.md) execution strategy, [STATUS](STATUS.md) current handoff, [TODO](TODO.md) immediate work, [CHANGELOG](CHANGELOG.md) completed user-visible changes, and [ADRs](docs/adr/) architectural rationale.
 
