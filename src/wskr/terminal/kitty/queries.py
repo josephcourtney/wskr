@@ -19,6 +19,8 @@ QUERY_FIELDS = frozenset({
     "background_opacity",
 })
 _MAX_VALUE_BYTES = 256
+_CONTROL_LIMIT = ord(' ')
+_DELETE_CHAR = 0x7F
 _RESPONSE = re.compile(rb"^\x1bP([01])\+r([0-9A-Fa-f]+)(?:=([0-9A-Fa-f]*))?\x1b\\$")
 
 
@@ -45,7 +47,7 @@ def parse_query_reply(field: str, response: bytes) -> str | None:
         value = bytes.fromhex(match[3].decode("ascii")).decode("utf-8", errors="strict")
     except (ValueError, UnicodeDecodeError):
         return None
-    return value if value and not any(ord(ch) < 32 or ord(ch) == 127 for ch in value) else None
+    return value if value and not any(ord(ch) < _CONTROL_LIMIT or ord(ch) == _DELETE_CHAR for ch in value) else None
 
 
 __all__ = ["QUERY_FIELDS", "parse_query_reply", "query_request"]
