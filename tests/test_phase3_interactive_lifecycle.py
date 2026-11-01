@@ -270,3 +270,40 @@ def test_alternate_screen_restores_tty_if_final_flush_fails(monkeypatch) -> None
     finally:
         os.close(master)
         os.close(slave)
+
+
+def test_auto_block_uses_matplotlib_interactive_mode_and_foreground_owner(monkeypatch) -> None:
+    """block=None blocks only a noninteractive script owning its TTY."""
+    events: list[str] = []
+
+    class Manager:
+        def show(self) -> None:
+            events.append("render")
+
+    @contextmanager
+    def alternate():
+        events.append("enter")
+        try:
+            yield
+        finally:
+            events.append("restore")
+
+    monkeypatch.setattr(core.Gcf, "get_all_fig_managers", lambda: [Manager()])
+    monkeypatch.setattr(core.Gcf, "destroy_all", lambda: events.append("closed"))
+    monkeypatch.setattr(core, "_temporary_terminal_screen", alternate)
+    monkeypatch.setattr("builtins.input", lambda _prompt: events.append("input"))
+    monkeypatch.setattr(core, "_owns_foreground_terminal_input", lambda: True)
+    monkeypatch.setattr(core, "is_interactive", lambda: False)
+    core._BackendTermAgg.show(block=None)
+    assert events == ["enter", "render", "input", "closed", "restore"]
+
+    events.clear()
+    monkeypatch.setattr(core, "is_interactive", lambda: True)
+    core._BackendTermAgg.show(block=None)
+    assert events == ["render"]
+
+    events.clear()
+    monkeypatch.setattr(core, "is_interactive", lambda: False)
+    monkeypatch.setattr(core, "_owns_foreground_terminal_input", lambda: False)
+    core._BackendTermAgg.show(block=None)
+    assert events == ["render"]
