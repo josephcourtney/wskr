@@ -39,6 +39,7 @@ _MIN_SHEET_MANAGERS = 2
 _LONG_PAGE_PROMPT_COLS = 51
 _EXIT_STATE = {"exiting": False}
 _BLOCKING_RENDER: ContextVar[bool] = ContextVar("wskr_blocking_render", default=False)
+_EVENT_PUMP: ContextVar[bool] = ContextVar("wskr_event_pump", default=False)
 
 
 def _mark_process_exit() -> None:
@@ -428,27 +429,37 @@ class WskrFigureCanvas(FigureCanvasAgg):
             return
         self.draw()
 
-    def flush_events(self) -> None:
-        """Respond to an event pump without claiming the terminal's input.
-
-        plt.pause() and compatible REPL event loops call this hook. A stable
-        resize redraws only an already displayed figure, using the guarded
-        interactive draw when interactive mode is enabled.
-        """
-        if _BLOCKING_RENDER.get():
-            return
+    def _flush_one(self) -> None:
+        """Drain one canvas's queued updates without claiming terminal input."""
         manager = self.manager
         if manager is None or getattr(manager, "_closed", False):
             self._idle_pending = False
             return
         if getattr(self, "_idle_pending", False):
             self._idle_pending = False
-            # draw() already guards recursion and sends exactly one interactive
-            # image. Clear the flag first so new stale events may be queued.
             self.draw()
         state = getattr(manager, "_nonblocking_resize", None)
         if isinstance(state, _NonblockingResizeState):
             state.flush(self.draw_idle if is_interactive() else manager.show)
+
+    def flush_events(self) -> None:
+        """Pump all registered Kitty canvas redraws once per Matplotlib event tick.
+
+        Matplotlib may pump only the active figure during plt.pause(). Pending
+        interactive updates on *other* pyplot figures must not starve. The
+        reentrancy guard keeps nested GUI/event callbacks from double sending.
+        """
+        if _BLOCKING_RENDER.get() or _EVENT_PUMP.get():
+            return
+        token = _EVENT_PUMP.set(True)
+        try:
+            self._flush_one()
+            for manager in Gcf.get_all_fig_managers():
+                canvas = manager.canvas
+                if canvas is not self and isinstance(canvas, WskrFigureCanvas):
+                    canvas._flush_one()
+        finally:
+            _EVENT_PUMP.reset(token)
 
 
 class BaseFigureManager(FigureManagerBase):
