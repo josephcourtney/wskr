@@ -8,6 +8,7 @@ silently acquiring machine-specific display/DPI assumptions.
 from __future__ import annotations
 
 import fcntl
+import re
 import struct
 import sys
 import termios
@@ -94,26 +95,76 @@ def read_geometry() -> Geometry | None:
     return Geometry(rows, cols, width, height)
 
 
+_CSI_SIZE = re.compile(rb"^\x1b\[([46]);([0-9]{1,6});([0-9]{1,6})t$")
+
+
+def _query_csi_pixels(query: Callable[[bytes], bytes], *, command: int, response: int) -> tuple[int, int] | None:
+    """Parse only a matched CSI window/cell-size reply from an input owner.
+
+    The supplied callback handles input ownership and timeouts; this parser
+    never opens a TTY and cannot mistake an unrelated reply for a measurement.
+    """
+    try:
+        reply = query(f"\x1b[{command}t".encode("ascii"))
+        match = _CSI_SIZE.fullmatch(reply)
+        if match is None or int(match[1]) != response:
+            return None
+        height, width = int(match[2]), int(match[3])
+        return (width, height) if height > 0 and width > 0 else None
+    except (OSError, RuntimeError, ValueError, TimeoutError):
+        return None
+
+
 def probe_profile(
     *,
     geometry: Geometry | None = None,
     color_query: Callable[[bytes], bytes] | None = None,
     palette: bool = False,
+    geometry_query: Callable[[bytes], bytes] | None = None,
 ) -> TerminalProfile:
     """Build a profile; only an explicitly supplied color callback may query.
 
-    color_query is a callable accepting an OSC request and returning response
-    bytes. Callers must own the input stream; see query.query_osc for a guarded
-    implementation. No terminal query is initiated by default.
+    color_query accepts OSC requests; geometry_query accepts CSI size requests.
+    The caller must own terminal input and preserve unrelated bytes. Neither
+    callback is installed implicitly; no escapes are emitted by default.
     """
     geom = geometry if geometry is not None else read_geometry()
     if geom is None or geom.rows <= 0 or geom.columns <= 0:
         return TerminalProfile()
 
-    width = Value(geom.width_px, Source.MEASURED) if geom.width_px > 0 else Value()
-    height = Value(geom.height_px, Source.MEASURED) if geom.height_px > 0 else Value()
-    cell_width = Value(geom.width_px / geom.columns, Source.INFERRED) if geom.width_px > 0 else Value()
-    cell_height = Value(geom.height_px / geom.rows, Source.INFERRED) if geom.height_px > 0 else Value()
+    queried_window = (
+        _query_csi_pixels(geometry_query, command=14, response=4)
+        if geometry_query is not None and (geom.width_px <= 0 or geom.height_px <= 0)
+        else None
+    )
+    queried_cells = (
+        _query_csi_pixels(geometry_query, command=16, response=6) if geometry_query is not None else None
+    )
+    cell_w = float(queried_cells[0]) if queried_cells is not None else None
+    cell_h = float(queried_cells[1]) if queried_cells is not None else None
+    pixel_w = geom.width_px if geom.width_px > 0 else queried_window[0] if queried_window else 0
+    pixel_h = geom.height_px if geom.height_px > 0 else queried_window[1] if queried_window else 0
+    width_source = Source.MEASURED if pixel_w > 0 else Source.UNKNOWN
+    height_source = Source.MEASURED if pixel_h > 0 else Source.UNKNOWN
+    if pixel_w <= 0 and cell_w is not None:
+        pixel_w = round(geom.columns * cell_w)
+        width_source = Source.INFERRED
+    if pixel_h <= 0 and cell_h is not None:
+        pixel_h = round(geom.rows * cell_h)
+        height_source = Source.INFERRED
+
+    cell_w_source = Source.MEASURED if cell_w is not None else Source.UNKNOWN
+    cell_h_source = Source.MEASURED if cell_h is not None else Source.UNKNOWN
+    if cell_w is None and pixel_w > 0:
+        cell_w = pixel_w / geom.columns
+        cell_w_source = Source.INFERRED
+    if cell_h is None and pixel_h > 0:
+        cell_h = pixel_h / geom.rows
+        cell_h_source = Source.INFERRED
+    width = Value(pixel_w, width_source) if pixel_w > 0 else Value()
+    height = Value(pixel_h, height_source) if pixel_h > 0 else Value()
+    cell_width = Value(cell_w, cell_w_source) if cell_w is not None else Value()
+    cell_height = Value(cell_h, cell_h_source) if cell_h is not None else Value()
     colors: dict[int, RGB] = {}
     if color_query is not None:
         indices = [(10, None), (11, None)]
