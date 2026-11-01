@@ -75,6 +75,7 @@ An application that owns *foreground stdin and stdout on the same TTY* may colle
 ```python
 from wskr.terminal import probe_owned_profile, use_profile
 
+input_queue = bytearray()  # replace with application's input dispatcher
 # This example belongs in an application's own foreground terminal event loop.
 # Feed unrelated reply bytes back to its actual input queue.
 profile = probe_owned_profile(owns_input=True, on_unmatched=input_queue.extend)
