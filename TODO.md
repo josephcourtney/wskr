@@ -12,9 +12,4 @@ Only pending execution items. See [STATUS.md](STATUS.md) for qualified behavior,
 - [ ] Confirm native macOS fitted blocking **multi-figure paging** (`n`/`p` + Enter), scoped explicit `plt.close()` deletion, and nonblocking multi-figure redraw separately from accepted owned-viewport cases.
 - [ ] Reconcile the `show(block=None)` behavior with DESIGN §4: current persistent nonblocking default intentionally differs from ordinary Matplotlib auto-blocking; retain existing behavior until a deliberate compatibility decision with tests.
 
-## P4 / P5 — next phases, not P3 completion criteria
-
-- [ ] Replace transitional `RichPlot`/`RichImage` implementation with `ConsoleOptions` sizing and shared virtual Kitty image manager, preserving caller figure dimensions; test panels, tables, scrolling and upload reuse.
-- [ ] Make Rich and OS-theme helpers optional; remove unneeded runtime science/test dependencies, unsafe legacy Kitty chunks and misleading iTerm2/Sixel registrations with explicit compatibility notes.
-
 **Verification for each code slice:** `just check`, focused PTY tests and installed-wheel smoke; record actual results. Run native Kitty visual cases when macOS GUI/yabai are available. Do not treat a generated evidence ZIP as visual acceptance without inspecting its screenshots.
