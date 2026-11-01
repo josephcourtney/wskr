@@ -354,6 +354,7 @@ class WskrFigureManager(FigureManagerBase):
         self.transport = factory()
         self.caps = caps_factory() if caps_factory is not None else None
         self._last_output_static = False
+        self._closed = False
         self._nonblocking_resize = _NonblockingResizeState()
 
     def show(self, *_args: Any, **_kwargs: Any) -> None:
@@ -367,6 +368,7 @@ class WskrFigureManager(FigureManagerBase):
 
     def destroy(self) -> None:
         """Retain ordinary output at exit; otherwise release owned images."""
+        self._closed = True
         self._nonblocking_resize.clear()
         _close_owned_transport(self.transport, static_output=self._last_output_static)
 
@@ -403,7 +405,8 @@ class WskrFigureCanvas(FigureCanvasAgg):
                 return
             super().draw()
             if is_interactive() and not _BLOCKING_RENDER.get() and self.figure.get_axes() and self.manager is not None:
-                self.manager.show()
+                if not getattr(self.manager, "_closed", False):
+                    self.manager.show()
 
     def draw_idle(self) -> None:
         """Schedule one render per event pump when explicitly requested.
@@ -413,6 +416,8 @@ class WskrFigureCanvas(FigureCanvasAgg):
         that already call flush_events()/plt.pause() can opt into coalescing.
         This never starts a thread or consumes terminal input.
         """
+        if getattr(self.manager, "_closed", False):
+            return
         if os.getenv("WSKR_IDLE_REDRAW", "").lower() == "coalesce" and is_interactive():
             self._idle_pending = True
             return
@@ -428,7 +433,7 @@ class WskrFigureCanvas(FigureCanvasAgg):
         if _BLOCKING_RENDER.get():
             return
         manager = self.manager
-        if manager is None:
+        if manager is None or getattr(manager, "_closed", False):
             self._idle_pending = False
             return
         if getattr(self, "_idle_pending", False):
@@ -455,6 +460,7 @@ class BaseFigureManager(FigureManagerBase):
         self.transport = transport_cls()
         self.caps = caps
         self._last_output_static = False
+        self._closed = False
         self._nonblocking_resize = _NonblockingResizeState()
 
     def show(self, *_args: Any, **_kwargs: Any) -> None:
@@ -468,6 +474,7 @@ class BaseFigureManager(FigureManagerBase):
 
     def destroy(self) -> None:
         """Retain ordinary output at exit; clean up explicit/interactively."""
+        self._closed = True
         self._nonblocking_resize.clear()
         _close_owned_transport(self.transport, static_output=self._last_output_static)
 
