@@ -6,12 +6,12 @@ Terminal-native Matplotlib display using the Kitty graphics protocol, with trans
 
 - Stock Matplotlib Agg-backed `wskr_kitty` backend, selected through `MPLBACKEND=wskr_kitty` or `module://wskr.render.matplotlib.kitty`. No special plotting API.
 - Direct Kitty PNG transport (without `kitty icat`) with scoped image/placement IDs, replacement and explicit deletion. An attached `xterm-kitty` TTY is required.
-- Provenance-aware kernel cell/pixel geometry, optional guarded OSC color queries and figure-local default styling. **Unattended pyplot does not probe OSC colors** because the REPL/shell may own input.
+- Provenance-aware kernel/CSI geometry, safe OSC and Kitty XTGETTCAP measurements (palette, foreground/background, font family/size, DPI and opacity) through an explicit input-owning client; scoped, figure-local appearance without changing `rcParams`. Unattended pyplot does not read shared terminal input.
 - Preserved explicit figure dimensions/DPI and standard PNG/SVG `savefig` exports; display-only `WSKR_SCALE` and optional `WSKR_FIT=contain`.
 - Nonblocking, terminal-history-resident static figures; explicit foreground `show(block=True)` with an alternate screen, Enter-to-close, fitted multi-figure contact sheets and `n`/`p` paging.
 - Explicit `owned_viewport(fig)` for an application with exclusive foreground terminal ownership, application-driven `refresh()` and `poll_resize()`, and previous-screen restoration on exit.
 
-**Not yet supported end-to-end:** automatic live palette/theme changes, unattended IPython/REPL redraw, viewport-pinned *nonblocking history* images, arbitrary independent placement, Rich inline Kitty panels/tables, and iTerm2/Sixel graphics. Rich names currently return visible diagnostics, not inline images. See [TODO.md](TODO.md).
+**Not yet supported end-to-end:** unattended theme-change recoloring of existing figures, unattended IPython/REPL redraw, viewport-pinned *nonblocking history* images, arbitrary independent placement, Rich inline Kitty panels/tables, and iTerm2/Sixel graphics. Rich names currently return visible diagnostics, not inline images. See [TODO.md](TODO.md).
 
 ## Installation and backend selection
 
@@ -70,7 +70,22 @@ profile = probe_profile()  # geometry; no escape queries by default
 defaults = resolve_rc_defaults(profile)
 ```
 
-An input-owning caller may also supply `geometry_query` to `probe_profile()` for CSI 14/16 window/cell measurements when kernel pixels are missing. `wskr.terminal.query.query_csi()` provides bounded queries with explicit `owns_input=True` and an `on_unmatched` callback for preserving unrelated bytes; no query runs by default. Live OSC color probing requires an exclusive input owner and a callback that preserves unmatched input; unknown font, opacity and physical DPI remain unknown. Explicit Matplotlib style and sizing values are authoritative.
+An application that owns *foreground stdin and stdout on the same TTY* may collect the live terminal appearance and scope it to normal pyplot creation:
+
+```python
+from wskr.terminal import probe_owned_profile, use_profile
+
+# This example belongs in an application's own foreground terminal event loop.
+# Feed unrelated reply bytes back to its actual input queue.
+profile = probe_owned_profile(owns_input=True, on_unmatched=input_queue.extend)
+with use_profile(profile):
+    fig, ax = plt.subplots()  # regular Matplotlib APIs
+    ax.plot([0, 1], [1, 2])
+```
+
+`input_queue` is an application-owned input buffer, not a provided wskr global. `probe_owned_profile` rejects redirected/background/mismatched TTYs and never runs implicitly. For tests or applications with an existing terminal query dispatcher, `probe_profile(color_query=..., geometry_query=..., kitty_query=...)` accepts bounded input-owner callbacks. The public query helpers are `query_osc`, `query_csi`, and `query_kitty_field` from `wskr.terminal.query`.
+
+Known Kitty runtime font and DPI are **measurements**, not instructions to install fonts or substitute physical DPI for rasterization DPI. If the measured font is unavailable on the Python host, new figures use Matplotlib's installed monospace fallback. Re-running the probe and scoping a new profile gives *new figures* the current theme; already-rendered figures are not recolored, nor are custom artist colors overridden. Explicit Matplotlib style and sizing values remain authoritative. A non-owning REPL cannot automatically interrogate OSC replies safely.
 
 `RichPlot` and `RichImage` retain their historical imports under `wskr.render.rich`. Currently they display a diagnostic fallback for unavailable inline graphics, even with `WSKR_PROTOCOL=kitty`. Do not use them for image-bearing Rich panels or tables until Phase 4 is complete. The older `kitty_legacy` comparison implementation requires a Kitty executable and is not the supported primary transport.
 
