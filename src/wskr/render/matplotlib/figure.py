@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 import matplotlib as mpl
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from matplotlib.colors import to_rgba
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -21,6 +22,63 @@ if TYPE_CHECKING:
 
 class TerminalAxes(Axes):
     """Use parent-figure styling when legends or text are created later."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self._wskr_ready = False
+        self._wskr_bg_owned = "facecolor" not in kwargs
+        self._wskr_explicit_text: set[str] = set()
+        super().__init__(*args, **kwargs)
+        self._wskr_bg_initial = self.get_facecolor()
+        self._wskr_ready = True
+
+    def set_facecolor(self, color: Any) -> None:
+        if getattr(self, "_wskr_ready", False):
+            self._wskr_bg_owned = False
+        super().set_facecolor(color)
+
+    def set_title(self, label: Any, *args: Any, **kwargs: Any):
+        if getattr(self, "_wskr_ready", False) and (
+            "color" in kwargs or isinstance(kwargs.get("fontdict"), dict) and "color" in kwargs["fontdict"]
+        ):
+            self._wskr_explicit_text.add("title")
+        return super().set_title(label, *args, **kwargs)
+
+    def set_xlabel(self, xlabel: Any, *args: Any, **kwargs: Any):
+        if getattr(self, "_wskr_ready", False) and (
+            "color" in kwargs or isinstance(kwargs.get("fontdict"), dict) and "color" in kwargs["fontdict"]
+        ):
+            self._wskr_explicit_text.add("xlabel")
+        return super().set_xlabel(xlabel, *args, **kwargs)
+
+    def set_ylabel(self, ylabel: Any, *args: Any, **kwargs: Any):
+        if getattr(self, "_wskr_ready", False) and (
+            "color" in kwargs or isinstance(kwargs.get("fontdict"), dict) and "color" in kwargs["fontdict"]
+        ):
+            self._wskr_explicit_text.add("ylabel")
+        return super().set_ylabel(ylabel, *args, **kwargs)
+
+    def refresh_owned_colors(self, previous: dict[str, Any], new: dict[str, Any]) -> bool:
+        """Update only unchanged backend-provenance surfaces and primary labels."""
+        changed = False
+        if self._wskr_bg_owned and "axes.facecolor" in previous and "axes.facecolor" in new:
+            if self.get_facecolor() == to_rgba(previous["axes.facecolor"]):
+                self._wskr_ready = False
+                try:
+                    super().set_facecolor(new["axes.facecolor"])
+                finally:
+                    self._wskr_ready = True
+                changed = True
+        for name, artist, key in (
+            ("title", self.title, "text.color"),
+            ("xlabel", self.xaxis.label, "axes.labelcolor"),
+            ("ylabel", self.yaxis.label, "axes.labelcolor"),
+        ):
+            if name in self._wskr_explicit_text or key not in previous or key not in new:
+                continue
+            if to_rgba(artist.get_color()) == to_rgba(previous[key]):
+                artist.set_color(new[key])
+                changed = True
+        return changed
 
     @contextmanager
     def _owner_defaults(self) -> Generator[None]:
@@ -51,10 +109,53 @@ class TerminalAxes(Axes):
 class TerminalFigure(Figure):
     """Stock Matplotlib figure with scoped defaults for subsequently created art."""
 
-    def __init__(self, *args: Any, _wskr_defaults: dict[str, Any] | None = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *args: Any,
+        _wskr_defaults: dict[str, Any] | None = None,
+        _wskr_bg_owned: bool = False,
+        **kwargs: Any,
+    ) -> None:
         self._wskr_defaults = dict(_wskr_defaults or {})
+        self._wskr_bg_owned = _wskr_bg_owned
+        self._wskr_ready = False
         with self._creation_defaults():
             super().__init__(*args, **kwargs)
+        self._wskr_bg_initial = self.get_facecolor()
+        self._wskr_ready = True
+
+    def set_facecolor(self, color: Any) -> None:
+        if getattr(self, "_wskr_ready", False):
+            self._wskr_bg_owned = False
+        super().set_facecolor(color)
+
+    def refresh_owned_colors(self, new: dict[str, Any]) -> bool:
+        """Opt-in, strictly owned color refresh without touching data artists.
+
+        Only originally backend-owned values are candidates. User edits and
+        changes to globally configured Matplotlib styles remain authoritative.
+        """
+        previous = self._wskr_defaults
+        changed = False
+        if self._wskr_bg_owned and "figure.facecolor" in new and self.get_facecolor() == self._wskr_bg_initial:
+            self._wskr_ready = False
+            try:
+                super().set_facecolor(new["figure.facecolor"])
+            finally:
+                self._wskr_ready = True
+            self._wskr_bg_initial = self.get_facecolor()
+            changed = True
+        for axes in self.axes:
+            if isinstance(axes, TerminalAxes):
+                changed = axes.refresh_owned_colors(previous, new) or changed
+        # Preserve only established ownership; do not acquire previously
+        # user-owned keys on a subsequent terminal-theme change.
+        self._wskr_defaults = {
+            key: new.get(key, value)
+            for key, value in previous.items()
+            if mpl.rcParams[key] == mpl.rcParamsDefault[key]
+        }
+        return changed
 
     @contextmanager
     def _creation_defaults(self) -> Generator[None]:
