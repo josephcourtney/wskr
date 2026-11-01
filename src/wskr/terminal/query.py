@@ -170,6 +170,10 @@ _CSI_REPLIES: dict[bytes, bytes] = {
     b"\x1b[16t": b"\x1b[6;",
 }
 
+_CSI_PREFIX_BYTES = len(b"\x1b[")
+_CSI_FINAL_MIN = ord("@")
+_CSI_FINAL_MAX = ord("~")
+
 
 def _receive_csi_reply(
     fd: int,
@@ -190,11 +194,11 @@ def _receive_csi_reply(
             unmatched.extend(ch)
             continue
         partial.extend(ch)
-        if len(partial) == 2 and partial != b"\x1b[":
+        if len(partial) == _CSI_PREFIX_BYTES and partial != b"\x1b[":
             unmatched.extend(partial)
             partial.clear()
             continue
-        if partial.startswith(b"\x1b[") and 0x40 <= partial[-1] <= 0x7E:
+        if partial.startswith(b"\x1b[") and _CSI_FINAL_MIN <= partial[-1] <= _CSI_FINAL_MAX:
             response = bytes(partial)
             partial.clear()
             if response.startswith(expected) and response.endswith(b"t"):
