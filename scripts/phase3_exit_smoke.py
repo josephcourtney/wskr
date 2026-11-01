@@ -62,7 +62,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         patch.object(NativeKittyTransport, "send_anchored_image", inspect_and_send) if args.fit_file else nullcontext()
     )
     with context:
-        plt.show()
+        plt.show(block=False)  # Explicitly persistent output without acquiring keyboard input.
     print("Rendered ordinary Matplotlib output; Python is exiting.")
 
 
