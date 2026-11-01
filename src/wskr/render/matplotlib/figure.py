@@ -151,9 +151,7 @@ class TerminalFigure(Figure):
         # Preserve only established ownership; do not acquire previously
         # user-owned keys on a subsequent terminal-theme change.
         self._wskr_defaults = {
-            key: new.get(key, value)
-            for key, value in previous.items()
-            if mpl.rcParams[key] == mpl.rcParamsDefault[key]
+            key: new.get(key, value) for key, value in previous.items() if mpl.rcParams[key] == mpl.rcParamsDefault[key]
         }
         return changed
 
