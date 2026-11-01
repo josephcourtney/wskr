@@ -5,6 +5,8 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- Added opt-in runtime Kitty terminal appearance queries (font family/size, physical DPI, foreground/background and opacity), guarded OSC/CSI/XTGETTCAP transactions, and scoped `use_profile(profile)` for Matplotlib figures with user-owned style precedence.
+- Added cell-derived line, marker and grid sizing, local monospace fallback, and transparent default figure surfaces when terminal background opacity is measured as translucent.
 - Added optional `WSKR_IDLE_REDRAW=coalesce` for interactive Matplotlib applications that pump `flush_events()` or `plt.pause()`, reducing repeated `draw_idle()` updates to one terminal upload per pump while retaining immediate redraw by default.
 - Added opt-in CSI 14/16 pixel-size response parsing for input-owning terminal profile callers, preserving kernel geometry precedence and measured/inferred provenance.
 - Added experimental `owned_viewport(fig)` for foreground-owned live Kitty applications. It explicitly acquires an alternate screen, permits application-driven refresh and debounced resize polling, restores shell history on exit and leaves nonblocking historical Matplotlib output unchanged. Hosted real-Kitty and six native macOS scenarios (including genuine yabai BSP) qualified resize, visibility and shell restoration.
