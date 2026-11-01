@@ -295,7 +295,7 @@ def _receive_dcs_reply(
             frame = bytes(partial)
             partial.clear()
             # Handle success and failure replies for the same requested name.
-            if frame.startswith((b"\x1bP1+r" + key, b"\x1bP0+r" + key)):
+            if frame.startswith(b"\x1bP1+r" + key + b"=") or frame == b"\x1bP0+r" + key + b"\x1b\\":
                 return frame
             unmatched.extend(frame)
     msg = "Terminal DCS reply exceeded bounded input limit"
