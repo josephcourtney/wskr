@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 
 fig, ax = plt.subplots()
 ax.plot([0, 1, 2], [3, 1, 4])
-plt.show()  # Nonblocking, intentionally persistent in terminal history
+plt.show(block=False)  # Explicitly retain the plot in terminal history
 fig.savefig("chart.svg")
 ```
 
@@ -39,9 +39,9 @@ For an oversized figure, fit only the transmitted PNG, leaving figure geometry a
 WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python example.py
 ```
 
-`WSKR_SCALE` scales only terminal pixels and is applied before optional containment. Without `WSKR_FIT=contain`, the backend does not silently resize an explicitly sized figure. `show(block=None|False)` returns without claiming keyboard input; `show(block=True)` requires foreground stdin/stdout on the same Kitty TTY and closes its managed images when dismissed.
+`WSKR_SCALE` scales only terminal pixels and is applied before optional containment. Without `WSKR_FIT=contain`, the backend does not silently resize an explicitly sized figure. `show(block=None)` follows Matplotlib interactive-mode semantics: it blocks in a noninteractive foreground script with exclusive TTY access, and returns in interactive or unowned sessions. `show(block=False)` explicitly retains nonblocking history output. `show(block=True)` requires foreground stdin/stdout on the same Kitty TTY and closes managed images on dismissal.
 
-When the application pumps `canvas.flush_events()` or `plt.pause()`, a fitted nonblocking figure can be redrawn following a stable resize. Interactive applications may opt into `WSKR_IDLE_REDRAW=coalesce` to queue repeated `draw_idle()` calls until the next event pump; the default remains immediate. The placement stays attached to its *original scrollback anchor*, not the current viewport. Under Kitty 0.49.2, native experiments with 96 wrapped history lines showed a fitted redraw can be off-screen after shrinking even though upload and placement succeeded. See [placement semantics](docs/phase3-placement-semantics.md).
+When the application pumps `canvas.flush_events()` or `plt.pause()`, a fitted nonblocking figure can be redrawn following a stable resize. Interactive applications may opt into `WSKR_IDLE_REDRAW=coalesce` to queue repeated `draw_idle()` calls until the next event pump. A pump on one pyplot figure also drains pending backend-managed figures. The default remains immediate; this does not add an unattended REPL/IPython event loop. The placement stays attached to its *original scrollback anchor*, not the current viewport. For older Kitty versions without P/Q parent-relative placement, set `WSKR_KITTY_PARENT=off` to use ordinary scoped physical placements instead; this fallback is not viewport-pinned. Under Kitty 0.49.2, native experiments with 96 wrapped history lines showed a fitted redraw can be off-screen after shrinking even though upload and placement succeeded. See [placement semantics](docs/phase3-placement-semantics.md).
 
 ## Foreground-owned live viewport
 
@@ -56,6 +56,8 @@ with owned_viewport(fig) as screen:
     line.set_ydata([0, 0.5, 0])
     screen.refresh()
     screen.poll_resize()  # call repeatedly from your own event loop
+    # If an input-owning application has measured a new profile:
+    # screen.refresh_theme(new_profile)  # backend-owned colors only
 ```
 
 Use `WSKR_FIT=contain MPLBACKEND=wskr_kitty` in a foreground Kitty process; do not enter this mode from a REPL that owns the terminal. It does not read stdin or create a background event loop, and its images do not persist after the session. [Native macOS acceptance](docs/phase3-owned-live-automated-acceptance.md) covers unmanaged Kitty, yabai floating and genuine vertical BSP, with both short and tall figures.
