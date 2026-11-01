@@ -102,7 +102,6 @@ def test_real_foreground_pty_blocking_show_and_scoped_close() -> None:
     assert os.WEXITSTATUS(status) == 0
 
 
-
 def test_real_foreground_pty_default_show_auto_blocks() -> None:
     """A noninteractive script without block= must own the canonical prompt."""
     child, master = pty.fork()
