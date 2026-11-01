@@ -228,3 +228,37 @@ def test_real_pty_resize_is_observed_without_terminal_input(monkeypatch) -> None
     finally:
         os.close(master)
         os.close(slave)
+
+
+def test_optional_interactive_idle_redraw_coalesces_until_event_pump(monkeypatch) -> None:
+    """Multiple stale events should produce only one newly transmitted PNG."""
+    monkeypatch.setenv("WSKR_FIT", "contain")
+    monkeypatch.setenv("WSKR_IDLE_REDRAW", "coalesce")
+    _, _, figure, canvas, manager, transport = _setup(monkeypatch)
+    monkeypatch.setattr(core, "is_interactive", lambda: True)
+    try:
+        manager.show()
+        figure.axes[0].lines[0].set_ydata([2, 3])
+        for _ in range(8):
+            canvas.draw_idle()
+        assert len(transport.frames) == 1
+        canvas.flush_events()
+        assert len(transport.frames) == 2
+        canvas.flush_events()
+        assert len(transport.frames) == 2
+        figure.axes[0].lines[0].set_ydata([3, 4])
+        canvas.draw_idle()
+        canvas.flush_events()
+        assert len(transport.frames) == 3
+    finally:
+        manager.destroy()
+
+
+def test_idle_redraw_on_closed_manager_has_no_terminal_effect(monkeypatch) -> None:
+    monkeypatch.setenv("WSKR_IDLE_REDRAW", "coalesce")
+    _, _, _, canvas, manager, transport = _setup(monkeypatch)
+    monkeypatch.setattr(core, "is_interactive", lambda: True)
+    manager.destroy()
+    canvas.draw_idle()
+    canvas.flush_events()
+    assert transport.frames == []
