@@ -148,8 +148,6 @@ def _geometry_measurements(
     return width, height, cell_width, cell_height
 
 
-
-
 _PROFILE_CONTEXT: ContextVar[TerminalProfile | None] = ContextVar("wskr_terminal_profile", default=None)
 
 
@@ -264,7 +262,9 @@ def probe_profile(
     geom = geometry if geometry is not None else read_geometry()
     valid_geom = geom is not None and geom.rows > 0 and geom.columns > 0
     width, height, cell_width, cell_height = (
-        _geometry_measurements(geom, geometry_query) if valid_geom and geom is not None else (Value(), Value(), Value(), Value())
+        _geometry_measurements(geom, geometry_query)
+        if valid_geom and geom is not None
+        else (Value(), Value(), Value(), Value())
     )
     kitty = _kitty_measurements(kitty_query)
     colors: dict[int, RGB] = {}
@@ -304,4 +304,14 @@ def probe_profile(
     )
 
 
-__all__ = ["Geometry", "Source", "TerminalProfile", "Value", "current_profile", "probe_owned_profile", "probe_profile", "read_geometry", "use_profile"]
+__all__ = [
+    "Geometry",
+    "Source",
+    "TerminalProfile",
+    "Value",
+    "current_profile",
+    "probe_owned_profile",
+    "probe_profile",
+    "read_geometry",
+    "use_profile",
+]
