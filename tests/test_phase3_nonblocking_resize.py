@@ -262,3 +262,19 @@ def test_idle_redraw_on_closed_manager_has_no_terminal_effect(monkeypatch) -> No
     canvas.draw_idle()
     canvas.flush_events()
     assert transport.frames == []
+
+
+def test_pyplot_interactive_hook_uses_coalesced_canvas_path(monkeypatch) -> None:
+    monkeypatch.setenv("WSKR_IDLE_REDRAW", "coalesce")
+    _, _, _, canvas, manager, transport = _setup(monkeypatch)
+    monkeypatch.setattr(core.Gcf, "get_active", lambda: manager)
+    monkeypatch.setattr(core.mpl, "is_interactive", lambda: True)
+    monkeypatch.setattr(core, "is_interactive", lambda: True)
+    try:
+        for _ in range(5):
+            core._BackendTermAgg.draw_if_interactive()
+        assert transport.frames == []
+        canvas.flush_events()
+        assert len(transport.frames) == 1
+    finally:
+        manager.destroy()
