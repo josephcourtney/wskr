@@ -80,10 +80,10 @@ def test_runtime_font_and_cell_geometry_scale_without_physical_dpi():
                 b"\x1bP1+r"
                 + f"kitty-query-{field}".encode().hex().encode()
                 + b"="
-                + ("240" if field in ("dpi_x", "dpi_y") else "12").encode().hex().encode()
+                + ("240" if field in {"dpi_x", "dpi_y"} else "12").encode().hex().encode()
                 + b"\x1b\\"
             )
-            if field in ("dpi_x", "dpi_y", "font_size")
+            if field in {"dpi_x", "dpi_y", "font_size"}
             else b"invalid"
         ),
     )
