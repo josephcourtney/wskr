@@ -14,11 +14,12 @@ import matplotlib as mpl
 from matplotlib.axes import Axes
 from matplotlib.colors import to_rgba
 from matplotlib.figure import Figure
-from matplotlib.text import Text
 
 if TYPE_CHECKING:
     from collections.abc import Generator
     from typing import Any
+
+    from matplotlib.text import Text
 
 
 class TerminalAxes(Axes):
@@ -42,17 +43,17 @@ class TerminalAxes(Axes):
         fontdict = kwargs.get("fontdict")
         return "color" in kwargs or (isinstance(fontdict, dict) and "color" in fontdict)
 
-    def set_title(self, label: str, *args, **kwargs) -> Text:
+    def set_title(self, label: str, *args: object, **kwargs: object) -> Text:
         if getattr(self, "_wskr_ready", False) and self._has_explicit_color(kwargs):
             self._wskr_explicit_text.add("title")
         return super().set_title(label, *args, **kwargs)
 
-    def set_xlabel(self, xlabel: str, *args, **kwargs) -> Text:
+    def set_xlabel(self, xlabel: str, *args: object, **kwargs: object) -> Text:
         if getattr(self, "_wskr_ready", False) and self._has_explicit_color(kwargs):
             self._wskr_explicit_text.add("xlabel")
         return super().set_xlabel(xlabel, *args, **kwargs)
 
-    def set_ylabel(self, ylabel: str, *args, **kwargs) -> Text:
+    def set_ylabel(self, ylabel: str, *args: object, **kwargs: object) -> Text:
         if getattr(self, "_wskr_ready", False) and self._has_explicit_color(kwargs):
             self._wskr_explicit_text.add("ylabel")
         return super().set_ylabel(ylabel, *args, **kwargs)
@@ -134,7 +135,7 @@ class TerminalFigure(Figure):
         self._wskr_bg_initial = self.get_facecolor()
         self._wskr_ready = True
 
-    def set_facecolor(self, color: Any) -> None:
+    def set_facecolor(self, color: str | tuple[float, ...]) -> None:
         if getattr(self, "_wskr_ready", False):
             self._wskr_bg_owned = False
         super().set_facecolor(color)
