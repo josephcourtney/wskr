@@ -19,7 +19,7 @@ QUERY_FIELDS = frozenset({
     "background_opacity",
 })
 _MAX_VALUE_BYTES = 256
-_CONTROL_LIMIT = ord(' ')
+_CONTROL_LIMIT = ord(" ")
 _DELETE_CHAR = 0x7F
 _RESPONSE = re.compile(rb"^\x1bP([01])\+r([0-9A-Fa-f]+)(?:=([0-9A-Fa-f]*))?\x1b\\$")
 
