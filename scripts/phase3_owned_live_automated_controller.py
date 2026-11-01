@@ -126,6 +126,46 @@ def _query_yabai(title: str) -> dict:
     return matches[0]
 
 
+def _prepare_yabai_floating(title: str, *, timeout: float = 15.0) -> dict:
+    """Wait for yabai accessibility and float the disposable test window.
+
+    New Kitty windows may initially appear in yabai as invisible placeholder
+    records without AX references. Only toggle a window after it is usable;
+    never mutate a persistent yabai setting or an unrelated window.
+    """
+    deadline = time.monotonic() + timeout
+    last: dict = {}
+    last_error: str | None = None
+    last_focus = 0.0
+    while time.monotonic() < deadline:
+        try:
+            window = _query_yabai(title)
+        except AcceptanceError as exc:
+            last_error = str(exc)
+            time.sleep(_POLL_INTERVAL)
+            continue
+        last = window
+        if window.get("is-floating") and window.get("is-visible"):
+            return window
+        identifier = str(window["id"])
+        if window.get("has-ax-reference") and window.get("is-visible"):
+            try:
+                _run(["yabai", "-m", "window", identifier, "--toggle", "float"])
+            except AcceptanceError as exc:
+                last_error = str(exc)
+        elif time.monotonic() - last_focus >= 1.0:
+            # Focusing our own test window can make it visible and give yabai
+            # access to its AX reference on an otherwise inactive space.
+            try:
+                _run(["yabai", "-m", "window", identifier, "--focus"])
+            except AcceptanceError as exc:
+                last_error = str(exc)
+            last_focus = time.monotonic()
+        time.sleep(_POLL_INTERVAL)
+    msg = f"Could not activate and float the isolated yabai window: last={last}, error={last_error}"
+    raise AcceptanceError(msg)
+
+
 def _resize(
     socket: str,
     window_id: int,
@@ -158,19 +198,18 @@ def _resize(
     if window.get("is-floating", False):
         _run(["yabai", "-m", "window", identifier, "--resize", f"abs:{width}:{wanted_height}"])
         return "yabai_float_absolute"
-    # yabai's window-query result has no "is-managed" key. Use its actual
-    # split metadata to identify a BSP child whose parent ratio can change.
+    # Only a vertical BSP split allocates different widths to its children.
+    # A horizontal split allocates heights and cannot exercise raster fitting.
     split_type = window.get("split-type")
     split_child = window.get("split-child")
-    if split_type in {"horizontal", "vertical"} and split_child in {"first_child", "second_child"}:
-        # BSP layout owns dimensions. Measure the result instead of assuming
-        # a ratio maps to a particular pixel width or height.
-        _run(["yabai", "-m", "window", identifier, "--ratio", "abs:0.30" if small else "abs:0.70"])
+    if split_type == "vertical" and split_child in {"first_child", "second_child"}:
+        share = 0.25 if small else 0.75
+        ratio = share if split_child == "first_child" else 1.0 - share
+        _run(["yabai", "-m", "window", identifier, "--ratio", f"abs:{ratio:.2f}"])
         return "yabai_bsp_ratio"
     msg = (
-        "yabai window is neither floating nor a resizable BSP split child: "
-        f"id={identifier}, is-floating={window.get('is-floating')}, "
-        f"split-type={split_type!r}, split-child={split_child!r}"
+        "BSP width-resize needs a vertical split and an adjacent tile: "
+        f"id={identifier}, split-type={split_type!r}, split-child={split_child!r}"
     )
     raise AcceptanceError(msg)
 
@@ -230,7 +269,7 @@ def _resize_to_fit(
                 msg = f"Window too short at {width}x{height_px} physical px; expected height >= {minimum_height}"
                 raise AcceptanceError(msg)
             return attempts
-        if mode == "yabai" and method == "yabai_bsp_ratio":
+        if mode == "yabai-bsp" and method == "yabai_bsp_ratio":
             break  # exact width is controlled by yabai's surrounding layout
         previous_request = request
         request = _calibrated_request(requested=request, observed=width, target=_WIDTH_SMALL)
@@ -277,8 +316,15 @@ def _exercise_case(directory: Path, report: dict, socket: str, title: str, mode:
     _await(directory / "launch.ready")
     window_id = _wait_window_id(socket)
     report["kitty_window_id"] = window_id
-    if mode == "yabai":
+    if mode in {"yabai", "yabai-bsp"}:
         report["yabai_initial"] = _query_yabai(title)
+    if mode == "yabai":
+        # The regular matrix exercises yabai-controlled *floating* windows,
+        # independent of the current tiling tree. BSP testing remains explicit.
+        report["yabai_prepared"] = _prepare_yabai_floating(title)
+        report["yabai_resize_policy"] = "floating"
+    elif mode == "yabai-bsp":
+        report["yabai_resize_policy"] = "bsp"
     # Initial resize happens before any plotted image is transmitted.
     method = _resize(socket, window_id, title, mode=mode, small=False, height=height)
     report["steps"].append({"stage": "initial_resize", "method": method})
@@ -312,7 +358,7 @@ def _exercise_case(directory: Path, report: dict, socket: str, title: str, mode:
     _signal(directory, "exit.proceed")
     _await(directory / "finished")
     _stage(directory, report, socket, window_id, "primary_restored", visible=False)
-    if mode == "yabai":
+    if mode in {"yabai", "yabai-bsp"}:
         report["yabai_final"] = _query_yabai(title)
     _verify(report, directory)
 
@@ -389,7 +435,7 @@ def _yabai_status() -> str | None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("unmanaged", "yabai", "all"), default="all")
+    parser.add_argument("--mode", choices=("unmanaged", "yabai", "yabai-bsp", "all"), default="all")
     parser.add_argument("--height", choices=(2, 6), type=int)
     parser.add_argument("--output", type=Path, default=Path("artifacts/phase3-owned-live-native-auto"))
     args = parser.parse_args(argv)
@@ -405,9 +451,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     heights = (args.height,) if args.height is not None else (2, 6)
     cases = [(mode, height) for mode in modes for height in heights]
     results: list[dict] = []
-    yabai_error = _yabai_status() if "yabai" in modes else None
+    yabai_error = _yabai_status() if any(mode.startswith("yabai") for mode in modes) else None
     for mode, height in cases:
-        if mode == "yabai" and yabai_error:
+        if mode.startswith("yabai") and yabai_error:
             result = {"case": f"{mode}-h{height}", "status": "SKIP", "reason": yabai_error}
             print(f"SKIP {mode}-h{height}: {yabai_error}")
         else:
