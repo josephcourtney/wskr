@@ -5,3 +5,5 @@ capture_tmp*.png
 **/__pycache__/
 /artifacts/evidence/
 /artifacts/phase3-owned-live-native/
+/artifacts/phase3-owned-live-native-auto/
+artifacts
