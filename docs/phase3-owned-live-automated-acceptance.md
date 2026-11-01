@@ -35,19 +35,32 @@ The test controls its dedicated Kitty instance through a local Unix socket:
 `kitten @ resize-os-window` and `kitten @ screenshot`. The socket is unique to
 the test and not exposed publicly.
 
-### yabai
+### yabai-controlled floating (included in `test-native-gui`)
 
 The controller finds the **actual** test window through `yabai -m query
---windows`, not just a `yabai` label. For floating windows it uses yabai
-absolute resizing. For BSP-managed windows it changes the split ratio and
-checks the achieved size. If the layout cannot produce sufficient resize,
-the test fails with an explicit diagnostic; it does not silently substitute
-Kitty remote resizing.
+--windows`, waits until yabai has a visible Accessibility reference, and
+toggles **only that disposable Kitty window** to floating. Then all OS-window
+resizes use `yabai -m window <ID> --resize abs:W:H`; captured physical
+dimensions are verified and calibrated for Retina scaling. Its report records
+`yabai_resize_policy=floating`. No Kitty resize fallback is used.
 
-The script does not modify your persistent yabai configuration. It launches
-and terminates only its own Kitty instance. Tests may require a sufficiently
-flexible yabai workspace; a single-window BSP layout cannot necessarily be
-resized by split-ratio commands.
+This tests that yabai is available and controls window dimensions, but **does
+not establish native BSP/tiled resizing**. The initial toggling operation may
+temporarily rearrange neighboring tiles, though the test does not persist
+yabai configuration changes and closes its own Kitty window.
+
+### Explicit BSP / tiled qualification (separate)
+
+Run `just owned-auto yabai-bsp 2` or `just owned-auto yabai-bsp 6`.
+These cases **never float** the window or substitute Kitty resizing.
+They require a real vertical BSP split (which controls width), an adjacent
+tile, and enough workspace for the requested narrow and wide viewport sizes.
+A horizontal split changes height, not width; a single root window has no
+split ratio. Unsupported layouts are reported as failures with their
+geometry and diagnostics, not misrepresented as renderer regressions.
+
+The default `just test-native-gui` runs unmanaged and yabai-floating cases.
+BSP tests remain separately required for any claim of tiled acceptance.
 
 ## Evidence
 
