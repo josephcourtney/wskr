@@ -41,7 +41,7 @@ WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python example.py
 
 `WSKR_SCALE` scales only terminal pixels and is applied before optional containment. Without `WSKR_FIT=contain`, the backend does not silently resize an explicitly sized figure. `show(block=None|False)` returns without claiming keyboard input; `show(block=True)` requires foreground stdin/stdout on the same Kitty TTY and closes its managed images when dismissed.
 
-When the application pumps `canvas.flush_events()` or `plt.pause()`, a fitted nonblocking figure can be redrawn following a stable resize. The placement remains attached to its *original scrollback anchor*, not the current viewport. Under Kitty 0.49.2, native experiments with 96 wrapped history lines showed a fitted redraw can be off-screen after shrinking even though upload and placement succeeded. See [placement semantics](docs/phase3-placement-semantics.md).
+When the application pumps `canvas.flush_events()` or `plt.pause()`, a fitted nonblocking figure can be redrawn following a stable resize. Interactive applications may opt into `WSKR_IDLE_REDRAW=coalesce` to queue repeated `draw_idle()` calls until the next event pump; the default remains immediate. The placement stays attached to its *original scrollback anchor*, not the current viewport. Under Kitty 0.49.2, native experiments with 96 wrapped history lines showed a fitted redraw can be off-screen after shrinking even though upload and placement succeeded. See [placement semantics](docs/phase3-placement-semantics.md).
 
 ## Foreground-owned live viewport
 
@@ -70,7 +70,7 @@ profile = probe_profile()  # geometry; no escape queries by default
 defaults = resolve_rc_defaults(profile)
 ```
 
-Live OSC color probing requires an exclusive input owner and a callback that preserves unmatched input; unknown font, opacity and physical DPI remain unknown. Explicit Matplotlib style and sizing values are authoritative.
+An input-owning caller may also supply `geometry_query` to `probe_profile()` for CSI 14/16 window/cell measurements when kernel pixels are missing; no query runs by default. Live OSC color probing requires an exclusive input owner and a callback that preserves unmatched input; unknown font, opacity and physical DPI remain unknown. Explicit Matplotlib style and sizing values are authoritative.
 
 `RichPlot` and `RichImage` retain their historical imports under `wskr.render.rich`. Currently they display a diagnostic fallback for unavailable inline graphics, even with `WSKR_PROTOCOL=kitty`. Do not use them for image-bearing Rich panels or tables until Phase 4 is complete. The older `kitty_legacy` comparison implementation requires a Kitty executable and is not the supported primary transport.
 
