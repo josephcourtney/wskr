@@ -148,7 +148,7 @@ def test_owned_profile_integrates_osc_csi_and_kitty_callbacks(monkeypatch):
     prof = probe_owned_profile(owns_input=True, on_unmatched=unmatched.extend, palette=False)
     assert prof.background.value is not None
     assert prof.background.value.to_hex() == "#000000"
-    assert prof.font_size_pt.value == 12.5
+    assert prof.font_size_pt.value == pytest.approx(12.5)
     assert prof.cell_height_px.value == 20
     assert all(item[2] is True for item in calls)
     assert len([item for item in calls if item[0] == "osc"]) == 2
