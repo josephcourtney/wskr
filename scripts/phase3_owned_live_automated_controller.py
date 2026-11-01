@@ -162,7 +162,7 @@ def _resize(
     # split metadata to identify a BSP child whose parent ratio can change.
     split_type = window.get("split-type")
     split_child = window.get("split-child")
-    if split_type in ("horizontal", "vertical") and split_child in ("first_child", "second_child"):
+    if split_type in {"horizontal", "vertical"} and split_child in {"first_child", "second_child"}:
         # BSP layout owns dimensions. Measure the result instead of assuming
         # a ratio maps to a particular pixel width or height.
         _run(["yabai", "-m", "window", identifier, "--ratio", "abs:0.30" if small else "abs:0.70"])
