@@ -31,7 +31,10 @@ _OSC_HEADER_LENGTH = len(b"\x1b]")
 
 
 def _open_tty() -> int:
-    return os.open("/dev/tty", os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+    if sys.stdout is None or not sys.stdout.isatty():
+        msg = "Terminal query requires an attached TTY"
+        raise TerminalQueryError(msg)
+    return os.open(os.ttyname(sys.stdout.fileno()), os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
 
 
 def _stdout_is_tty() -> bool:
