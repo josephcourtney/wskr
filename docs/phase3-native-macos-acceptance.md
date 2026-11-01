@@ -16,6 +16,12 @@ just native-resize yabai 2
 just native-resize yabai 6
 ```
 
+The P3 owner-only theme refresh and multi-manager event-pump changes are
+portable/hosted-validated separately; a passing owned-viewport test does not
+prove history-anchored image visibility or shell prompt safety. For Kitty
+versions without relative P/Q placement, use `WSKR_KITTY_PARENT=off`
+and report the fallback as a distinct mode.
+
 For controlled history-dependent placement testing, see
 [the Phase 3 placement contract and A/B protocol](phase3-placement-semantics.md).
 The matching experiments use separate disposable windows:
