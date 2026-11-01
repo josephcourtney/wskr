@@ -99,6 +99,7 @@ class TerminalAxes(Axes):
             and "axes.facecolor" in new
             and mpl.rcParams["axes.facecolor"] == mpl.rcParamsDefault["axes.facecolor"]
             and self.get_facecolor() == to_rgba(previous["axes.facecolor"])
+            and self.get_facecolor() != to_rgba(new["axes.facecolor"])
         ):
             self._wskr_ready = False
             try:
@@ -118,7 +119,10 @@ class TerminalAxes(Axes):
                 or mpl.rcParams[key] != mpl.rcParamsDefault[key]
             ):
                 continue
-            if to_rgba(artist.get_color()) == to_rgba(previous[key]):
+            if (
+                to_rgba(artist.get_color()) == to_rgba(previous[key])
+                and to_rgba(artist.get_color()) != to_rgba(new[key])
+            ):
                 artist.set_color(new[key])
                 changed = True
         return changed
@@ -180,7 +184,12 @@ class TerminalFigure(Figure):
         """
         previous = self._wskr_defaults
         changed = False
-        if self._wskr_bg_owned and "figure.facecolor" in new and self.get_facecolor() == self._wskr_bg_initial:
+        if (
+            self._wskr_bg_owned
+            and "figure.facecolor" in new
+            and self.get_facecolor() == self._wskr_bg_initial
+            and self.get_facecolor() != to_rgba(new["figure.facecolor"])
+        ):
             self._wskr_ready = False
             try:
                 super().set_facecolor(new["figure.facecolor"])
