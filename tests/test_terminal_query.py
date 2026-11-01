@@ -151,7 +151,10 @@ def test_csi_pty_reply_restores_termios_and_preserves_other_input(monkeypatch):
     thread.start()
     try:
         response = query.query_csi(
-            b"\x1b[16t", owns_input=True, on_unmatched=forwarded.append, timeout=1,
+            b"\x1b[16t",
+            owns_input=True,
+            on_unmatched=forwarded.append,
+            timeout=1,
         )
         assert response == b"\x1b[6;20;10t"
         assert forwarded == [b"q\x1b[4;600;800t"]
@@ -180,7 +183,10 @@ def test_csi_partial_timeout_returns_input_to_owner(monkeypatch):
     try:
         with pytest.raises(TimeoutError):
             query.query_csi(
-                b"\x1b[14t", owns_input=True, on_unmatched=forwarded.append, timeout=0.08,
+                b"\x1b[14t",
+                owns_input=True,
+                on_unmatched=forwarded.append,
+                timeout=0.08,
             )
         assert forwarded == [b"\x1b[4;500;"]
         _assert_restored_terminal_settings(slave, before)
