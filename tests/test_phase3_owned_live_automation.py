@@ -68,12 +68,31 @@ def test_yabai_floating_uses_absolute_resize(monkeypatch: pytest.MonkeyPatch) ->
 
 
 def test_yabai_bsp_uses_ratio_not_kitty_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(gui, "_query_yabai", lambda _title: {"id": 33, "is-managed": True})
+    # Real yabai 7.1.25 omits "is-managed"; the BSP child carries split metadata.
+    window = {
+        "id": 1311,
+        "is-floating": False,
+        "split-type": "horizontal",
+        "split-child": "second_child",
+        "can-resize": True,
+    }
+    monkeypatch.setattr(gui, "_query_yabai", lambda _title: window)
     calls = []
     monkeypatch.setattr(gui, "_run", lambda args, **_kwargs: calls.append(args) or "")
     monkeypatch.setattr(gui, "_remote", lambda *_args: pytest.fail("Kitty fallback bypassed yabai"))
     assert gui._resize("socket", 1, "test", mode="yabai", small=True, height=2) == "yabai_bsp_ratio"
-    assert "abs:0.30" in calls[0]
+    assert calls[0] == ["yabai", "-m", "window", "1311", "--ratio", "abs:0.30"]
+
+
+def test_yabai_without_bsp_split_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        gui,
+        "_query_yabai",
+        lambda _title: {"id": 33, "is-floating": False, "split-type": "none", "split-child": "none"},
+    )
+    monkeypatch.setattr(gui, "_run", lambda *_args, **_kwargs: pytest.fail("Cannot resize without a BSP split"))
+    with pytest.raises(gui.AcceptanceError, match="split-type='none'"):
+        gui._resize("socket", 1, "test", mode="yabai", small=False, height=6)
 
 
 def test_frame_width_assertion_and_restoration(tmp_path: Path) -> None:
