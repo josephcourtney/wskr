@@ -111,9 +111,7 @@ def _query_csi_pixels(query: Callable[[bytes], bytes], *, command: int, response
     return (width, height) if height > 0 and width > 0 else None
 
 
-def _axis_pixels(
-    kernel: int, cells: int, window: int, cell: int
-) -> tuple[Value[int], Value[float]]:
+def _axis_pixels(kernel: int, cells: int, window: int, cell: int) -> tuple[Value[int], Value[float]]:
     """Choose measured kernel/query values, inferring only missing geometry."""
     pixel = kernel if kernel > 0 else window
     pixel_source = Source.MEASURED if pixel > 0 else Source.UNKNOWN
@@ -140,12 +138,8 @@ def _geometry_measurements(
         else None
     )
     cell = _query_csi_pixels(query, command=16, response=6) if query is not None else None
-    width, cell_width = _axis_pixels(
-        geom.width_px, geom.columns, window[0] if window else 0, cell[0] if cell else 0
-    )
-    height, cell_height = _axis_pixels(
-        geom.height_px, geom.rows, window[1] if window else 0, cell[1] if cell else 0
-    )
+    width, cell_width = _axis_pixels(geom.width_px, geom.columns, window[0] if window else 0, cell[0] if cell else 0)
+    height, cell_height = _axis_pixels(geom.height_px, geom.rows, window[1] if window else 0, cell[1] if cell else 0)
     return width, height, cell_width, cell_height
 
 
