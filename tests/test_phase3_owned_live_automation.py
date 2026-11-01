@@ -93,7 +93,7 @@ def test_unsupported_bsp_is_skipped_without_false_pass() -> None:
     report = {"failures": [], "skip_reason": "horizontal split"}
     assert gui._report_status(report) == "SKIP"
     report["failures"].append("rendering failure")
-    assert gui._report_status(report) == "SKIP"
+    assert gui._report_status(report) == "FAIL"
     report.pop("skip_reason")
     assert gui._report_status(report) == "FAIL"
     report["failures"].clear()
