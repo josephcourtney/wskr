@@ -74,6 +74,25 @@ def _visible_palette(colors: tuple[RGB | None, ...], background: RGB) -> list[st
     return [color.to_hex() for color in selected]
 
 
+def _scale_rc_defaults(profile: TerminalProfile, dpi: float) -> dict[str, Any]:
+    """Return locally renderable typography and stroke measurements."""
+    result: dict[str, Any] = {}
+    cell_height = profile.cell_height_px.value
+    if cell_height is not None and dpi > 0:
+        cell_points = cell_height * 72 / dpi
+        result["font.size"] = max(6.0, min(20.0, cell_points * 0.6))
+        result["lines.linewidth"] = max(0.8, min(2.6, cell_points * 0.09))
+        result["lines.markersize"] = max(3.0, min(11.0, cell_points * 0.34))
+        result["axes.linewidth"] = max(0.6, min(2.0, cell_points * 0.065))
+        result["grid.linewidth"] = max(0.4, min(1.4, cell_points * 0.04))
+    elif profile.font_size_pt.value is not None:
+        result["font.size"] = max(6.0, min(20.0, profile.font_size_pt.value * 0.9))
+    if cell_height is not None or profile.font_family.value is not None:
+        # The terminal's PostScript font might not exist on the Python host.
+        result["font.family"] = ["monospace"]
+    return result
+
+
 def resolve_rc_defaults(
     profile: TerminalProfile,
     *,
@@ -89,9 +108,13 @@ def resolve_rc_defaults(
     foreground = profile.foreground.value
     background = profile.background.value
     if background is not None:
-        defaults["figure.facecolor"] = background.to_hex()
-        defaults["axes.facecolor"] = background.to_hex()
-        defaults["savefig.facecolor"] = background.to_hex()
+        # A known translucent terminal can composite image transparency over
+        # its effective background. With unknown opacity prefer opaque fallback.
+        use_alpha = profile.opacity.value is not None and profile.opacity.value < 1
+        defaults["figure.facecolor"] = "none" if use_alpha else background.to_hex()
+        defaults["axes.facecolor"] = "none" if use_alpha else background.to_hex()
+        if not use_alpha:
+            defaults["savefig.facecolor"] = background.to_hex()
     if foreground is not None:
         text = foreground.to_hex()
         defaults.update({
@@ -108,9 +131,7 @@ def resolve_rc_defaults(
             round(0.25 * foreground.blue + 0.75 * background.blue),
         )
         defaults["grid.color"] = muted.to_hex()
-    cell_height = profile.cell_height_px.value
-    if cell_height is not None and dpi > 0:
-        defaults["font.size"] = max(6.0, cell_height * 0.6 * 72 / dpi)
+    defaults.update(_scale_rc_defaults(profile, dpi))
 
     palette = profile.ansi_palette.value
     if palette is not None and background is not None:

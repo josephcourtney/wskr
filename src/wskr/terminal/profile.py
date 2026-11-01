@@ -8,18 +8,24 @@ silently acquiring machine-specific display/DPI assumptions.
 from __future__ import annotations
 
 import fcntl
+import math
+import os
 import re
 import struct
 import sys
 import termios
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, TypeVar
 
 from wskr.terminal.color import RGB, parse_osc_color
+from wskr.terminal.kitty.queries import parse_query_reply
+from wskr.terminal.query import TerminalQueryError, query_csi, query_kitty_field, query_osc
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
 
 T = TypeVar("T")
 
@@ -143,51 +149,194 @@ def _geometry_measurements(
     return width, height, cell_width, cell_height
 
 
+_PROFILE_CONTEXT: ContextVar[TerminalProfile | None] = ContextVar("wskr_terminal_profile", default=None)
+
+
+def current_profile() -> TerminalProfile | None:
+    """Return an explicitly supplied profile in this execution context, if any."""
+    return _PROFILE_CONTEXT.get()
+
+
+@contextmanager
+def use_profile(profile: TerminalProfile) -> Generator[None]:
+    """Scope measured appearance to normal pyplot figure construction.
+
+    This never changes global rcParams and does not query the terminal.
+    """
+    token = _PROFILE_CONTEXT.set(profile)
+    try:
+        yield
+    finally:
+        _PROFILE_CONTEXT.reset(token)
+
+
+_KITTY_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
+_MAX_KITTY_FONT_NAME = 128
+_KITTY_NUMERIC_LIMITS = {
+    "font_size": (2.0, 100.0),
+    "dpi_x": (20.0, 1000.0),
+    "dpi_y": (20.0, 1000.0),
+    "background_opacity": (0.0, 1.0),
+}
+_KITTY_FIELDS = ("font_family", "font_size", "dpi_x", "dpi_y", "background_opacity", "foreground", "background")
+
+
+def _kitty_value(field: str, raw: str) -> Value | None:
+    """Interpret only plausible Kitty numeric, font, and RGB measurements."""
+    if field in {"foreground", "background"}:
+        if _KITTY_COLOR.fullmatch(raw):
+            return Value(RGB(*(int(raw[i : i + 2], 16) for i in (1, 3, 5))), Source.MEASURED)
+        return None
+    if field == "font_family":
+        return Value(raw, Source.MEASURED) if len(raw) <= _MAX_KITTY_FONT_NAME else None
+    limits = _KITTY_NUMERIC_LIMITS.get(field)
+    if limits is None:
+        return None
+    try:
+        number = float(raw)
+    except ValueError:
+        return None
+    return Value(number, Source.MEASURED) if math.isfinite(number) and limits[0] <= number <= limits[1] else None
+
+
+def _kitty_measurements(query: Callable[[str], bytes] | None) -> dict[str, Value]:
+    """Validate read-only Kitty capability results without fabricating values."""
+    if query is None:
+        return {}
+    measurements: dict[str, Value] = {}
+    for field in _KITTY_FIELDS:
+        try:
+            raw = parse_query_reply(field, query(field))
+        except (OSError, RuntimeError, ValueError, TimeoutError):
+            continue
+        candidate = _kitty_value(field, raw) if raw is not None else None
+        if candidate is not None:
+            measurements[field] = candidate
+    return measurements
+
+
+def _foreground_tty_owned() -> bool:
+    """Reject mismatched, redirected and background foreground terminal inputs."""
+    if sys.stdin is None or sys.stdout is None:
+        return False
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        return False
+    try:
+        input_fd = sys.stdin.fileno()
+        return os.ttyname(input_fd) == os.ttyname(sys.stdout.fileno()) and os.tcgetpgrp(input_fd) == os.getpgrp()
+    except (OSError, ValueError):
+        return False
+
+
+def probe_owned_profile(
+    *,
+    owns_input: bool = False,
+    on_unmatched: Callable[[bytes], None] | None = None,
+    palette: bool = True,
+    timeout: float = 0.15,
+) -> TerminalProfile:
+    """Actively read runtime geometry and Kitty appearance ONLY with input ownership.
+
+    The caller must own the foreground terminal and replay every unmatched
+    byte into its application input queue. Standard pyplot never calls this.
+    """
+    if not owns_input or on_unmatched is None:
+        msg = "Terminal profile probing requires exclusive input ownership and an unmatched-byte handler"
+        raise TerminalQueryError(msg)
+    if not _foreground_tty_owned():
+        msg = "Terminal profile probing requires foreground stdin/stdout on the same TTY"
+        raise TerminalQueryError(msg)
+
+    def osc(request: bytes) -> bytes:
+        return query_osc(request, owns_input=True, on_unmatched=on_unmatched, timeout=timeout)
+
+    def csi(request: bytes) -> bytes:
+        return query_csi(request, owns_input=True, on_unmatched=on_unmatched, timeout=timeout)
+
+    def kitty(field: str) -> bytes:
+        return query_kitty_field(field, owns_input=True, on_unmatched=on_unmatched, timeout=timeout)
+
+    return probe_profile(color_query=osc, geometry_query=csi, kitty_query=kitty, palette=palette)
+
+
+def _osc_measurements(
+    color_query: Callable[[bytes], bytes] | None,
+    *,
+    palette: bool,
+) -> tuple[Value[RGB], Value[RGB], Value[tuple[RGB | None, ...]]]:
+    """Read a terminal's portable colors only through an owned query callback."""
+    colors: dict[int, RGB] = {}
+    if color_query is not None:
+        requests = [(10, None), (11, None)]
+        if palette:
+            requests.extend((4, i) for i in range(16))
+        for code, index in requests:
+            request = f"\x1b]{code};{index};?\x07".encode() if index is not None else f"\x1b]{code};?\x07".encode()
+            try:
+                colors[code if index is None else 100 + index] = parse_osc_color(color_query(request), code, index)
+            except (OSError, RuntimeError, ValueError, TimeoutError):
+                continue
+    foreground = colors.get(10)
+    background = colors.get(11)
+    entries = tuple(colors.get(100 + i) for i in range(16))
+    return (
+        Value(foreground, Source.MEASURED) if foreground is not None else Value(),
+        Value(background, Source.MEASURED) if background is not None else Value(),
+        Value(entries, Source.MEASURED) if any(item is not None for item in entries) else Value(),
+    )
+
+
 def probe_profile(
     *,
     geometry: Geometry | None = None,
     color_query: Callable[[bytes], bytes] | None = None,
     palette: bool = False,
     geometry_query: Callable[[bytes], bytes] | None = None,
+    kitty_query: Callable[[str], bytes] | None = None,
 ) -> TerminalProfile:
     """Build a profile; only an explicitly supplied color callback may query.
 
-    color_query accepts OSC requests; geometry_query accepts CSI size requests.
-    The caller must own terminal input and preserve unrelated bytes. Neither
-    callback is installed implicitly; no escapes are emitted by default.
+    All query callbacks are supplied explicitly by an input owner.
+    kitty_query accepts a Kitty XTGETTCAP field name and returns its raw DCS
+    reply. Neither callback nor any terminal query is installed implicitly.
     """
     geom = geometry if geometry is not None else read_geometry()
-    if geom is None or geom.rows <= 0 or geom.columns <= 0:
-        return TerminalProfile()
-
-    width, height, cell_width, cell_height = _geometry_measurements(geom, geometry_query)
-    colors: dict[int, RGB] = {}
-    if color_query is not None:
-        indices = [(10, None), (11, None)]
-        if palette:
-            indices.extend((4, i) for i in range(16))
-        for code, index in indices:
-            request = f"\x1b]{code};{index};?\x07".encode() if index is not None else f"\x1b]{code};?\x07".encode()
-            try:
-                response = color_query(request)
-                rgb = parse_osc_color(response, code, index)
-            except (OSError, RuntimeError, ValueError, TimeoutError):
-                continue
-            colors[code if index is None else 100 + index] = rgb
-    fg = colors.get(10)
-    bg = colors.get(11)
-    entries = tuple(colors.get(100 + i) for i in range(16))
+    valid_geom = geom is not None and geom.rows > 0 and geom.columns > 0
+    width, height, cell_width, cell_height = (
+        _geometry_measurements(geom, geometry_query)
+        if valid_geom and geom is not None
+        else (Value(), Value(), Value(), Value())
+    )
+    kitty = _kitty_measurements(kitty_query)
+    osc_fg, osc_bg, osc_palette = _osc_measurements(color_query, palette=palette)
+    foreground = osc_fg if osc_fg.value is not None else kitty.get("foreground", Value())
+    background = osc_bg if osc_bg.value is not None else kitty.get("background", Value())
     return TerminalProfile(
-        rows=Value(geom.rows, Source.MEASURED),
-        columns=Value(geom.columns, Source.MEASURED),
+        rows=Value(geom.rows, Source.MEASURED) if valid_geom and geom is not None else Value(),
+        columns=Value(geom.columns, Source.MEASURED) if valid_geom and geom is not None else Value(),
         width_px=width,
         height_px=height,
         cell_width_px=cell_width,
         cell_height_px=cell_height,
-        foreground=Value(fg, Source.MEASURED) if fg is not None else Value(),
-        background=Value(bg, Source.MEASURED) if bg is not None else Value(),
-        ansi_palette=Value(entries, Source.MEASURED) if any(e is not None for e in entries) else Value(),
+        foreground=foreground,
+        background=background,
+        ansi_palette=osc_palette,
+        font_family=kitty.get("font_family", Value()),
+        font_size_pt=kitty.get("font_size", Value()),
+        dpi_x=kitty.get("dpi_x", Value()),
+        dpi_y=kitty.get("dpi_y", Value()),
+        opacity=kitty.get("background_opacity", Value()),
     )
 
 
-__all__ = ["Geometry", "Source", "TerminalProfile", "Value", "probe_profile", "read_geometry"]
+__all__ = [
+    "Geometry",
+    "Source",
+    "TerminalProfile",
+    "Value",
+    "current_profile",
+    "probe_owned_profile",
+    "probe_profile",
+    "read_geometry",
+    "use_profile",
+]

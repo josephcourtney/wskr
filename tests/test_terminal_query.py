@@ -194,3 +194,79 @@ def test_csi_partial_timeout_returns_input_to_owner(monkeypatch):
         thread.join(timeout=2)
         os.close(master)
         os.close(slave)
+
+
+@pytest.mark.small
+def test_kitty_field_requires_owned_input_and_attached_output(monkeypatch):
+    with pytest.raises(query.TerminalQueryError, match="exclusive input"):
+        query.query_kitty_field("dpi_x")
+    monkeypatch.setattr(query, "_stdout_is_tty", lambda: False)
+    with pytest.raises(query.TerminalQueryError, match="attached terminal"):
+        query.query_kitty_field("dpi_x", owns_input=True, on_unmatched=lambda _: None)
+
+
+@pytest.mark.medium
+def test_kitty_field_real_pty_round_trip_and_foreign_dcs(monkeypatch):
+    from wskr.terminal.kitty.queries import parse_query_reply, query_request
+
+    master, slave = pty.openpty()
+    original = termios.tcgetattr(slave)
+    unmatched = []
+    monkeypatch.setattr(query, "_open_tty", lambda: os.dup(slave))
+    monkeypatch.setattr(query, "_stdout_is_tty", lambda: True)
+    key = b"kitty-query-font_size".hex().encode()
+    foreign = b"kitty-query-dpi_x".hex().encode()
+
+    def responder():
+        assert os.read(master, 256) == query_request("font_size")
+        os.write(master, b"x\x1bP1+r" + foreign + b"=313932\x1b\\\x1bP1+r" + key + b"=31332e35\x1b\\")
+
+    thread = threading.Thread(target=responder, daemon=True)
+    thread.start()
+    try:
+        value = query.query_kitty_field(
+            "font_size",
+            owns_input=True,
+            on_unmatched=unmatched.append,
+            timeout=1,
+        )
+        assert parse_query_reply("font_size", value) == "13.5"
+        assert unmatched == [b"x\x1bP1+r" + foreign + b"=313932\x1b\\"]
+        _assert_restored_terminal_settings(slave, original)
+    finally:
+        thread.join(timeout=2)
+        os.close(master)
+        os.close(slave)
+    assert not thread.is_alive()
+
+
+@pytest.mark.medium
+def test_kitty_field_timeout_forwards_partial_dcs(monkeypatch):
+    from wskr.terminal.kitty.queries import query_request
+
+    master, slave = pty.openpty()
+    original = termios.tcgetattr(slave)
+    unmatched = []
+    monkeypatch.setattr(query, "_open_tty", lambda: os.dup(slave))
+    monkeypatch.setattr(query, "_stdout_is_tty", lambda: True)
+
+    def responder():
+        assert os.read(master, 256) == query_request("background_opacity")
+        os.write(master, b"\x1bP1+r6b697474792d71756572792d")
+
+    thread = threading.Thread(target=responder, daemon=True)
+    thread.start()
+    try:
+        with pytest.raises(TimeoutError):
+            query.query_kitty_field(
+                "background_opacity",
+                owns_input=True,
+                on_unmatched=unmatched.append,
+                timeout=0.08,
+            )
+        assert unmatched == [b"\x1bP1+r6b697474792d71756572792d"]
+        _assert_restored_terminal_settings(slave, original)
+    finally:
+        thread.join(timeout=2)
+        os.close(master)
+        os.close(slave)
