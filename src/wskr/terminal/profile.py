@@ -137,9 +137,7 @@ def probe_profile(
         if geometry_query is not None and (geom.width_px <= 0 or geom.height_px <= 0)
         else None
     )
-    queried_cells = (
-        _query_csi_pixels(geometry_query, command=16, response=6) if geometry_query is not None else None
-    )
+    queried_cells = _query_csi_pixels(geometry_query, command=16, response=6) if geometry_query is not None else None
     cell_w = float(queried_cells[0]) if queried_cells is not None else None
     cell_h = float(queried_cells[1]) if queried_cells is not None else None
     pixel_w = geom.width_px if geom.width_px > 0 else queried_window[0] if queried_window else 0
