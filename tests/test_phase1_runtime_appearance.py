@@ -59,9 +59,7 @@ def test_user_rcparams_and_explicit_artist_properties_win(monkeypatch):
         mpl.rcdefaults()
         mpl.rcParams["axes.labelcolor"] = "orange"
         with use_profile(_profile("ffffff", "000000")):
-            manager = core._BackendTermAgg.new_figure_manager(
-                7803, figsize=(7, 3), facecolor="magenta"
-            )
+            manager = core._BackendTermAgg.new_figure_manager(7803, figsize=(7, 3), facecolor="magenta")
             try:
                 fig = manager.canvas.figure
                 ax = fig.add_subplot(111)
