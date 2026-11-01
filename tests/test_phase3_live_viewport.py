@@ -282,6 +282,7 @@ def test_owned_live_theme_updates_only_backend_owned_surfaces(monkeypatch: pytes
             assert line.get_color() == "orange"
             assert (tuple(fig.get_size_inches()), fig.dpi) == original_size
             assert not view.refresh_theme(_theme("ffff", "0000"))
+            assert not view.refresh_theme(probe_profile(geometry=Geometry(30, 100, 1000, 600)))
             assert len(transport.frames) == 2
             fig.set_facecolor("#123456")  # Explicit late caller edit owns this.
             ax.set_facecolor("#334455")
