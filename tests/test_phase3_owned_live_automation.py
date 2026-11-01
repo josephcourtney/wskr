@@ -85,8 +85,19 @@ def test_yabai_horizontal_bsp_is_not_mistaken_for_width_split(monkeypatch: pytes
     window = {"id": 1599, "is-floating": False, "split-type": "horizontal", "split-child": "second_child"}
     monkeypatch.setattr(gui, "_query_yabai", lambda _title: window)
     monkeypatch.setattr(gui, "_run", lambda *_args, **_kwargs: pytest.fail("Must not mutate horizontal split"))
-    with pytest.raises(gui.AcceptanceError, match="vertical split"):
+    with pytest.raises(gui.UnsupportedLayout, match="vertical split"):
         gui._resize("socket", 1, "test", mode="yabai-bsp", small=True, height=6)
+
+
+def test_unsupported_bsp_is_skipped_without_false_pass() -> None:
+    report = {"failures": [], "skip_reason": "horizontal split"}
+    assert gui._report_status(report) == "SKIP"
+    report["failures"].append("rendering failure")
+    assert gui._report_status(report) == "SKIP"
+    report.pop("skip_reason")
+    assert gui._report_status(report) == "FAIL"
+    report["failures"].clear()
+    assert gui._report_status(report) == "PASS"
 
 
 def test_yabai_without_bsp_split_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
