@@ -198,7 +198,7 @@ def _receive_csi_reply(
             unmatched.extend(partial)
             partial.clear()
             continue
-        if partial.startswith(b"\x1b[") and _CSI_FINAL_MIN <= partial[-1] <= _CSI_FINAL_MAX:
+        if len(partial) > _CSI_PREFIX_BYTES and partial.startswith(b"\x1b[") and _CSI_FINAL_MIN <= partial[-1] <= _CSI_FINAL_MAX:
             response = bytes(partial)
             partial.clear()
             if response.startswith(expected) and response.endswith(b"t"):
