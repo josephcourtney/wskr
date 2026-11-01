@@ -196,8 +196,13 @@ def test_bsp_resize_retries_using_measured_width(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(gui, "_resize", fake_resize)
     monkeypatch.setattr(gui, "_wait_new_width", fake_measure)
     attempts = gui._resize_to_fit(
-        "socket", 1, "test", mode="yabai-bsp", height=6,
-        wide_measurement={"width_px": 2492}, out=tmp_path / "probe.png",
+        "socket",
+        1,
+        "test",
+        mode="yabai-bsp",
+        height=6,
+        wide_measurement={"width_px": 2492},
+        out=tmp_path / "probe.png",
     )
     assert len(attempts) == 2
     assert shares[1] < shares[0]
