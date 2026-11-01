@@ -53,7 +53,7 @@ class AcceptanceError(RuntimeError):
     """Failure or unsupported GUI environment, with preserved evidence."""
 
 
-class UnsupportedLayout(AcceptanceError):
+class UnsupportedLayoutError(AcceptanceError):
     """The yabai BSP topology cannot exercise horizontal resizing."""
 
 
@@ -215,7 +215,7 @@ def _resize(
         "BSP width-resize needs a vertical split and an adjacent tile: "
         f"id={identifier}, split-type={split_type!r}, split-child={split_child!r}"
     )
-    raise UnsupportedLayout(msg)
+    raise UnsupportedLayoutError(msg)
 
 
 def _wait_new_width(socket: str, window_id: int, prior_width: int, *, smaller: bool, out: Path) -> dict:
@@ -413,7 +413,7 @@ def _case(root: Path, output: Path, mode: str, height: int) -> Path:
                 worker, cwd=root, env=env, stdout=log, stderr=subprocess.STDOUT
             )
         _exercise_case(directory, report, socket, title, mode, height)
-    except UnsupportedLayout as exc:
+    except UnsupportedLayoutError as exc:
         report["skip_reason"] = str(exc)
         (directory / "controller-error.txt").write_text(traceback.format_exc(), encoding="utf-8")
     except BaseException:  # ruff: ignore[blind-except] - always archive failed native runs
