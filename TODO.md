@@ -1,15 +1,20 @@
-# wskr — Immediate Tasks
+# wskr — Immediate tasks
 
-Phase 2 is accepted. Phase 3 ownership/manager-lifecycle slice is qualified but **Gate P3 is not complete**; see [PLAN](PLAN.md), [STATUS](STATUS.md), [Phase 3 evidence](docs/phase3-validation.md) and [ADR-002](docs/adr/0002-terminal-measured-defaults.md).
+Only pending execution items. See [STATUS.md](STATUS.md) for qualified behavior, [PLAN.md](PLAN.md) for sequencing, and [DESIGN.md](DESIGN.md) for requirements.
 
-- [ ] **Native macOS placement qualification — [issue #31](https://github.com/josephcourtney/wskr/issues/31):** The controlled 0/96-line history A/B **confirms** a scrollback/reflow-sensitive visibility limitation in Kitty 0.49.2: both cases fit the raster; only the 96-line case disappears from the shrunk viewport and reappears on expansion. History-relative nonblocking placement does not promise viewport pinning. Next: qualify 9×6 and yabai-managed windows, document older Kitty compatibility, and separately design a cursor-safe viewport-pinned mode if needed.
-- [ ] Qualify experimental `owned_viewport(fig)` on **native macOS Kitty**, with and without yabai. Check live draw, resize, explicit refresh, Ctrl-C cleanup, shell screen restoration and existing scrollback; hosted real-Kitty/Xvfb acceptance passes.
-- [ ] Extend **live resize** to ordinary idle REPL and IPython workflows, with multi-figure event coordination and bounded scrollback lifetime. The explicitly owned live session is a separate API and must not silently claim foreign terminal input.
-- [ ] Perform controlled real-Kitty visual comparisons with geometry stable (no yabai intervention) and geometry changed by yabai; record starting/final cell and pixel measurements, image positions and screenshots. The prior cropped image is **not** proof of a code bug.
-- [ ] Continue IPython/REPL/pandas figure hooks, redraw coalescing/debouncing and resumed/redirected terminal-input ownership. Native macOS Kitty `show(block=True)` alternate-screen restoration **was confirmed** by the user. Ordinary `show(block=None|False)` stays nonblocking and persistent.
-- [ ] Validate the **implemented compact-terminal paging** on native macOS Kitty (managed/unmanaged windows): fitted blocking contact sheets page through figures with `n`/`p` followed by Enter and bare Enter closes. Hosted PTY input and real Kitty page screenshots pass. Extremely small or unmeasured terminals retain the legacy sequential fallback; adaptive independent-image placement and richer keyboard/event-loop integration remain open.
-- [ ] Add managed independent-placement/repositioning and theme-change notifications without orphaned Kitty IDs or unbounded scrollback. The fitted blocking session debounces window geometry changes and its real PTY redraw is tested.
-- [ ] Verify native macOS **explicit `plt.close()` scoped deletion** separately; static Kitty plots persisting through Python shutdown with `WSKR_SCALE=0.4` were already confirmed locally, and hosted Kitty validates the automatic-exit path.
-- [ ] Qualify wheel/module-backend workflows, regular PNG/SVG savefig, interactive PTY and real Kitty outputs across short/tall and resized windows; retain hosted Ubuntu/macOS checks.
-- [ ] Review the evidence runner's unsupported Kitty configuration options (`clear_all_in_scrollback`, `hide_single_tab`) while preserving scoped screenshots; distinguish test-harness warnings from wskr defects.
-- [ ] Phase 4 only: connect actual Rich `ConsoleOptions` layout, Unicode virtual placeholders, nested panels/tables and scrolled/reused images to the shared transport. Keep current Rich diagnostics until acceptance.
+## P1 / P3 — terminal appearance and Matplotlib lifecycle
+
+- [ ] Define and test an **input-owner integration** for live OSC 10/11/4 queries: no unattended input theft; forward unmatched bytes; record unavailable values honestly. Feed resulting profile to new-figure styling without globally changing `rcParams`. Prove explicit colors/styles survive.
+- [ ] Add opt-in, owned-session **theme refresh** for backend-owned styles only. Test dark→light, light→dark, explicit artist overrides and contrast/palette behavior, including failure to query.
+- [ ] Finish font, DPI and opacity detection where Kitty exposes reliable, safely queried values; mark unsupported data unknown and test provenance. Keep rendering DPI distinct from physical DPI.
+- [ ] Improve `draw_idle` coalescing and coordinate multiple figures during ordinary REPL/IPython/pandas event pumping; add subprocess/PTY integration with explicit input/output ownership and exported image invariance.
+- [ ] Define and implement independent image positioning, bounded scrollback/image lifetime and old-Kitty capability fallback without overwriting shell prompts. Re-test [issue #31](https://github.com/josephcourtney/wskr/issues/31) on native Kitty with 9×2 and 9×6 images under zero/seeded history, unmanaged and yabai resize. Record pixel/row geometry, screenshots and failure stage.
+- [ ] Confirm native macOS fitted blocking **multi-figure paging** (`n`/`p` + Enter), scoped explicit `plt.close()` deletion, and nonblocking multi-figure redraw separately from accepted owned-viewport cases.
+- [ ] Reconcile the `show(block=None)` behavior with DESIGN §4: current persistent nonblocking default intentionally differs from ordinary Matplotlib auto-blocking; retain existing behavior until a deliberate compatibility decision with tests.
+
+## P4 / P5 — next phases, not P3 completion criteria
+
+- [ ] Replace transitional `RichPlot`/`RichImage` implementation with `ConsoleOptions` sizing and shared virtual Kitty image manager, preserving caller figure dimensions; test panels, tables, scrolling and upload reuse.
+- [ ] Make Rich and OS-theme helpers optional; remove unneeded runtime science/test dependencies, unsafe legacy Kitty chunks and misleading iTerm2/Sixel registrations with explicit compatibility notes.
+
+**Verification for each code slice:** `just check`, focused PTY tests and installed-wheel smoke; record actual results. Run native Kitty visual cases when macOS GUI/yabai are available. Do not treat a generated evidence ZIP as visual acceptance without inspecting its screenshots.
