@@ -170,6 +170,32 @@ def use_profile(profile: TerminalProfile) -> Generator[None]:
 
 
 _KITTY_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
+_MAX_KITTY_FONT_NAME = 128
+_KITTY_NUMERIC_LIMITS = {
+    "font_size": (2.0, 100.0),
+    "dpi_x": (20.0, 1000.0),
+    "dpi_y": (20.0, 1000.0),
+    "background_opacity": (0.0, 1.0),
+}
+_KITTY_FIELDS = ("font_family", "font_size", "dpi_x", "dpi_y", "background_opacity", "foreground", "background")
+
+
+def _kitty_value(field: str, raw: str) -> Value | None:
+    """Interpret only plausible Kitty numeric, font, and RGB measurements."""
+    if field in {"foreground", "background"}:
+        if _KITTY_COLOR.fullmatch(raw):
+            return Value(RGB(*(int(raw[i : i + 2], 16) for i in (1, 3, 5))), Source.MEASURED)
+        return None
+    if field == "font_family":
+        return Value(raw, Source.MEASURED) if len(raw) <= _MAX_KITTY_FONT_NAME else None
+    limits = _KITTY_NUMERIC_LIMITS.get(field)
+    if limits is None:
+        return None
+    try:
+        number = float(raw)
+    except ValueError:
+        return None
+    return Value(number, Source.MEASURED) if math.isfinite(number) and limits[0] <= number <= limits[1] else None
 
 
 def _kitty_measurements(query: Callable[[str], bytes] | None) -> dict[str, Value]:
@@ -177,31 +203,28 @@ def _kitty_measurements(query: Callable[[str], bytes] | None) -> dict[str, Value
     if query is None:
         return {}
     measurements: dict[str, Value] = {}
-    for field in ("font_family", "font_size", "dpi_x", "dpi_y", "background_opacity", "foreground", "background"):
+    for field in _KITTY_FIELDS:
         try:
             raw = parse_query_reply(field, query(field))
         except (OSError, RuntimeError, ValueError, TimeoutError):
             continue
-        if raw is None:
-            continue
-        if field in {"foreground", "background"}:
-            if _KITTY_COLOR.fullmatch(raw):
-                measurements[field] = Value(RGB(*(int(raw[i : i + 2], 16) for i in (1, 3, 5))), Source.MEASURED)
-        elif field == "font_family":
-            if len(raw) <= 128:
-                measurements[field] = Value(raw, Source.MEASURED)
-        else:
-            try:
-                number = float(raw)
-            except ValueError:
-                continue
-            if math.isfinite(number) and (
-                (field == "background_opacity" and 0 <= number <= 1)
-                or (field == "font_size" and 2 <= number <= 100)
-                or (field in {"dpi_x", "dpi_y"} and 20 <= number <= 1000)
-            ):
-                measurements[field] = Value(number, Source.MEASURED)
+        candidate = _kitty_value(field, raw) if raw is not None else None
+        if candidate is not None:
+            measurements[field] = candidate
     return measurements
+
+
+def _foreground_tty_owned() -> bool:
+    """Reject mismatched, redirected and background foreground terminal inputs."""
+    if sys.stdin is None or sys.stdout is None:
+        return False
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        return False
+    try:
+        input_fd = sys.stdin.fileno()
+        return os.ttyname(input_fd) == os.ttyname(sys.stdout.fileno()) and os.tcgetpgrp(input_fd) == os.getpgrp()
+    except (OSError, ValueError):
+        return False
 
 
 def probe_owned_profile(
@@ -221,15 +244,7 @@ def probe_owned_profile(
     if not owns_input or on_unmatched is None:
         msg = "Terminal profile probing requires exclusive input ownership and an unmatched-byte handler"
         raise TerminalQueryError(msg)
-    if sys.stdin is None or sys.stdout is None or not sys.stdin.isatty() or not sys.stdout.isatty():
-        msg = "Terminal profile probing requires foreground stdin/stdout on the same TTY"
-        raise TerminalQueryError(msg)
-    try:
-        input_fd, output_fd = sys.stdin.fileno(), sys.stdout.fileno()
-        owner = os.ttyname(input_fd) == os.ttyname(output_fd) and os.tcgetpgrp(input_fd) == os.getpgrp()
-    except (OSError, ValueError):
-        owner = False
-    if not owner:
+    if not _foreground_tty_owned():
         msg = "Terminal profile probing requires foreground stdin/stdout on the same TTY"
         raise TerminalQueryError(msg)
 
