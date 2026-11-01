@@ -5,7 +5,9 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
-- Added experimental `owned_viewport(fig)` for foreground-owned live Kitty applications. It explicitly acquires an alternate screen, permits application-driven refresh and debounced resize polling, restores shell history on exit and leaves nonblocking historical Matplotlib output unchanged. Hosted real-Kitty graphical shrink/expand/restore acceptance passes; native macOS/yabai remains pending.
+- Added optional `WSKR_IDLE_REDRAW=coalesce` for interactive Matplotlib applications that pump `flush_events()` or `plt.pause()`, reducing repeated `draw_idle()` updates to one terminal upload per pump while retaining immediate redraw by default.
+- Added opt-in CSI 14/16 pixel-size response parsing for input-owning terminal profile callers, preserving kernel geometry precedence and measured/inferred provenance.
+- Added experimental `owned_viewport(fig)` for foreground-owned live Kitty applications. It explicitly acquires an alternate screen, permits application-driven refresh and debounced resize polling, restores shell history on exit and leaves nonblocking historical Matplotlib output unchanged. Hosted real-Kitty and six native macOS scenarios (including genuine yabai BSP) qualified resize, visibility and shell restoration.
 - Added debounced event-pumped fitted nonblocking redraw through `flush_events()` and `plt.pause()`, with persistent Kitty-relative image anchoring (Kitty 0.31+). Hosted real-Kitty screenshots verify short/tall figures through window shrink, expansion and interpreter exit without consuming terminal input.
 - Added bounded small-terminal figure paging for fitted blocking contact sheets, using measured viewport capacity, canonical n/p+Enter navigation, stable resize recomposition and scoped Kitty image cleanup.
 - Added measured-viewport contact-sheet composition for multiple figures during explicitly fitted blocking Matplotlib sessions, with nonoverlapping tiles, one scoped Kitty display, prompt space and resize-time recomposition.
@@ -29,6 +31,7 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 - Prevented legacy PTY color queries from hanging while waiting for terminal output to drain.
 
 ### Changed
+- Qualified both installed-wheel Matplotlib Kitty backend-selection forms and ordinary PNG/SVG exports in clean subprocesses outside the checkout.
 - Switched the primary `wskr_kitty`/`kitty` transport from external `icat` to direct Kitty graphics; retained the previous implementation as `kitty_legacy` for comparison.
 - Clarified which Kitty, Matplotlib, Rich, Sixel and iTerm2 features are supported today, with the intended architecture documented separately.
 - Replaced the copied development workflow with reproducible wskr-specific quality, package, terminal and wheel smoke checks.
