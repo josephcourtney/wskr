@@ -261,6 +261,7 @@ def probe_owned_profile(
 
 def _osc_measurements(
     color_query: Callable[[bytes], bytes] | None,
+    *,
     palette: bool,
 ) -> tuple[Value[RGB], Value[RGB], Value[tuple[RGB | None, ...]]]:
     """Read a terminal's portable colors only through an owned query callback."""
@@ -307,7 +308,7 @@ def probe_profile(
         else (Value(), Value(), Value(), Value())
     )
     kitty = _kitty_measurements(kitty_query)
-    osc_fg, osc_bg, osc_palette = _osc_measurements(color_query, palette)
+    osc_fg, osc_bg, osc_palette = _osc_measurements(color_query, palette=palette)
     foreground = osc_fg if osc_fg.value is not None else kitty.get("foreground", Value())
     background = osc_bg if osc_bg.value is not None else kitty.get("background", Value())
     return TerminalProfile(
