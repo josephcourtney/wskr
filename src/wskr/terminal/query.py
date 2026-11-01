@@ -268,8 +268,6 @@ def query_csi(
                     on_unmatched(bytes(unmatched))
 
 
-
-
 def _receive_dcs_reply(
     fd: int,
     key: bytes,
