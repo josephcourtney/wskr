@@ -70,7 +70,7 @@ profile = probe_profile()  # geometry; no escape queries by default
 defaults = resolve_rc_defaults(profile)
 ```
 
-An input-owning caller may also supply `geometry_query` to `probe_profile()` for CSI 14/16 window/cell measurements when kernel pixels are missing; no query runs by default. Live OSC color probing requires an exclusive input owner and a callback that preserves unmatched input; unknown font, opacity and physical DPI remain unknown. Explicit Matplotlib style and sizing values are authoritative.
+An input-owning caller may also supply `geometry_query` to `probe_profile()` for CSI 14/16 window/cell measurements when kernel pixels are missing. `wskr.terminal.query.query_csi()` provides bounded queries with explicit `owns_input=True` and an `on_unmatched` callback for preserving unrelated bytes; no query runs by default. Live OSC color probing requires an exclusive input owner and a callback that preserves unmatched input; unknown font, opacity and physical DPI remain unknown. Explicit Matplotlib style and sizing values are authoritative.
 
 `RichPlot` and `RichImage` retain their historical imports under `wskr.render.rich`. Currently they display a diagnostic fallback for unavailable inline graphics, even with `WSKR_PROTOCOL=kitty`. Do not use them for image-bearing Rich panels or tables until Phase 4 is complete. The older `kitty_legacy` comparison implementation requires a Kitty executable and is not the supported primary transport.
 
