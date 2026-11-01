@@ -158,12 +158,20 @@ def _resize(
     if window.get("is-floating", False):
         _run(["yabai", "-m", "window", identifier, "--resize", f"abs:{width}:{wanted_height}"])
         return "yabai_float_absolute"
-    if window.get("is-managed", False):
-        # BSP layout owns dimensions. Change its split ratio; the measured
-        # result is checked below, not assumed to be the requested size.
+    # yabai's window-query result has no "is-managed" key. Use its actual
+    # split metadata to identify a BSP child whose parent ratio can change.
+    split_type = window.get("split-type")
+    split_child = window.get("split-child")
+    if split_type in ("horizontal", "vertical") and split_child in ("first_child", "second_child"):
+        # BSP layout owns dimensions. Measure the result instead of assuming
+        # a ratio maps to a particular pixel width or height.
         _run(["yabai", "-m", "window", identifier, "--ratio", "abs:0.30" if small else "abs:0.70"])
         return "yabai_bsp_ratio"
-    msg = "yabai sees the Kitty window but reports neither floating nor BSP-managed"
+    msg = (
+        "yabai window is neither floating nor a resizable BSP split child: "
+        f"id={identifier}, is-floating={window.get('is-floating')}, "
+        f"split-type={split_type!r}, split-child={split_child!r}"
+    )
     raise AcceptanceError(msg)
 
 
