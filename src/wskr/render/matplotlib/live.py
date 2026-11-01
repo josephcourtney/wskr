@@ -19,7 +19,9 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from wskr.protocol.kitty_native import NativeKittyTransport
 from wskr.render.matplotlib import core
-from wskr.terminal.profile import Geometry, read_geometry
+from wskr.render.matplotlib.figure import TerminalFigure
+from wskr.render.matplotlib.theme import resolve_rc_defaults
+from wskr.terminal.profile import Geometry, TerminalProfile, read_geometry
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -70,6 +72,23 @@ class LiveViewport:
         core.render_figure_to_terminal(canvas, self._transport)
         self._displayed = read_geometry()
         self._pending = None
+
+    def refresh_theme(self, profile: TerminalProfile) -> bool:
+        """Recolor only provably backend-owned surfaces in this owned viewport.
+
+        The caller obtains and supplies the profile while it owns terminal
+        input. This method never sends queries, changes rcParams, touches
+        unrelated artists, or changes source figure extent/DPI.
+        """
+        self._require_active()
+        figure = self._figure
+        if not isinstance(figure, TerminalFigure):
+            return False
+        defaults = resolve_rc_defaults(profile, dpi=figure.dpi)
+        if figure.refresh_owned_colors(defaults):
+            self.refresh()
+            return True
+        return False
 
     def poll_resize(self) -> bool:
         """Refresh once after a stable, measured geometry change."""
