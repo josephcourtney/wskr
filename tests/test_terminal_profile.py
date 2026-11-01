@@ -170,13 +170,16 @@ def test_owned_csi_cell_query_can_infer_unavailable_window_pixels():
     assert result.cell_height_px == Value(20.0, Source.MEASURED)
 
 
-@pytest.mark.parametrize("bad", [
-    b"",
-    b"\x1b[4;0;800t",
-    b"\x1b[4;300;-10t",
-    b"\x1b[4;300;800tgarbage",
-    b"\x1b[6;20;10t",
-])
+@pytest.mark.parametrize(
+    "bad",
+    [
+        b"",
+        b"\x1b[4;0;800t",
+        b"\x1b[4;300;-10t",
+        b"\x1b[4;300;800tgarbage",
+        b"\x1b[6;20;10t",
+    ],
+)
 def test_malformed_or_unrelated_window_replies_do_not_create_measurements(bad):
     def reply(request: bytes) -> bytes:
         return bad if request == b"\x1b[14t" else b"invalid"
