@@ -117,3 +117,38 @@ def test_live_probe_refuses_unowned_input_without_query(monkeypatch):
         probe_owned_profile()
     with pytest.raises(RuntimeError, match="same TTY"):
         probe_owned_profile(owns_input=True, on_unmatched=lambda _: None)
+
+
+def test_owned_profile_integrates_osc_csi_and_kitty_callbacks(monkeypatch):
+    from wskr.terminal import profile as terminal_profile
+
+    calls = []
+    unmatched = []
+
+    def osc(request, **options):
+        calls.append(("osc", request, options["owns_input"]))
+        return b"\x1b]11;rgb:0000/0000/0000\x07" if request.startswith(b"\x1b]11") else b"invalid"
+
+    def csi(request, **options):
+        calls.append(("csi", request, options["owns_input"]))
+        return b"\x1b[6;20;10t"
+
+    def kitty(field, **options):
+        calls.append(("kitty", field, options["owns_input"]))
+        name = f"kitty-query-{field}".encode().hex().encode()
+        if field == "font_size":
+            return b"\x1bP1+r" + name + b"=" + b"31322e35" + b"\x1b\\"
+        return b"invalid"
+
+    monkeypatch.setattr(terminal_profile, "_foreground_tty_owned", lambda: True)
+    monkeypatch.setattr(terminal_profile, "read_geometry", lambda: Geometry(25, 80))
+    monkeypatch.setattr(terminal_profile, "query_osc", osc)
+    monkeypatch.setattr(terminal_profile, "query_csi", csi)
+    monkeypatch.setattr(terminal_profile, "query_kitty_field", kitty)
+    prof = probe_owned_profile(owns_input=True, on_unmatched=unmatched.extend, palette=False)
+    assert prof.background.value.to_hex() == "#000000"
+    assert prof.font_size_pt.value == 12.5
+    assert prof.cell_height_px.value == 20
+    assert all(item[2] is True for item in calls)
+    assert len([item for item in calls if item[0] == "osc"]) == 2
+    assert len([item for item in calls if item[0] == "kitty"]) == 7
