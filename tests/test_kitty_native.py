@@ -340,3 +340,34 @@ def test_explicit_anchored_close_cleans_child_and_parent(monkeypatch) -> None:
     assert any(f"a=d,d=I,i={child}".encode() in frame for frame in frames)
     assert any(f"a=d,d=I,i={anchor[0]}".encode() in frame for frame in frames)
     assert not any(b"a=d,d=a" in frame for frame in frames)
+
+
+def test_anchored_redraw_has_bounded_transport_owned_uploads(monkeypatch, dummy_png) -> None:
+    """Repeated fitted redraws retain only a parent and the current child."""
+    monkeypatch.delenv("WSKR_KITTY_PARENT", raising=False)
+    monkeypatch.setattr("wskr.protocol.kitty_native._placement_cells", lambda _png: (20, 5))
+    packets: list[bytes] = []
+    transport = NativeKittyTransport(writer=packets.extend)
+    for _ in range(24):
+        transport.send_anchored_image(dummy_png)
+        assert len(transport.manager._images) == 2
+    assert any(b"P=" in packet and b"Q=" in packet for packet in packets)
+    assert not any(b"a=d,d=a" in packet for packet in packets)
+    transport.close()
+    assert transport.manager._images == {}
+
+
+def test_older_kitty_compatibility_uses_scoped_physical_placements(monkeypatch, dummy_png) -> None:
+    """Without P/Q support, do not address the terminal's cursor or global images."""
+    monkeypatch.setenv("WSKR_KITTY_PARENT", "off")
+    packets: list[bytes] = []
+    transport = NativeKittyTransport(writer=packets.extend)
+    for _ in range(12):
+        transport.send_anchored_image(dummy_png)
+        assert len(transport.manager._images) == 1
+        assert transport._anchor is None
+    assert not any(b"a=p," in packet for packet in packets)
+    assert sum(b"a=d,d=I" in packet for packet in packets) == 11
+    transport.close()
+    assert transport.manager._images == {}
+    assert sum(b"a=d,d=I" in packet for packet in packets) == 12

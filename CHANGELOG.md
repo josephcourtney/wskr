@@ -5,6 +5,9 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- Added explicitly owned live-viewport theme refresh for backend-owned figure and axes backgrounds and primary labels, preserving explicit artist colors and figures without provenance.
+- Coordinated event-pumped redraw of multiple registered Matplotlib figures through `flush_events()`/`plt.pause()`, retaining opt-in `WSKR_IDLE_REDRAW=coalesce` and no shell-input ownership.
+- Added `WSKR_KITTY_PARENT=off` compatibility fallback for Kitty without P/Q parent-relative placements; the fallback still uses scoped image replacement and cleanup.
 - Added opt-in runtime Kitty terminal appearance queries (font family/size, physical DPI, foreground/background and opacity), guarded OSC/CSI/XTGETTCAP transactions, and scoped `use_profile(profile)` for Matplotlib figures with user-owned style precedence.
 - Added cell-derived line, marker and grid sizing, local monospace fallback, and transparent default figure surfaces when terminal background opacity is measured as translucent.
 - Added optional `WSKR_IDLE_REDRAW=coalesce` for interactive Matplotlib applications that pump `flush_events()` or `plt.pause()`, reducing repeated `draw_idle()` updates to one terminal upload per pump while retaining immediate redraw by default.
@@ -33,6 +36,7 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 - Prevented legacy PTY color queries from hanging while waiting for terminal output to drain.
 
 ### Changed
+- `show(block=None)` follows Matplotlib's blocking expectation for noninteractive scripts owning a foreground terminal; use `show(block=False)` for intentionally persistent nonblocking history output. Interactive or input-unowned sessions remain nonblocking.
 - Qualified both installed-wheel Matplotlib Kitty backend-selection forms and ordinary PNG/SVG exports in clean subprocesses outside the checkout.
 - Switched the primary `wskr_kitty`/`kitty` transport from external `icat` to direct Kitty graphics; retained the previous implementation as `kitty_legacy` for comparison.
 - Clarified which Kitty, Matplotlib, Rich, Sixel and iTerm2 features are supported today, with the intended architecture documented separately.

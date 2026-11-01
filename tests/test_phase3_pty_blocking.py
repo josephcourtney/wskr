@@ -30,11 +30,11 @@ print("BLOCK_DONE", flush=True)
 """
 
 
-def _exec_child() -> None:
+def _exec_child(script: str = _SCRIPT) -> None:
     os.environ["TERM"] = "xterm-kitty"
     os.environ["WSKR_SCALE"] = "0.5"
     try:
-        os.execv(sys.executable, [sys.executable, "-c", _SCRIPT])  # ruff: ignore[start-process-with-no-shell]
+        os.execv(sys.executable, [sys.executable, "-c", script])  # ruff: ignore[start-process-with-no-shell]
     except OSError:
         os._exit(127)
 
@@ -98,5 +98,63 @@ def test_real_foreground_pty_blocking_show_and_scoped_close() -> None:
     restore = output.index(b"\x1b[?1049l")
     returned = output.index(b"BLOCK_DONE")
     assert enter < upload < deletion < restore < returned
+    assert os.WIFEXITED(status)
+    assert os.WEXITSTATUS(status) == 0
+
+
+def test_real_foreground_pty_default_show_auto_blocks() -> None:
+    """A noninteractive script without block= must own the canonical prompt."""
+    child, master = pty.fork()
+    if child == 0:
+        _exec_child(_SCRIPT.replace("plt.show(block=True)", "plt.show()"))
+
+    output = b""
+    sent_enter = False
+    try:
+        output, sent_enter = _capture_until_done(master)
+    finally:
+        status = _reap_child(child)
+        os.close(master)
+
+    assert sent_enter, output[-2000:]
+    assert b"BLOCK_DONE" in output, output[-2000:]
+    assert b"\x1b[?1049h" in output
+    assert b"\x1b[?1049l" in output
+    assert os.WIFEXITED(status)
+    assert os.WEXITSTATUS(status) == 0
+
+
+def test_real_pty_interactive_multiple_figures_pump_without_input() -> None:
+    """Standard pyplot + one canvas pump uploads both managed images."""
+    script = """
+import matplotlib
+matplotlib.use("module://wskr.render.matplotlib.kitty")
+import matplotlib.pyplot as plt
+plt.ion()
+fig_a, ax_a = plt.subplots(figsize=(2, 1), dpi=70)
+fig_b, ax_b = plt.subplots(figsize=(2, 1), dpi=70)
+ax_a.plot([0, 1], [1, 0])
+ax_b.plot([0, 1], [0, 1])
+fig_a.canvas.draw_idle()
+fig_b.canvas.draw_idle()
+fig_a.canvas.flush_events()
+print("BLOCK_DONE", flush=True)
+plt.close(fig_a)
+plt.close(fig_b)
+"""
+    child, master = pty.fork()
+    if child == 0:
+        os.environ["WSKR_IDLE_REDRAW"] = "coalesce"
+        _exec_child(script)
+
+    try:
+        output, sent_enter = _capture_until_done(master)
+    finally:
+        status = _reap_child(child)
+        os.close(master)
+
+    assert not sent_enter
+    assert b"BLOCK_DONE" in output, output[-2000:]
+    assert output.count(b"a=T") >= 2, output[-2000:]
     assert os.WIFEXITED(status)
     assert os.WEXITSTATUS(status) == 0

@@ -278,3 +278,55 @@ def test_pyplot_interactive_hook_uses_coalesced_canvas_path(monkeypatch) -> None
         assert len(transport.frames) == 1
     finally:
         manager.destroy()
+
+
+def test_one_interactive_event_pump_drains_all_pyplot_figures(monkeypatch) -> None:
+    """Pandas/pyplot can leave inactive managers with pending draw requests."""
+    monkeypatch.setenv("WSKR_IDLE_REDRAW", "coalesce")
+    monkeypatch.delenv("WSKR_FIT", raising=False)
+    _, _, fig1, canvas1, manager1, transport1 = _setup(monkeypatch)
+    _, _, fig2, canvas2, manager2, transport2 = _setup(monkeypatch)
+    monkeypatch.setattr(core, "is_interactive", lambda: True)
+    monkeypatch.setattr(core.Gcf, "get_all_fig_managers", lambda: [manager1, manager2])
+    try:
+        fig1.axes[0].lines[0].set_ydata([2, 3])
+        fig2.axes[0].lines[0].set_ydata([3, 4])
+        for _ in range(4):
+            canvas1.draw_idle()
+            canvas2.draw_idle()
+        assert not transport1.frames
+        assert not transport2.frames
+        canvas1.flush_events()
+        assert len(transport1.frames) == 1
+        assert len(transport2.frames) == 1
+        canvas2.flush_events()
+        assert len(transport1.frames) == 1
+        assert len(transport2.frames) == 1
+        manager2.destroy()
+        canvas2.draw_idle()
+        canvas1.draw_idle()
+        canvas1.flush_events()
+        assert len(transport1.frames) == 2
+        assert len(transport2.frames) == 1
+    finally:
+        manager1.destroy()
+
+
+def test_event_pump_reentrant_callback_is_ignored(monkeypatch) -> None:
+    monkeypatch.setenv("WSKR_IDLE_REDRAW", "coalesce")
+    _, _, _, canvas, manager, transport = _setup(monkeypatch)
+    monkeypatch.setattr(core, "is_interactive", lambda: True)
+    monkeypatch.setattr(core.Gcf, "get_all_fig_managers", lambda: [manager])
+    original = canvas.draw
+
+    def reentrant_draw():
+        canvas.flush_events()
+        original()
+
+    monkeypatch.setattr(canvas, "draw", reentrant_draw)
+    try:
+        canvas.draw_idle()
+        canvas.flush_events()
+        assert len(transport.frames) == 1
+    finally:
+        manager.destroy()

@@ -39,6 +39,7 @@ _MIN_SHEET_MANAGERS = 2
 _LONG_PAGE_PROMPT_COLS = 51
 _EXIT_STATE = {"exiting": False}
 _BLOCKING_RENDER: ContextVar[bool] = ContextVar("wskr_blocking_render", default=False)
+_EVENT_PUMP: ContextVar[bool] = ContextVar("wskr_event_pump", default=False)
 
 
 def _mark_process_exit() -> None:
@@ -428,27 +429,37 @@ class WskrFigureCanvas(FigureCanvasAgg):
             return
         self.draw()
 
-    def flush_events(self) -> None:
-        """Respond to an event pump without claiming the terminal's input.
-
-        plt.pause() and compatible REPL event loops call this hook. A stable
-        resize redraws only an already displayed figure, using the guarded
-        interactive draw when interactive mode is enabled.
-        """
-        if _BLOCKING_RENDER.get():
-            return
+    def _flush_one(self) -> None:
+        """Drain one canvas's queued updates without claiming terminal input."""
         manager = self.manager
         if manager is None or getattr(manager, "_closed", False):
             self._idle_pending = False
             return
         if getattr(self, "_idle_pending", False):
             self._idle_pending = False
-            # draw() already guards recursion and sends exactly one interactive
-            # image. Clear the flag first so new stale events may be queued.
             self.draw()
         state = getattr(manager, "_nonblocking_resize", None)
         if isinstance(state, _NonblockingResizeState):
             state.flush(self.draw_idle if is_interactive() else manager.show)
+
+    def flush_events(self) -> None:
+        """Pump all registered Kitty canvas redraws once per Matplotlib event tick.
+
+        Matplotlib may pump only the active figure during plt.pause(). Pending
+        interactive updates on *other* pyplot figures must not starve. The
+        reentrancy guard keeps nested GUI/event callbacks from double sending.
+        """
+        if _BLOCKING_RENDER.get() or _EVENT_PUMP.get():
+            return
+        token = _EVENT_PUMP.set(True)
+        try:
+            self._flush_one()
+            for manager in Gcf.get_all_fig_managers():
+                canvas = manager.canvas
+                if canvas is not self and isinstance(canvas, WskrFigureCanvas):
+                    canvas._flush_one()  # ruff: ignore[private-member-access] - owned backend canvas event pump
+        finally:
+            _EVENT_PUMP.reset(token)
 
 
 class BaseFigureManager(FigureManagerBase):
@@ -515,6 +526,7 @@ class TerminalBackend(_Backend):
 
         # pyplot always supplies FigureClass=Figure and figsize=None. None
         # means unspecified; only non-None arguments are user-owned.
+        background_owned = kwargs.get("facecolor") is None and "figure.facecolor" in backend_owned
         for rc_key, argument in (("figure.figsize", "figsize"), ("figure.facecolor", "facecolor")):
             if kwargs.get(argument) is None and rc_key in backend_owned:
                 kwargs[argument] = backend_owned[rc_key]
@@ -527,9 +539,10 @@ class TerminalBackend(_Backend):
                 for key, value in backend_owned.items()
                 if key not in {"figure.figsize", "figure.dpi", "figure.facecolor"}
             }
-            if artist_defaults:
+            if artist_defaults or background_owned:
                 kwargs["FigureClass"] = TerminalFigure
                 kwargs["_wskr_defaults"] = artist_defaults
+                kwargs["_wskr_bg_owned"] = background_owned
         return super().new_figure_manager(num, *args, **kwargs)
 
     @classmethod
@@ -544,18 +557,19 @@ class TerminalBackend(_Backend):
 
     @classmethod
     def show(cls, *, block: bool | None = None) -> None:
-        """Display every figure; wait for Enter only if explicitly requested.
+        """Display figures, following Matplotlib interactive-mode defaults.
 
-        Kitty images live in terminal history, not separate GUI windows.
-        Therefore the ordinary show(block=None) is intentionally nonblocking
-        so static output survives the script's exit. A caller opting into
-        block=True owns its foreground input for the duration of the prompt.
+        block=None blocks for noninteractive foreground scripts, but never
+        claims stdin in a REPL, background process or redirected session.
+        Explicit block=False retains one-off graphics in Kitty history.
         """
         if cls.not_impl_msg is not None:
             raise NotImplementedError(cls.not_impl_msg)
         managers = Gcf.get_all_fig_managers()
         if not managers:
             return
+        if block is None:
+            block = not is_interactive() and _owns_foreground_terminal_input()
         if block is True and not _owns_foreground_terminal_input():
             msg = "Blocking terminal show requires foreground stdin and stdout on the same TTY"
             raise RuntimeError(msg)

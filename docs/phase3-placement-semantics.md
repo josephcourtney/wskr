@@ -36,7 +36,10 @@ independent repositioning. It would require a deliberate owner of a live
 display area or terminal/shell integration, and a policy for coordinating
 cursor/scrollback state. Silently emitting arbitrary cursor movements from
 a nonblocking backend is not acceptable: it could overwrite another
-application's prompt or unrelated output. Do not claim that a history
+application's prompt or unrelated output. In a Kitty build without the P/Q
+relative-placement capability (0.31+), set `WSKR_KITTY_PARENT=off` to use
+scoped ordinary physical image placement and bounded replacement instead.
+That fallback is not a promise of stable viewport positioning. Do not claim that a history
 placement that has moved out of view has become a viewport-following plot.
 
 ## Native macOS evidence and hypotheses

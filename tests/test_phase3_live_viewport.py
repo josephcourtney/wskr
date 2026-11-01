@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from io import BytesIO
 
+import matplotlib as mpl
 import pytest
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
@@ -12,7 +13,8 @@ from PIL import Image
 
 from wskr.protocol.base import ImageProtocol
 from wskr.render.matplotlib import core, live
-from wskr.terminal.profile import Geometry
+from wskr.render.matplotlib.figure import TerminalFigure
+from wskr.terminal.profile import Geometry, probe_profile
 
 pytestmark = pytest.mark.medium
 
@@ -234,3 +236,69 @@ def test_initial_render_failure_restores_screen_and_releases_transport(monkeypat
         pytest.fail("entry rendered despite failed upload")
     assert transport.closed == 1
     assert writes[-1] == b"\x1b[?1049l"
+
+
+def _theme(background: str, foreground: str):
+    def query(request: bytes) -> bytes:
+        code = 10 if request.startswith(b"\x1b]10;") else 11
+        color = foreground if code == 10 else background
+        return f"\x1b]{code};rgb:{color}/{color}/{color}\x07".encode()
+
+    return probe_profile(geometry=Geometry(30, 100, 1000, 600), color_query=query)
+
+
+def test_owned_live_theme_updates_only_backend_owned_surfaces(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An explicit measured theme change cannot recolor user plot/data art."""
+    _geometry, transport, _writes = _session(monkeypatch)
+    old_style = {
+        "axes.facecolor": "#000000",
+        "axes.labelcolor": "#ffffff",
+        "text.color": "#ffffff",
+    }
+    with mpl.rc_context():
+        mpl.rcdefaults()
+        fig = TerminalFigure(
+            figsize=(3, 2),
+            dpi=100,
+            facecolor="#000000",
+            _wskr_defaults=old_style,
+            _wskr_bg_owned=True,
+        )
+        FigureCanvasAgg(fig)
+        ax = fig.add_subplot(111)
+        line = ax.plot([0, 1], [1, 2], color="orange")[0]
+        ax.set_title("automatic")
+        ax.set_xlabel("automatic")
+        ax.set_ylabel("explicit", color="cyan")
+        original_size = tuple(fig.get_size_inches()), fig.dpi
+        with live.owned_viewport(fig, transport_factory=lambda: transport) as view:
+            assert view.refresh_theme(_theme("ffff", "0000"))
+            assert len(transport.frames) == 2
+            assert fig.get_facecolor() == mpl.colors.to_rgba("#ffffff")
+            assert ax.get_facecolor() == mpl.colors.to_rgba("#ffffff")
+            assert ax.title.get_color() == "#000000"
+            assert ax.xaxis.label.get_color() == "#000000"
+            assert ax.yaxis.label.get_color() == "cyan"
+            assert line.get_color() == "orange"
+            assert (tuple(fig.get_size_inches()), fig.dpi) == original_size
+            assert not view.refresh_theme(_theme("ffff", "0000"))
+            assert not view.refresh_theme(probe_profile(geometry=Geometry(30, 100, 1000, 600)))
+            assert len(transport.frames) == 2
+            fig.set_facecolor("#123456")  # Explicit late caller edit owns this.
+            ax.set_facecolor("#334455")
+            assert view.refresh_theme(_theme("0000", "ffff"))
+            assert fig.get_facecolor() == mpl.colors.to_rgba("#123456")
+            assert ax.get_facecolor() == mpl.colors.to_rgba("#334455")
+            assert ax.yaxis.label.get_color() == "cyan"
+            assert line.get_color() == "orange"
+            assert len(transport.frames) == 3
+
+
+def test_unowned_custom_matplotlib_figure_is_not_theme_modified(monkeypatch: pytest.MonkeyPatch) -> None:
+    _geometry, transport, _writes = _session(monkeypatch)
+    fig = _figure()
+    initial = fig.get_facecolor()
+    with live.owned_viewport(fig, transport_factory=lambda: transport) as view:
+        assert not view.refresh_theme(_theme("0000", "ffff"))
+    assert fig.get_facecolor() == initial
+    assert len(transport.frames) == 1
