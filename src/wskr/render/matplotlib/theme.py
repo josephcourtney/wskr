@@ -74,6 +74,25 @@ def _visible_palette(colors: tuple[RGB | None, ...], background: RGB) -> list[st
     return [color.to_hex() for color in selected]
 
 
+def _scale_rc_defaults(profile: TerminalProfile, dpi: float) -> dict[str, Any]:
+    """Return locally renderable typography and stroke measurements."""
+    result: dict[str, Any] = {}
+    cell_height = profile.cell_height_px.value
+    if cell_height is not None and dpi > 0:
+        cell_points = cell_height * 72 / dpi
+        result["font.size"] = max(6.0, min(20.0, cell_points * 0.6))
+        result["lines.linewidth"] = max(0.8, min(2.6, cell_points * 0.09))
+        result["lines.markersize"] = max(3.0, min(11.0, cell_points * 0.34))
+        result["axes.linewidth"] = max(0.6, min(2.0, cell_points * 0.065))
+        result["grid.linewidth"] = max(0.4, min(1.4, cell_points * 0.04))
+    elif profile.font_size_pt.value is not None:
+        result["font.size"] = max(6.0, min(20.0, profile.font_size_pt.value * 0.9))
+    if cell_height is not None or profile.font_family.value is not None:
+        # The terminal's PostScript font might not exist on the Python host.
+        result["font.family"] = ["monospace"]
+    return result
+
+
 def resolve_rc_defaults(
     profile: TerminalProfile,
     *,
@@ -112,20 +131,7 @@ def resolve_rc_defaults(
             round(0.25 * foreground.blue + 0.75 * background.blue),
         )
         defaults["grid.color"] = muted.to_hex()
-    cell_height = profile.cell_height_px.value
-    if cell_height is not None and dpi > 0:
-        cell_points = cell_height * 72 / dpi
-        defaults["font.size"] = max(6.0, min(20.0, cell_points * 0.6))
-        defaults["lines.linewidth"] = max(0.8, min(2.6, cell_points * 0.09))
-        defaults["lines.markersize"] = max(3.0, min(11.0, cell_points * 0.34))
-        defaults["axes.linewidth"] = max(0.6, min(2.0, cell_points * 0.065))
-        defaults["grid.linewidth"] = max(0.4, min(1.4, cell_points * 0.04))
-    elif profile.font_size_pt.value is not None:
-        defaults["font.size"] = max(6.0, min(20.0, profile.font_size_pt.value * 0.9))
-    if cell_height is not None or profile.font_family.value is not None:
-        # The terminal's PostScript name may not exist on the Python machine.
-        # Ask Matplotlib for its installed monospace fallback instead.
-        defaults["font.family"] = ["monospace"]
+    defaults.update(_scale_rc_defaults(profile, dpi))
 
     palette = profile.ansi_palette.value
     if palette is not None and background is not None:
