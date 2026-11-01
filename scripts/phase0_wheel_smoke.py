@@ -65,11 +65,14 @@ import io
 import json
 import os
 import struct
+from unittest.mock import patch
 
 import matplotlib
 import matplotlib.pyplot as plt
 
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+from wskr.protocol.kitty_native import NativeKittyTransport
+from wskr.render.matplotlib import kitty as kitty_backend
 from wskr.render.matplotlib.kitty import KittyFigureCanvas
 
 entries = {
@@ -89,7 +92,16 @@ requested = os.environ['MPLBACKEND']
 assert matplotlib.get_backend().lower() == requested.lower(), (
     matplotlib.get_backend(), requested
 )
-fig, ax = plt.subplots(figsize=(4, 2), dpi=100)
+# The installed Kitty backend requires an actual foreground Kitty TTY
+# for its default transport. This smoke tests backend selection and exports,
+# not graphics output; inject a real transport with a no-op frame writer.
+# Dedicated native Kitty GUI acceptance tests exercise the live path.
+with patch.object(
+    kitty_backend,
+    'NativeKittyTransport',
+    lambda: NativeKittyTransport(writer=lambda _frames: None),
+):
+    fig, ax = plt.subplots(figsize=(4, 2), dpi=100)
 if requested == 'Agg':
     assert isinstance(fig.canvas, FigureCanvasAgg)
 else:
