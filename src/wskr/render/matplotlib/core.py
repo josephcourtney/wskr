@@ -404,9 +404,14 @@ class WskrFigureCanvas(FigureCanvasAgg):
             if not do_draw:
                 return
             super().draw()
-            if is_interactive() and not _BLOCKING_RENDER.get() and self.figure.get_axes() and self.manager is not None:
-                if not getattr(self.manager, "_closed", False):
-                    self.manager.show()
+            if (
+                is_interactive()
+                and not _BLOCKING_RENDER.get()
+                and self.figure.get_axes()
+                and self.manager is not None
+                and not getattr(self.manager, "_closed", False)
+            ):
+                self.manager.show()
 
     def draw_idle(self) -> None:
         """Schedule one render per event pump when explicitly requested.
