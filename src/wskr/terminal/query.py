@@ -1,4 +1,4 @@
-"""Explicit-ownership, bounded terminal OSC query transactions.
+"""Explicit-ownership, bounded terminal query transactions.
 
 Raw terminal replies and user keystrokes share an input stream. There is no
 portable way to put consumed bytes back, so callers must explicitly own input
@@ -265,4 +265,94 @@ def query_csi(
                     on_unmatched(bytes(unmatched))
 
 
-__all__ = ["TerminalQueryError", "query_csi", "query_osc"]
+
+
+def _receive_dcs_reply(
+    fd: int,
+    key: bytes,
+    deadline: float,
+    max_bytes: int,
+    unmatched: bytearray,
+    partial: bytearray,
+) -> bytes:
+    """Find an XTGETTCAP response with the requested capability name only."""
+    consumed = 0
+    while consumed < max_bytes:
+        chunk = _next_reply_byte(fd, deadline)
+        if not chunk:
+            continue
+        consumed += len(chunk)
+        if not partial and chunk != b"\x1b":
+            unmatched.extend(chunk)
+            continue
+        partial.extend(chunk)
+        if len(partial) == len(b"\x1bP") and partial != b"\x1bP":
+            unmatched.extend(partial)
+            partial.clear()
+            continue
+        if partial.startswith(b"\x1bP") and partial.endswith(b"\x1b\\"):
+            frame = bytes(partial)
+            partial.clear()
+            # Handle success and failure replies for the same requested name.
+            if frame.startswith((b"\x1bP1+r" + key, b"\x1bP0+r" + key)):
+                return frame
+            unmatched.extend(frame)
+    msg = "Terminal DCS reply exceeded bounded input limit"
+    raise TerminalQueryError(msg)
+
+
+def query_kitty_field(
+    field: str,
+    *,
+    owns_input: bool = False,
+    on_unmatched: Callable[[bytes], None] | None = None,
+    timeout: float = 0.15,
+    max_bytes: int = 512,
+) -> bytes:
+    """Query one read-only Kitty XTGETTCAP field with exclusive input ownership.
+
+    Returns a raw response for the pure codec to validate. An unmatched byte
+    handler is mandatory so other application input is never silently lost.
+    """
+    from wskr.terminal.kitty.queries import query_request  # ruff: ignore[import-outside-top-level]
+
+    if not owns_input or on_unmatched is None:
+        msg = "Kitty queries require exclusive input ownership and an unmatched-byte handler"
+        raise TerminalQueryError(msg)
+    if not _stdout_is_tty():
+        msg = "Kitty queries require an attached terminal output stream"
+        raise TerminalQueryError(msg)
+    request = query_request(field)
+    if not 0 < timeout <= _MAX_TIMEOUT_SECONDS or not 1 <= max_bytes <= _MAX_QUERY_BYTES:
+        msg = "Invalid Kitty query timeout or maximum reply size"
+        raise ValueError(msg)
+
+    with _QUERY_LOCK:
+        fd = _open_tty()
+        previous = None
+        unmatched = bytearray()
+        partial = bytearray()
+        key = request.removeprefix(b"\x1bP+q").removesuffix(b"\x1b\\")
+        try:
+            previous = termios.tcgetattr(fd)
+            attributes = termios.tcgetattr(fd)
+            attributes[3] &= ~(termios.ICANON | termios.ECHO)
+            attributes[6][termios.VMIN] = 0
+            attributes[6][termios.VTIME] = 0
+            termios.tcsetattr(fd, termios.TCSANOW, attributes)
+            deadline = monotonic() + timeout
+            _write_request(fd, request, deadline)
+            return _receive_dcs_reply(fd, key, deadline, max_bytes, unmatched, partial)
+        finally:
+            try:
+                if previous is not None:
+                    termios.tcsetattr(fd, termios.TCSANOW, previous)
+            finally:
+                os.close(fd)
+                if partial:
+                    unmatched.extend(partial)
+                if unmatched:
+                    on_unmatched(bytes(unmatched))
+
+
+__all__ = ["TerminalQueryError", "query_csi", "query_kitty_field", "query_osc"]
