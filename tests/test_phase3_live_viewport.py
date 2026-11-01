@@ -5,8 +5,8 @@ from __future__ import annotations
 import os
 from io import BytesIO
 
-import pytest
 import matplotlib as mpl
+import pytest
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 from PIL import Image
