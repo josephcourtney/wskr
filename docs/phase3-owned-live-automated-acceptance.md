@@ -56,8 +56,13 @@ These cases **never float** the window or substitute Kitty resizing.
 They require a real vertical BSP split (which controls width), an adjacent
 tile, and enough workspace for the requested narrow and wide viewport sizes.
 A horizontal split changes height, not width; a single root window has no
-split ratio. Unsupported layouts are reported as failures with their
-geometry and diagnostics, not misrepresented as renderer regressions.
+split ratio. Unsupported layouts are reported as **SKIP** (unqualified), with
+their topology and diagnostics retained in the evidence ZIP. The explicit BSP
+command still exits nonzero: a skipped test is not acceptance. Genuine render,
+resize-command, or pixel-verification errors are reported as **FAIL**. To
+qualify BSP resizing, arrange the disposable Kitty window in a vertical split
+with an adjacent tile and sufficient width before rerunning. The controller
+does not rearrange existing yabai windows automatically.
 
 The default `just test-native-gui` runs unmanaged and yabai-floating cases.
 BSP tests remain separately required for any claim of tiled acceptance.
