@@ -53,6 +53,10 @@ class AcceptanceError(RuntimeError):
     """Failure or unsupported GUI environment, with preserved evidence."""
 
 
+class UnsupportedLayout(AcceptanceError):
+    """The yabai BSP topology cannot exercise horizontal resizing."""
+
+
 def _run(argv: list[str], *, timeout: int = 20) -> str:
     completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed command argv
         argv, capture_output=True, text=True, check=False, timeout=timeout
@@ -211,7 +215,7 @@ def _resize(
         "BSP width-resize needs a vertical split and an adjacent tile: "
         f"id={identifier}, split-type={split_type!r}, split-child={split_child!r}"
     )
-    raise AcceptanceError(msg)
+    raise UnsupportedLayout(msg)
 
 
 def _wait_new_width(socket: str, window_id: int, prior_width: int, *, smaller: bool, out: Path) -> dict:
@@ -363,6 +367,13 @@ def _exercise_case(directory: Path, report: dict, socket: str, title: str, mode:
     _verify(report, directory)
 
 
+def _report_status(report: dict) -> str:
+    """Distinguish an unexercised topology from a genuine acceptance failure."""
+    if "skip_reason" in report:
+        return "SKIP"
+    return "FAIL" if report["failures"] else "PASS"
+
+
 def _case(root: Path, output: Path, mode: str, height: int) -> Path:
     label = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     directory = output / f"{label}-{mode}-h{height}-{uuid.uuid4().hex[:8]}"
@@ -402,11 +413,15 @@ def _case(root: Path, output: Path, mode: str, height: int) -> Path:
                 worker, cwd=root, env=env, stdout=log, stderr=subprocess.STDOUT
             )
         _exercise_case(directory, report, socket, title, mode, height)
+    except UnsupportedLayout as exc:
+        report["skip_reason"] = str(exc)
+        (directory / "controller-error.txt").write_text(traceback.format_exc(), encoding="utf-8")
     except BaseException:  # ruff: ignore[blind-except] - always archive failed native runs
         report["failures"].append("Controller exception; see controller-error.txt")
         (directory / "controller-error.txt").write_text(traceback.format_exc(), encoding="utf-8")
     finally:
-        report["passed"] = not report["failures"]
+        report["status"] = _report_status(report)
+        report["passed"] = report["status"] == "PASS"
         _save(directory, report)
         if proc is not None and proc.poll() is None:
             proc.terminate()
@@ -461,10 +476,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             report = json.loads((directory / "report.json").read_text(encoding="utf-8"))
             result = {
                 "case": f"{mode}-h{height}",
-                "status": "PASS" if report["passed"] else "FAIL",
+                "status": report["status"],
                 "archive": str(directory) + ".zip",
             }
+            if report["status"] == "SKIP":
+                result["reason"] = report["skip_reason"]
             print(f"{result['status']} {mode}-h{height}: {directory}.zip")
+            if report["status"] == "SKIP":
+                print(f"  {report['skip_reason']}")
         results.append(result)
     summary_path = output / f"summary-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}.json"
     summary_path.write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")
