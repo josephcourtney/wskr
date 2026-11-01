@@ -119,10 +119,8 @@ class TerminalAxes(Axes):
                 or mpl.rcParams[key] != mpl.rcParamsDefault[key]
             ):
                 continue
-            if (
-                to_rgba(artist.get_color()) == to_rgba(previous[key])
-                and to_rgba(artist.get_color()) != to_rgba(new[key])
-            ):
+            current_color = to_rgba(artist.get_color())
+            if current_color == to_rgba(previous[key]) and current_color != to_rgba(new[key]):
                 artist.set_color(new[key])
                 changed = True
         return changed
