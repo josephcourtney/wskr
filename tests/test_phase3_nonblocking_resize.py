@@ -296,7 +296,8 @@ def test_one_interactive_event_pump_drains_all_pyplot_figures(monkeypatch) -> No
             canvas2.draw_idle()
         assert not transport1.frames and not transport2.frames
         canvas1.flush_events()
-        assert len(transport1.frames) == len(transport2.frames) == 1
+        assert len(transport1.frames) == 1
+        assert len(transport2.frames) == 1
         canvas2.flush_events()
         assert len(transport1.frames) == len(transport2.frames) == 1
         manager2.destroy()
