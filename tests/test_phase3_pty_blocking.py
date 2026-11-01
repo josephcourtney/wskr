@@ -124,7 +124,6 @@ def test_real_foreground_pty_default_show_auto_blocks() -> None:
     assert os.WEXITSTATUS(status) == 0
 
 
-
 def test_real_pty_interactive_multiple_figures_pump_without_input() -> None:
     """Standard pyplot + one canvas pump uploads both managed images."""
     script = """
