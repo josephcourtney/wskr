@@ -54,7 +54,9 @@ class TerminalAxes(Axes):
         y: float | None = None,
         **kwargs: object,
     ) -> Text:
-        if getattr(self, "_wskr_ready", False) and (self._has_explicit_color(kwargs) or self._has_explicit_color(fontdict or {})):
+        if getattr(self, "_wskr_ready", False) and (
+            self._has_explicit_color(kwargs) or self._has_explicit_color(fontdict or {})
+        ):
             self._wskr_explicit_text.add("title")
         return super().set_title(label, fontdict=fontdict, loc=loc, pad=pad, y=y, **kwargs)
 
@@ -67,7 +69,9 @@ class TerminalAxes(Axes):
         loc: Literal["left", "center", "right"] | None = None,
         **kwargs: object,
     ) -> Text:
-        if getattr(self, "_wskr_ready", False) and (self._has_explicit_color(kwargs) or self._has_explicit_color(fontdict or {})):
+        if getattr(self, "_wskr_ready", False) and (
+            self._has_explicit_color(kwargs) or self._has_explicit_color(fontdict or {})
+        ):
             self._wskr_explicit_text.add("xlabel")
         return super().set_xlabel(xlabel, fontdict=fontdict, labelpad=labelpad, loc=loc, **kwargs)
 
@@ -80,7 +84,9 @@ class TerminalAxes(Axes):
         loc: Literal["bottom", "center", "top"] | None = None,
         **kwargs: object,
     ) -> Text:
-        if getattr(self, "_wskr_ready", False) and (self._has_explicit_color(kwargs) or self._has_explicit_color(fontdict or {})):
+        if getattr(self, "_wskr_ready", False) and (
+            self._has_explicit_color(kwargs) or self._has_explicit_color(fontdict or {})
+        ):
             self._wskr_explicit_text.add("ylabel")
         return super().set_ylabel(ylabel, fontdict=fontdict, labelpad=labelpad, loc=loc, **kwargs)
 
