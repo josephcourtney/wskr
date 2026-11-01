@@ -93,11 +93,14 @@ class TerminalAxes(Axes):
     def refresh_owned_colors(self, previous: dict[str, Any], new: dict[str, Any]) -> bool:
         """Update only unchanged backend-provenance surfaces and primary labels."""
         changed = False
-        if (
+        has_owned_background = (
             self._wskr_bg_owned
             and "axes.facecolor" in previous
             and "axes.facecolor" in new
             and mpl.rcParams["axes.facecolor"] == mpl.rcParamsDefault["axes.facecolor"]
+        )
+        if (
+            has_owned_background
             and self.get_facecolor() == to_rgba(previous["axes.facecolor"])
             and self.get_facecolor() != to_rgba(new["axes.facecolor"])
         ):
