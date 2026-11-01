@@ -47,6 +47,10 @@ _MIN_WIDE_WIDTH = 950
 _MAX_NARROW_WIDTH = 790
 _MIN_NARROW_WIDTH = 440
 _MAX_RESIZE_ATTEMPTS = 3
+_BSP_WIDE_SHARE = 0.75
+_BSP_DEFAULT_SMALL_SHARE = 0.25
+_BSP_MIN_SHARE = 0.08
+_BSP_MAX_SMALL_SHARE = 0.45
 
 
 class AcceptanceError(RuntimeError):
@@ -179,6 +183,7 @@ def _resize(
     small: bool,
     height: int,
     requested_width: int | None = None,
+    bsp_share: float | None = None,
 ) -> str:
     width = requested_width if requested_width is not None else (_WIDTH_SMALL if small else _WIDTH_LARGE)
     wanted_height = _HEIGHT_SMALL[height] if small else _HEIGHT_LARGE
@@ -207,7 +212,7 @@ def _resize(
     split_type = window.get("split-type")
     split_child = window.get("split-child")
     if split_type == "vertical" and split_child in {"first_child", "second_child"}:
-        share = 0.25 if small else 0.75
+        share = bsp_share if bsp_share is not None else (_BSP_DEFAULT_SMALL_SHARE if small else _BSP_WIDE_SHARE)
         ratio = share if split_child == "first_child" else 1.0 - share
         _run(["yabai", "-m", "window", identifier, "--ratio", f"abs:{ratio:.2f}"])
         return "yabai_bsp_ratio"
@@ -245,6 +250,15 @@ def _calibrated_request(*, requested: int, observed: int, target: int) -> int:
     return max(180, round(requested * target / observed))
 
 
+def _bsp_target_share(*, current_share: float, observed_width: int) -> float:
+    """Scale a BSP width fraction from measured physical screenshot pixels."""
+    if observed_width <= 0:
+        msg = "BSP share calibration requires a positive measured width"
+        raise ValueError(msg)
+    estimate = current_share * _WIDTH_SMALL / observed_width
+    return max(_BSP_MIN_SHARE, min(_BSP_MAX_SMALL_SHARE, estimate))
+
+
 def _resize_to_fit(
     socket: str,
     window_id: int,
@@ -260,11 +274,23 @@ def _resize_to_fit(
     request = _calibrated_request(requested=_WIDTH_LARGE, observed=prior_width, target=_WIDTH_SMALL)
     attempts: list[dict] = []
     previous_request = _WIDTH_LARGE
+    bsp_share = (
+        _bsp_target_share(current_share=_BSP_WIDE_SHARE, observed_width=prior_width)
+        if mode == "yabai-bsp"
+        else None
+    )
+    previous_share = _BSP_WIDE_SHARE
     for attempt in range(_MAX_RESIZE_ATTEMPTS):
-        method = _resize(socket, window_id, title, mode=mode, small=True, height=height, requested_width=request)
-        measured = _wait_new_width(socket, window_id, prior_width, smaller=request < previous_request, out=out)
+        method = _resize(
+            socket, window_id, title, mode=mode, small=True, height=height,
+            requested_width=request, bsp_share=bsp_share,
+        )
+        smaller = bsp_share < previous_share if bsp_share is not None else request < previous_request
+        measured = _wait_new_width(socket, window_id, prior_width, smaller=smaller, out=out)
         width = int(measured["width_px"])
         info = {"attempt": attempt + 1, "method": method, "requested_width": request, "observed_width_px": width}
+        if bsp_share is not None:
+            info["bsp_share"] = round(bsp_share, 4)
         attempts.append(info)
         if _MIN_NARROW_WIDTH <= width < _MAX_NARROW_WIDTH:
             height_px = int(measured["height_px"])
@@ -273,8 +299,9 @@ def _resize_to_fit(
                 msg = f"Window too short at {width}x{height_px} physical px; expected height >= {minimum_height}"
                 raise AcceptanceError(msg)
             return attempts
-        if mode == "yabai-bsp" and method == "yabai_bsp_ratio":
-            break  # exact width is controlled by yabai's surrounding layout
+        if bsp_share is not None:
+            previous_share = bsp_share
+            bsp_share = _bsp_target_share(current_share=bsp_share, observed_width=width)
         previous_request = request
         request = _calibrated_request(requested=request, observed=width, target=_WIDTH_SMALL)
         prior_width = width
