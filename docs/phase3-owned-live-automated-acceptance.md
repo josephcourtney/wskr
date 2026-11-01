@@ -55,6 +55,10 @@ Run `just owned-auto yabai-bsp 2` or `just owned-auto yabai-bsp 6`.
 These cases **never float** the window or substitute Kitty resizing.
 They require a real vertical BSP split (which controls width), an adjacent
 tile, and enough workspace for the requested narrow and wide viewport sizes.
+The controller measures actual physical screenshot width and calibrates the
+BSP child fraction, retrying up to three times rather than assuming a fixed
+25% split will fit on every monitor. Each attempted ratio is recorded in the
+case report.
 A horizontal split changes height, not width; a single root window has no
 split ratio. Unsupported layouts are reported as **SKIP** (unqualified), with
 their topology and diagnostics retained in the evidence ZIP. The explicit BSP
