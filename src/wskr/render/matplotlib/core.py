@@ -457,7 +457,7 @@ class WskrFigureCanvas(FigureCanvasAgg):
             for manager in Gcf.get_all_fig_managers():
                 canvas = manager.canvas
                 if canvas is not self and isinstance(canvas, WskrFigureCanvas):
-                    canvas._flush_one()
+                    canvas._flush_one()  # ruff: ignore[private-member-access] - owned backend canvas event pump
         finally:
             _EVENT_PUMP.reset(token)
 
