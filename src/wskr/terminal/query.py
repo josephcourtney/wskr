@@ -165,8 +165,6 @@ def _transaction(
                 on_unmatched(bytes(unmatched))
 
 
-
-
 _CSI_REPLIES: dict[bytes, bytes] = {
     b"\x1b[14t": b"\x1b[4;",
     b"\x1b[16t": b"\x1b[6;",
