@@ -159,7 +159,7 @@ class TerminalFigure(Figure):
         _wskr_bg_owned: bool = False,
         **kwargs: Any,
     ) -> None:
-        self._wskr_defaults = dict(_wskr_defaults or {})
+        self._wskr_defaults: dict[str, Any] = dict(_wskr_defaults or {})
         self._wskr_bg_owned = _wskr_bg_owned
         self._wskr_ready = False
         with self._creation_defaults():
@@ -167,7 +167,7 @@ class TerminalFigure(Figure):
         self._wskr_bg_initial = self.get_facecolor()
         self._wskr_ready = True
 
-    def set_facecolor(self, color: str | tuple[float, ...]) -> None:
+    def set_facecolor(self, color: ColorType) -> None:
         if getattr(self, "_wskr_ready", False):
             self._wskr_bg_owned = False
         super().set_facecolor(color)
@@ -193,11 +193,12 @@ class TerminalFigure(Figure):
                 changed = axes.refresh_owned_colors(previous, new) or changed
         # Preserve only established ownership; do not acquire previously
         # user-owned keys on a subsequent terminal-theme change.
-        self._wskr_defaults = {
+        updated: dict[str, Any] = {
             key: new.get(key, previous[key])
             for key in mpl.rcParams
             if key in previous and mpl.rcParams[key] == mpl.rcParamsDefault[key]
         }
+        self._wskr_defaults = updated
         return changed
 
     @contextmanager
