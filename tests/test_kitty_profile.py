@@ -61,7 +61,7 @@ def test_full_kitty_measurements_are_measured_and_osc_takes_precedence():
 
 
 @pytest.mark.parametrize(
-    "field,value",
+    ("field", "value"),
     [
         ("font_size", "nan"),
         ("font_size", "-1"),
