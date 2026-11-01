@@ -17,9 +17,10 @@ from matplotlib.figure import Figure
 
 if TYPE_CHECKING:
     from collections.abc import Generator
-    from typing import Any
+    from typing import Any, Literal
 
     from matplotlib.text import Text
+    from matplotlib.typing import ColorType
 
 
 class TerminalAxes(Axes):
@@ -33,7 +34,7 @@ class TerminalAxes(Axes):
         self._wskr_bg_initial = self.get_facecolor()
         self._wskr_ready = True
 
-    def set_facecolor(self, color: str | tuple[float, ...]) -> None:
+    def set_facecolor(self, color: ColorType | None) -> None:
         if getattr(self, "_wskr_ready", False):
             self._wskr_bg_owned = False
         super().set_facecolor(color)
@@ -43,20 +44,45 @@ class TerminalAxes(Axes):
         fontdict = kwargs.get("fontdict")
         return "color" in kwargs or (isinstance(fontdict, dict) and "color" in fontdict)
 
-    def set_title(self, label: str, *args: object, **kwargs: object) -> Text:
-        if getattr(self, "_wskr_ready", False) and self._has_explicit_color(kwargs):
+    def set_title(
+        self,
+        label: str,
+        fontdict: dict[str, Any] | None = None,
+        loc: Literal["left", "center", "right"] | None = None,
+        pad: float | None = None,
+        *,
+        y: float | None = None,
+        **kwargs: object,
+    ) -> Text:
+        if getattr(self, "_wskr_ready", False) and (self._has_explicit_color(kwargs) or self._has_explicit_color(fontdict or {})):
             self._wskr_explicit_text.add("title")
-        return super().set_title(label, *args, **kwargs)
+        return super().set_title(label, fontdict=fontdict, loc=loc, pad=pad, y=y, **kwargs)
 
-    def set_xlabel(self, xlabel: str, *args: object, **kwargs: object) -> Text:
-        if getattr(self, "_wskr_ready", False) and self._has_explicit_color(kwargs):
+    def set_xlabel(
+        self,
+        xlabel: str,
+        fontdict: dict[str, Any] | None = None,
+        labelpad: float | None = None,
+        *,
+        loc: Literal["left", "center", "right"] | None = None,
+        **kwargs: object,
+    ) -> Text:
+        if getattr(self, "_wskr_ready", False) and (self._has_explicit_color(kwargs) or self._has_explicit_color(fontdict or {})):
             self._wskr_explicit_text.add("xlabel")
-        return super().set_xlabel(xlabel, *args, **kwargs)
+        return super().set_xlabel(xlabel, fontdict=fontdict, labelpad=labelpad, loc=loc, **kwargs)
 
-    def set_ylabel(self, ylabel: str, *args: object, **kwargs: object) -> Text:
-        if getattr(self, "_wskr_ready", False) and self._has_explicit_color(kwargs):
+    def set_ylabel(
+        self,
+        ylabel: str,
+        fontdict: dict[str, Any] | None = None,
+        labelpad: float | None = None,
+        *,
+        loc: Literal["bottom", "center", "top"] | None = None,
+        **kwargs: object,
+    ) -> Text:
+        if getattr(self, "_wskr_ready", False) and (self._has_explicit_color(kwargs) or self._has_explicit_color(fontdict or {})):
             self._wskr_explicit_text.add("ylabel")
-        return super().set_ylabel(ylabel, *args, **kwargs)
+        return super().set_ylabel(ylabel, fontdict=fontdict, labelpad=labelpad, loc=loc, **kwargs)
 
     def refresh_owned_colors(self, previous: dict[str, Any], new: dict[str, Any]) -> bool:
         """Update only unchanged backend-provenance surfaces and primary labels."""
@@ -162,7 +188,9 @@ class TerminalFigure(Figure):
         # Preserve only established ownership; do not acquire previously
         # user-owned keys on a subsequent terminal-theme change.
         self._wskr_defaults = {
-            key: new.get(key, value) for key, value in previous.items() if mpl.rcParams[key] == mpl.rcParamsDefault[key]
+            key: new.get(key, previous[key])
+            for key in mpl.rcParams
+            if key in previous and mpl.rcParams[key] == mpl.rcParamsDefault[key]
         }
         return changed
 
