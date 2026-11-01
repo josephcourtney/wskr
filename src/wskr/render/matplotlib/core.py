@@ -515,6 +515,7 @@ class TerminalBackend(_Backend):
 
         # pyplot always supplies FigureClass=Figure and figsize=None. None
         # means unspecified; only non-None arguments are user-owned.
+        background_owned = kwargs.get("facecolor") is None and "figure.facecolor" in backend_owned
         for rc_key, argument in (("figure.figsize", "figsize"), ("figure.facecolor", "facecolor")):
             if kwargs.get(argument) is None and rc_key in backend_owned:
                 kwargs[argument] = backend_owned[rc_key]
@@ -527,9 +528,10 @@ class TerminalBackend(_Backend):
                 for key, value in backend_owned.items()
                 if key not in {"figure.figsize", "figure.dpi", "figure.facecolor"}
             }
-            if artist_defaults:
+            if artist_defaults or background_owned:
                 kwargs["FigureClass"] = TerminalFigure
                 kwargs["_wskr_defaults"] = artist_defaults
+                kwargs["_wskr_bg_owned"] = background_owned
         return super().new_figure_manager(num, *args, **kwargs)
 
     @classmethod
