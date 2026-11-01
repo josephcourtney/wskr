@@ -2,7 +2,7 @@
 
 ## Project scope
 
-wskr is a terminal-native Matplotlib backend with optional Rich integration. The adopted architecture is in [DESIGN.md](DESIGN.md), execution order in [PLAN.md](PLAN.md), current state in [STATUS.md](STATUS.md) and immediate work in [TODO.md](TODO.md). Do not treat the planned direct-Kitty or auto-theme features as already implemented.
+wskr is a terminal-native Matplotlib backend with optional Rich integration. The adopted architecture is in [DESIGN.md](DESIGN.md), execution order in [PLAN.md](PLAN.md), current state in [STATUS.md](STATUS.md) and immediate work in [TODO.md](TODO.md). Direct Kitty transport is implemented and accepted; automatic live theme updates and Rich inline graphics are not.
 
 **[POLICY.md](POLICY.md) takes precedence for documentation roles and git history.** Architecture rationale belongs in numbered [ADRs](docs/adr/); completion evidence belongs in commits, STATUS and the curated changelog.
 

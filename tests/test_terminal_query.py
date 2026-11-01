@@ -124,3 +124,73 @@ def test_partial_reply_on_timeout_is_routed_to_owner(monkeypatch):
         thread.join(timeout=2)
         os.close(master)
         os.close(slave)
+
+
+@pytest.mark.small
+def test_csi_query_requires_owner_and_rejects_unrelated_commands(monkeypatch):
+    with pytest.raises(query.TerminalQueryError, match="exclusive input"):
+        query.query_csi(b"\x1b[14t")
+    monkeypatch.setattr(query, "_stdout_is_tty", lambda: True)
+    with pytest.raises(ValueError, match="14t and 16t"):
+        query.query_csi(b"\x1b[18t", owns_input=True, on_unmatched=lambda _: None)
+
+
+@pytest.mark.medium
+def test_csi_pty_reply_restores_termios_and_preserves_other_input(monkeypatch):
+    master, slave = pty.openpty()
+    before = termios.tcgetattr(slave)
+    forwarded = []
+    monkeypatch.setattr(query, "_open_tty", lambda: os.dup(slave))
+    monkeypatch.setattr(query, "_stdout_is_tty", lambda: True)
+
+    def responder():
+        assert os.read(master, 100) == b"\x1b[16t"
+        os.write(master, b"q\x1b[4;600;800t\x1b[6;20;10t")
+
+    thread = threading.Thread(target=responder, daemon=True)
+    thread.start()
+    try:
+        response = query.query_csi(
+            b"\x1b[16t",
+            owns_input=True,
+            on_unmatched=forwarded.append,
+            timeout=1,
+        )
+        assert response == b"\x1b[6;20;10t"
+        assert forwarded == [b"q\x1b[4;600;800t"]
+        _assert_restored_terminal_settings(slave, before)
+    finally:
+        thread.join(timeout=2)
+        os.close(master)
+        os.close(slave)
+    assert not thread.is_alive()
+
+
+@pytest.mark.medium
+def test_csi_partial_timeout_returns_input_to_owner(monkeypatch):
+    master, slave = pty.openpty()
+    forwarded = []
+    before = termios.tcgetattr(slave)
+    monkeypatch.setattr(query, "_open_tty", lambda: os.dup(slave))
+    monkeypatch.setattr(query, "_stdout_is_tty", lambda: True)
+
+    def responder():
+        assert os.read(master, 100) == b"\x1b[14t"
+        os.write(master, b"\x1b[4;500;")
+
+    thread = threading.Thread(target=responder, daemon=True)
+    thread.start()
+    try:
+        with pytest.raises(TimeoutError):
+            query.query_csi(
+                b"\x1b[14t",
+                owns_input=True,
+                on_unmatched=forwarded.append,
+                timeout=0.08,
+            )
+        assert forwarded == [b"\x1b[4;500;"]
+        _assert_restored_terminal_settings(slave, before)
+    finally:
+        thread.join(timeout=2)
+        os.close(master)
+        os.close(slave)

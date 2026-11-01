@@ -1,7 +1,7 @@
 # ADR-004: Explicitly owned viewport sessions for live terminal plots
 
 - **Date:** 2026-10-25
-- **Status:** Accepted for experimental Phase 3 API; native visual qualification pending
+- **Status:** Accepted (API remains experimental)
 - **Decision scope:** Foreground terminal ownership, history-versus-viewport placement
 
 ## Context
@@ -44,4 +44,4 @@ The experimental API is in a distinct module, not retrofitted into `plt.show(blo
 
 Positive: distinct contracts with no hidden shell interference, bounded lifecycle and testable viewport repaint. Negative: the caller must opt in, provide a foreground TTY and drive updates; alternate-screen contents are discarded when the scope ends.
 
-Portable tests verify ownership, input isolation, failure cleanup and debounced resizing. Hosted real Kitty/Xvfb screenshots confirm initial display, shrink, expansion and alternate-screen restoration. Independent **native macOS and yabai** graphical qualification remains outstanding, so the API remains experimental.
+The separate [native acceptance record](../phase3-owned-live-automated-acceptance.md) documents graphical verification and environment-specific boundaries. Acceptance evidence does not change the underlying ownership decision: history-resident pyplot output is not automatically viewport-pinned, and the explicit viewport API remains experimental.

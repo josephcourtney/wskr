@@ -69,7 +69,11 @@ with an adjacent tile and sufficient width before rerunning. The controller
 does not rearrange existing yabai windows automatically.
 
 The default `just test-native-gui` runs unmanaged and yabai-floating cases.
-BSP tests remain separately required for any claim of tiled acceptance.
+BSP tests remain separate from the default matrix and must pass for tiled acceptance; this was completed in the six-case native qualification of PR #43.
+
+## Native acceptance result (2026-11-01)
+
+[PR #43](https://github.com/josephcourtney/wskr/pull/43) reports **all six cases passing** after reviewing screenshots and evidence archives: unmanaged 9×2 and 9×6, yabai-floating 9×2 and 9×6, and genuine nonfloating vertical-BSP 9×2 and 9×6. Both BSP cases verified the window was tiled (not floating), with a calibrated share of 0.2167. The narrow raster was 728×162 for 9×2 and 728×485 for 9×6; both expanded back to their 900-pixel-wide source display. Each case included visible red/blue plot pixels throughout and no residual plot after restoration. This is *owned-viewport* acceptance only. Native history-anchored scrollback remains [issue #31](https://github.com/josephcourtney/wskr/issues/31).
 
 ## Evidence
 

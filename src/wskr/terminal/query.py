@@ -165,4 +165,104 @@ def _transaction(
                 on_unmatched(bytes(unmatched))
 
 
-__all__ = ["TerminalQueryError", "query_osc"]
+_CSI_REPLIES: dict[bytes, bytes] = {
+    b"\x1b[14t": b"\x1b[4;",
+    b"\x1b[16t": b"\x1b[6;",
+}
+
+_CSI_PREFIX_BYTES = len(b"\x1b[")
+_CSI_FINAL_MIN = ord("@")
+_CSI_FINAL_MAX = ord("~")
+
+
+def _receive_csi_reply(
+    fd: int,
+    expected: bytes,
+    deadline: float,
+    max_bytes: int,
+    unmatched: bytearray,
+    partial: bytearray,
+) -> bytes:
+    """Preserve unrelated bytes and accept only a complete matching CSI reply."""
+    received = 0
+    while received < max_bytes:
+        ch = _next_reply_byte(fd, deadline)
+        if not ch:
+            continue
+        received += 1
+        if not partial and ch != b"\x1b":
+            unmatched.extend(ch)
+            continue
+        partial.extend(ch)
+        if len(partial) == _CSI_PREFIX_BYTES and partial != b"\x1b[":
+            unmatched.extend(partial)
+            partial.clear()
+            continue
+        if (
+            len(partial) > _CSI_PREFIX_BYTES
+            and partial.startswith(b"\x1b[")
+            and _CSI_FINAL_MIN <= partial[-1] <= _CSI_FINAL_MAX
+        ):
+            response = bytes(partial)
+            partial.clear()
+            if response.startswith(expected) and response.endswith(b"t"):
+                return response
+            unmatched.extend(response)
+    msg = "Terminal CSI response exceeded size limit"
+    raise TerminalQueryError(msg)
+
+
+def query_csi(
+    request: bytes,
+    *,
+    owns_input: bool = False,
+    on_unmatched: Callable[[bytes], None] | None = None,
+    timeout: float = 0.15,
+    max_bytes: int = 256,
+) -> bytes:
+    """Safely query CSI 14t/16t geometry with explicit terminal input ownership.
+
+    The owner must route unmatched input back to its application. No CSI query
+    is made automatically by probe_profile or standard pyplot initialization.
+    """
+    if not owns_input or on_unmatched is None:
+        msg = "CSI queries require exclusive input ownership and an unmatched-byte handler"
+        raise TerminalQueryError(msg)
+    if not _stdout_is_tty():
+        msg = "CSI queries require an attached terminal output stream"
+        raise TerminalQueryError(msg)
+    if request not in _CSI_REPLIES:
+        msg = "Only CSI 14t and 16t geometry queries are permitted"
+        raise ValueError(msg)
+    if not 0 < timeout <= _MAX_TIMEOUT_SECONDS or not 1 <= max_bytes <= _MAX_QUERY_BYTES:
+        msg = "Invalid terminal query timeout or maximum reply size"
+        raise ValueError(msg)
+
+    with _QUERY_LOCK:
+        fd = _open_tty()
+        previous = None
+        unmatched = bytearray()
+        partial = bytearray()
+        try:
+            previous = termios.tcgetattr(fd)
+            attributes = termios.tcgetattr(fd)
+            attributes[3] &= ~(termios.ICANON | termios.ECHO)
+            attributes[6][termios.VMIN] = 0
+            attributes[6][termios.VTIME] = 0
+            termios.tcsetattr(fd, termios.TCSANOW, attributes)
+            deadline = monotonic() + timeout
+            _write_request(fd, request, deadline)
+            return _receive_csi_reply(fd, _CSI_REPLIES[request], deadline, max_bytes, unmatched, partial)
+        finally:
+            try:
+                if previous is not None:
+                    termios.tcsetattr(fd, termios.TCSANOW, previous)
+            finally:
+                os.close(fd)
+                if partial:
+                    unmatched.extend(partial)
+                if unmatched:
+                    on_unmatched(bytes(unmatched))
+
+
+__all__ = ["TerminalQueryError", "query_csi", "query_osc"]

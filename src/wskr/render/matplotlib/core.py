@@ -354,6 +354,7 @@ class WskrFigureManager(FigureManagerBase):
         self.transport = factory()
         self.caps = caps_factory() if caps_factory is not None else None
         self._last_output_static = False
+        self._closed = False
         self._nonblocking_resize = _NonblockingResizeState()
 
     def show(self, *_args: Any, **_kwargs: Any) -> None:
@@ -367,6 +368,7 @@ class WskrFigureManager(FigureManagerBase):
 
     def destroy(self) -> None:
         """Retain ordinary output at exit; otherwise release owned images."""
+        self._closed = True
         self._nonblocking_resize.clear()
         _close_owned_transport(self.transport, static_output=self._last_output_static)
 
@@ -402,10 +404,29 @@ class WskrFigureCanvas(FigureCanvasAgg):
             if not do_draw:
                 return
             super().draw()
-            if is_interactive() and not _BLOCKING_RENDER.get() and self.figure.get_axes() and self.manager is not None:
+            if (
+                is_interactive()
+                and not _BLOCKING_RENDER.get()
+                and self.figure.get_axes()
+                and self.manager is not None
+                and not getattr(self.manager, "_closed", False)
+            ):
                 self.manager.show()
 
-    draw_idle = draw
+    def draw_idle(self) -> None:
+        """Schedule one render per event pump when explicitly requested.
+
+        Immediate rendering is the compatibility default. A terminal backend
+        cannot schedule an idle callback without an event loop, so applications
+        that already call flush_events()/plt.pause() can opt into coalescing.
+        This never starts a thread or consumes terminal input.
+        """
+        if getattr(self.manager, "_closed", False):
+            return
+        if os.getenv("WSKR_IDLE_REDRAW", "").lower() == "coalesce" and is_interactive():
+            self._idle_pending = True
+            return
+        self.draw()
 
     def flush_events(self) -> None:
         """Respond to an event pump without claiming the terminal's input.
@@ -417,8 +438,14 @@ class WskrFigureCanvas(FigureCanvasAgg):
         if _BLOCKING_RENDER.get():
             return
         manager = self.manager
-        if manager is None:
+        if manager is None or getattr(manager, "_closed", False):
+            self._idle_pending = False
             return
+        if getattr(self, "_idle_pending", False):
+            self._idle_pending = False
+            # draw() already guards recursion and sends exactly one interactive
+            # image. Clear the flag first so new stale events may be queued.
+            self.draw()
         state = getattr(manager, "_nonblocking_resize", None)
         if isinstance(state, _NonblockingResizeState):
             state.flush(self.draw_idle if is_interactive() else manager.show)
@@ -438,6 +465,7 @@ class BaseFigureManager(FigureManagerBase):
         self.transport = transport_cls()
         self.caps = caps
         self._last_output_static = False
+        self._closed = False
         self._nonblocking_resize = _NonblockingResizeState()
 
     def show(self, *_args: Any, **_kwargs: Any) -> None:
@@ -451,6 +479,7 @@ class BaseFigureManager(FigureManagerBase):
 
     def destroy(self) -> None:
         """Retain ordinary output at exit; clean up explicit/interactively."""
+        self._closed = True
         self._nonblocking_resize.clear()
         _close_owned_transport(self.transport, static_output=self._last_output_static)
 
@@ -507,7 +536,11 @@ class TerminalBackend(_Backend):
     def draw_if_interactive(cls):
         manager = Gcf.get_active()
         if mpl.is_interactive() and manager and manager.canvas.figure.get_axes():
-            manager.show()
+            canvas = manager.canvas
+            if isinstance(canvas, WskrFigureCanvas):
+                canvas.draw_idle()
+            else:
+                manager.show()
 
     @classmethod
     def show(cls, *, block: bool | None = None) -> None:
