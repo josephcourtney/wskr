@@ -225,7 +225,10 @@ def test_kitty_field_real_pty_round_trip_and_foreign_dcs(monkeypatch):
     thread.start()
     try:
         value = query.query_kitty_field(
-            "font_size", owns_input=True, on_unmatched=unmatched.append, timeout=1,
+            "font_size",
+            owns_input=True,
+            on_unmatched=unmatched.append,
+            timeout=1,
         )
         assert parse_query_reply("font_size", value) == "13.5"
         assert unmatched == [b"x\x1bP1+r" + foreign + b"=313932\x1b\\"]
@@ -256,7 +259,10 @@ def test_kitty_field_timeout_forwards_partial_dcs(monkeypatch):
     try:
         with pytest.raises(TimeoutError):
             query.query_kitty_field(
-                "background_opacity", owns_input=True, on_unmatched=unmatched.append, timeout=0.08,
+                "background_opacity",
+                owns_input=True,
+                on_unmatched=unmatched.append,
+                timeout=0.08,
             )
         assert unmatched == [b"\x1bP1+r6b697474792d71756572792d"]
         _assert_restored_terminal_settings(slave, original)
