@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, TypeVar
 
 from wskr.terminal.color import RGB, parse_osc_color
 from wskr.terminal.kitty.queries import parse_query_reply
+from wskr.terminal.query import TerminalQueryError, query_csi, query_kitty_field, query_osc
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -239,8 +240,6 @@ def probe_owned_profile(
     The caller must own the foreground terminal and replay every unmatched
     byte into its application input queue. Standard pyplot never calls this.
     """
-    from wskr.terminal.query import TerminalQueryError, query_csi, query_kitty_field, query_osc  # ruff: ignore[import-outside-top-level]
-
     if not owns_input or on_unmatched is None:
         msg = "Terminal profile probing requires exclusive input ownership and an unmatched-byte handler"
         raise TerminalQueryError(msg)
