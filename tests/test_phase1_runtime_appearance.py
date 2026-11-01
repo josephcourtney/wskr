@@ -146,6 +146,7 @@ def test_owned_profile_integrates_osc_csi_and_kitty_callbacks(monkeypatch):
     monkeypatch.setattr(terminal_profile, "query_csi", csi)
     monkeypatch.setattr(terminal_profile, "query_kitty_field", kitty)
     prof = probe_owned_profile(owns_input=True, on_unmatched=unmatched.extend, palette=False)
+    assert prof.background.value is not None
     assert prof.background.value.to_hex() == "#000000"
     assert prof.font_size_pt.value == 12.5
     assert prof.cell_height_px.value == 20
