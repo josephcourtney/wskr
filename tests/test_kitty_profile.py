@@ -60,16 +60,19 @@ def test_full_kitty_measurements_are_measured_and_osc_takes_precedence():
     assert profile.is_dark is False
 
 
-@pytest.mark.parametrize("field,value", [
-    ("font_size", "nan"),
-    ("font_size", "-1"),
-    ("dpi_x", "99999"),
-    ("dpi_y", "0"),
-    ("background_opacity", "1.2"),
-    ("background_opacity", "inf"),
-    ("foreground", "red"),
-    ("foreground", "#fff"),
-])
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("font_size", "nan"),
+        ("font_size", "-1"),
+        ("dpi_x", "99999"),
+        ("dpi_y", "0"),
+        ("background_opacity", "1.2"),
+        ("background_opacity", "inf"),
+        ("foreground", "red"),
+        ("foreground", "#fff"),
+    ],
+)
 def test_invalid_runtime_measurements_stay_unknown(field, value):
     profile = probe_profile(
         geometry=Geometry(24, 80),
