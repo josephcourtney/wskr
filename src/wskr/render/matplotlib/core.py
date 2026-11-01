@@ -405,7 +405,18 @@ class WskrFigureCanvas(FigureCanvasAgg):
             if is_interactive() and not _BLOCKING_RENDER.get() and self.figure.get_axes() and self.manager is not None:
                 self.manager.show()
 
-    draw_idle = draw
+    def draw_idle(self) -> None:
+        """Schedule one render per event pump when explicitly requested.
+
+        Immediate rendering is the compatibility default. A terminal backend
+        cannot schedule an idle callback without an event loop, so applications
+        that already call flush_events()/plt.pause() can opt into coalescing.
+        This never starts a thread or consumes terminal input.
+        """
+        if os.getenv("WSKR_IDLE_REDRAW", "").lower() == "coalesce" and is_interactive():
+            self._idle_pending = True
+            return
+        self.draw()
 
     def flush_events(self) -> None:
         """Respond to an event pump without claiming the terminal's input.
@@ -418,7 +429,13 @@ class WskrFigureCanvas(FigureCanvasAgg):
             return
         manager = self.manager
         if manager is None:
+            self._idle_pending = False
             return
+        if getattr(self, "_idle_pending", False):
+            self._idle_pending = False
+            # draw() already guards recursion and sends exactly one interactive
+            # image. Clear the flag first so new stale events may be queued.
+            self.draw()
         state = getattr(manager, "_nonblocking_resize", None)
         if isinstance(state, _NonblockingResizeState):
             state.flush(self.draw_idle if is_interactive() else manager.show)
