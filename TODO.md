@@ -2,11 +2,9 @@
 
 Only pending execution items. See [STATUS.md](STATUS.md) for qualified behavior, [PLAN.md](PLAN.md) for sequencing, and [DESIGN.md](DESIGN.md) for requirements.
 
-## P1 / P3 — terminal appearance and Matplotlib lifecycle
+## P3 — managed redraw and Matplotlib lifecycle
 
-- [ ] Define and test an **input-owner integration** for live OSC 10/11/4 queries: no unattended input theft; forward unmatched bytes; record unavailable values honestly. Feed resulting profile to new-figure styling without globally changing `rcParams`. Prove explicit colors/styles survive.
-- [ ] Add opt-in, owned-session **theme refresh** for backend-owned styles only. Test dark→light, light→dark, explicit artist overrides and contrast/palette behavior, including failure to query.
-- [ ] Extend the new opt-in CSI 14/16 fallback with font, DPI and opacity detection where Kitty exposes reliable, safely queried values; mark unsupported data unknown and test provenance. Keep rendering DPI distinct from physical DPI.
+- [ ] Add opt-in, owned-session **existing-figure theme refresh** for backend-owned styles only. Test dark→light, light→dark, explicit artist overrides and contrast/palette behavior, including failure to query.
 - [ ] Extend opt-in event-pumped `draw_idle` coalescing into normal event-loop scheduling and coordinate multiple figures during ordinary REPL/IPython/pandas event pumping; add subprocess/PTY integration with explicit input/output ownership and exported image invariance.
 - [ ] Define and implement independent image positioning, bounded scrollback/image lifetime and old-Kitty capability fallback without overwriting shell prompts. Re-test [issue #31](https://github.com/josephcourtney/wskr/issues/31) on native Kitty with 9×2 and 9×6 images under zero/seeded history, unmanaged and yabai resize. Record pixel/row geometry, screenshots and failure stage.
 - [ ] Confirm native macOS fitted blocking **multi-figure paging** (`n`/`p` + Enter), scoped explicit `plt.close()` deletion, and nonblocking multi-figure redraw separately from accepted owned-viewport cases.
