@@ -243,6 +243,13 @@ class NativeKittyTransport(ImageProtocol):
         parent and never follow the moved shell/REPL cursor. This uses Kitty's
         P/Q relative-placement semantics, not terminal cursor addressing.
         """
+        # Parent-relative placement was introduced in Kitty 0.31. Capability
+        # discovery is unsafe in a REPL without exclusive input ownership.
+        # Permit an explicit downgrade for older Kitty terminals rather than
+        # sending unrecognized P/Q commands or moving the shell cursor.
+        if os.getenv("WSKR_KITTY_PARENT", "auto").lower() in {"off", "false", "0"}:
+            self.send_image(png_bytes)
+            return
         cells = _placement_cells(png_bytes)
         if cells is None:
             self.send_image(png_bytes)  # No invented geometry or anchor.
