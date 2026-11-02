@@ -114,7 +114,7 @@ def _history_text_below_plot(path: Path, *, cell_height_px: float, raster_width:
 def _record_history_order(report: dict, stage: dict) -> None:
     """Fail seeded-history acceptance if text is visible below the plot.
 
-    This catches the native macOS Kitty 0.49.2 yabai 9×2 / 96-line case,
+    This catches the native macOS Kitty 0.49.2 yabai 9x2 / 96-line case,
     where both plot colors remain visible but a reflowed history line appears
     below the image. Non-detection does not prove prompt-safe placement.
     """
