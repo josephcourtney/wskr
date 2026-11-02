@@ -459,3 +459,37 @@ def test_ax_refresh_never_returns_to_owned_space_before_prior_space_activates(
     with pytest.raises(RuntimeError, match="Original space not activated"):
         controller._refresh_owned_space_accessibility()
     assert calls == [("space", "--focus", "4")]
+
+
+def test_ax_recovery_qualifies_only_after_two_new_ready_samples(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller = NativeController(root=tmp_path, state="unmanaged", case="resize", height=2)
+    window = {
+        "id": 7885,
+        "pid": 56541,
+        "app": "kitty",
+        "title": controller.title,
+        "space": 5,
+        "has-ax-reference": False,
+    }
+    recoveries: list[str] = []
+    bindings: list[tuple[int, int]] = []
+    monkeypatch.setattr("scripts.phase3_native_yabai_automation._WINDOW_AX_REFOCUS_SECONDS", 0.0)
+    monkeypatch.setattr("scripts.phase3_native_yabai_automation._POLL_SECONDS", 0.0)
+    monkeypatch.setattr(controller, "query_list", lambda *_args: [window])
+
+    def recover() -> None:
+        recoveries.append("space_activation")
+        window["has-ax-reference"] = True
+
+    monkeypatch.setattr(controller, "_refresh_owned_space_accessibility", recover)
+    monkeypatch.setattr(controller, "_bind_window_identity", bindings.append)
+    controller._await_window_identity(timeout=1.0)
+    assert recoveries == ["space_activation"]
+    assert bindings == [(7885, 56541)]
+    assert [obs["has_ax_reference"] for obs in controller.window_observations[:3]] == [
+        False,
+        True,
+        True,
+    ]
