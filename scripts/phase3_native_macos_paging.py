@@ -83,7 +83,9 @@ def _figure_count(geometry: Geometry) -> int:
     return max(len(_COLORS), plan_sheet_pages(len(_COLORS), geometry).page_size + 2)
 
 
-def _worker_argv(event_fd: int, directory: Path, figure_count: int = len(_COLORS), *, mode: str = "unmanaged") -> list[str]:
+def _worker_argv(
+    event_fd: int, directory: Path, figure_count: int = len(_COLORS), *, mode: str = "unmanaged"
+) -> list[str]:
     return [
         sys.executable,
         "-m",
