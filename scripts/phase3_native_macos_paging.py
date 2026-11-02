@@ -75,6 +75,7 @@ def _palette(count: int) -> tuple[tuple[str, tuple[int, int, int]], ...]:
         and max(red, green, blue) - min(red, green, blue) >= _MIN_TILE_CHANNEL_SPREAD
     ]
     while len(colors) < count and candidates:
+
         def separation(rgb: tuple[int, int, int]) -> int:
             return min(sum((a - b) ** 2 for a, b in zip(rgb, previous, strict=True)) for _, previous in colors)
 
