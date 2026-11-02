@@ -80,16 +80,16 @@ visual-smoke mode="matplotlib":
 # Native macOS Kitty visual evidence; run inside a fresh Kitty window.
 # Requires click-to-select screenshots of *only* the Kitty window.
 native-resize mode="unmanaged" height="2":
-  WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python scripts/phase3_native_macos_resize.py --mode '{{mode}}' --height {{height}}
+  WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python -m scripts.phase3_native_macos_resize --mode '{{mode}}' --height {{height}}
 
 # Destructive diagnostic: removes scrollback in the test Kitty window.
 native-resize-clean mode="unmanaged" height="2":
-  WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python scripts/phase3_native_macos_resize.py --mode '{{mode}}' --height {{height}} --clean-scrollback
+  WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python -m scripts.phase3_native_macos_resize --mode '{{mode}}' --height {{height}} --clean-scrollback
 
 # Destructive controlled A/B: erase scrollback, then seed fixed-width history.
 # Run in a separate disposable Kitty window for each line-count condition.
 native-resize-history mode="unmanaged" height="2" lines="96":
-  WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python scripts/phase3_native_macos_resize.py --mode '{{mode}}' --height {{height}} --clean-scrollback --history-lines {{lines}}
+  WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python -m scripts.phase3_native_macos_resize --mode '{{mode}}' --height {{height}} --clean-scrollback --history-lines {{lines}}
 
 # Opt-in native Kitty two-figure lifetime acceptance. Erases this disposable
 # test window's screen and scrollback; saves selected-window screenshot ZIP.

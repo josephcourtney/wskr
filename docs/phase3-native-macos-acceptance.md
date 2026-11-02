@@ -687,3 +687,54 @@ qualify active appearance interrogation from an unowned REPL. If native
 Kitty does not supply a given optional font/DPI/opacity field, the
 correct result is an explicit unknown provenance, not an inferred
 measurement. User-selected colors and data artists must remain intact.
+
+## Native appearance and clean-history qualification — November 2, 2026
+
+### Owned dark-to-light appearance
+
+Native evidence `20261102T120952Z-unmanaged.zip` captured the initial dark
+plot, changed light plot, and restored primary screen. The harness recorded a
+real terminal color transition, backend-owned theme refresh, no unmatched
+terminal reply bytes and no protocol failures. All three screenshots were
+reviewed: the orange data artist retained its explicit color; title, axes,
+ticks, and labels remained visible. Terminal foreground/background contrasts
+were 9.62:1 (dark) and 7.58:1 (light), **not** individual rendered text-pixel
+contrasts. Light tick text was faint but legible. This qualifies the tested
+**foreground-owned** theme transition, not unattended polling or all themes.
+
+### Unicode zero-history native resize
+
+The `python scripts/phase3_native_macos_resize.py` form originally failed
+before plotting with `ModuleNotFoundError: No module named 'scripts'`.
+PR #67 changes the three `just` recipes **and the separately spawned plotting
+worker** to the importable `python -m scripts.phase3_native_macos_resize`
+form. The two user-run native checks on that branch completed and their ten
+actual Kitty-window screenshots were reviewed:
+
+| Evidence ZIP | Original PNG | Narrow PNG | Native result |
+| --- | --- | --- | --- |
+| `20261102T122001Z-unmanaged-h2-clean.zip` | 900×200 | 644×143 at 46×27 cells | Complete bars, fitted redraw, re-expansion and persistence pass |
+| `20261102T122113Z-unmanaged-h6-clean.zip` | 900×600 | 616×411 at 44×27 cells | Complete bars, fitted redraw, re-expansion and persistence pass |
+
+Both reports: `anchor_mode=unicode`, `clean_scrollback=true`,
+`history_lines=0`, `passed_protocol_checks=true`, and
+`visual_failures=[]`. The transmitted source geometry remained authoritative;
+screen-capture color inspection used the embedded Display ICC conversion to
+sRGB. At narrow size no red/blue content was missing after redraw and no
+history text overlapped the chart. Expanded images persisted after the
+plotting Python child exited, and the primary test viewport was not left
+with visibly clipped chart pixels.
+
+**Evidence boundary:** The two runs are labelled `unmanaged` but that label
+does not prove yabai was disabled. The screenshot stage
+`after_python_exit` occurs before the outer harness command finishes;
+therefore neither run independently qualifies the actual returned zsh
+prompt. The default physical anchor remains unchanged and can still move
+offscreen during history reflow; this is **not** viewport-pinning proof.
+
+The subsequent `just check` on the branch passed syntax, Ruff formatting,
+Ruff lint, and `ty`, but pytest stopped inside the foreground PTY-resize
+test with the collection-wide five-second timeout. That test's own bounded
+polling interval is 22 seconds plus up to three seconds of child cleanup.
+PR #67 sets a test-specific 30-second timeout; a completed rerun remains
+required before merge, and any resulting assertion failures are not waived.
