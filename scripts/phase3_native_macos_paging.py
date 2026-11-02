@@ -30,6 +30,7 @@ from unittest.mock import patch
 import numpy as np
 from PIL import Image
 
+from scripts import phase3_native_control_bridge as native_control
 from scripts.phase3_native_macos_resize import _capture, _clear_scrollback, _dialog, _geometry, _save, _until_valid
 from scripts.phase3_screenshot_color import read_screenshot_srgb
 from wskr.render.matplotlib.sheet import plan_sheet_pages
@@ -529,6 +530,8 @@ def main() -> int:
             (args.directory / "worker-error.txt").write_text(traceback.format_exc(), encoding="utf-8")
             raise
         return 0
+    if native_control.enabled():
+        native_control.request("ready", case="paging", mode=args.mode)
     directory = Path("artifacts/phase3-native-paging") / (
         datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + f"-{args.mode}"
     )
