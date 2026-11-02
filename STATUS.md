@@ -1,18 +1,19 @@
 # wskr — Current status
 
-Handoff for the adopted [design](DESIGN.md) and [plan](PLAN.md). Pending actions are in [TODO.md](TODO.md); historical evidence remains in the linked reports and commits.
+[DESIGN](DESIGN.md) specifies target behavior; [PLAN](PLAN.md) orders work; [TODO](TODO.md) lists unqualified gates.
 
-## Implemented and qualified
+## Implemented and verified
 
-- **P0–P2:** Stock Agg-backed `wskr_kitty`, native Kitty PNG transport, bounded input-owned terminal probing, provenance-aware appearance, scoped placements and cleanup, and ordinary PNG/SVG exports. Installed-wheel backend selection has been tested.
-- **P3 core:** `show(block=None)` uses foreground/noninteractive blocking semantics; `block=False` retains history. Blocking views use an alternate screen; `owned_viewport(fig)` supports application-driven resize and owned-theme refresh. A cooperative `flush_events()`/`plt.pause()` pump redraws multiple figures without reading shell input.
-- **Native macOS evidence:** Six owned-viewport cases passed; opt-in Unicode history anchors passed seeded-history 9×2/9×6 resize cases; a two-figure Unicode test passed single-pump redraw, selective `plt.close` and post-child cleanup. Blocking `n`/`p` paging, fitted resize and primary-screen restoration passed eight visually inspected screenshots; page capacity stayed at four figures per page.
-- **Color evidence:** An embedded display ICC profile explains native screenshot RGB shifts; native acceptance checks now normalize tagged captures to sRGB. PR #60: **411 passed, 3 skipped** on each of Ubuntu/macOS, plus hosted Kitty graphical, Ruff, `ty` and wheel checks.
+- **P0–P2:** Installed `wskr_kitty` backend and direct Kitty PNG transport, owned bounded terminal probing, figure/placement lifecycle, PNG/SVG exports.
+- **P3 runtime:** Foreground `show(block=True)` uses an alternate screen, measured fitted contact-sheet paging and restored primary screen. `block=False` retains history; debounced `flush_events()`/`plt.pause()` pumps all managed figures. Canonical n/p navigation replans after resize, respecting changed page capacity. `owned_viewport(fig)` supports live refresh/resize and owned dark/light recoloring of titles, labels, ticks, spines and grid (not explicit artist colors).
+- **Interactive integration:** Opt-in IPython `%load_ext wskr.render.matplotlib.ipython` drains redraws after each completed cell, without stealing stdin, installing threads or starting its own event loop. Unattended redraw remains unsupported.
+- **Native evidence:** Six owned-viewport scenarios, Unicode-anchor seeded-history 9×2/9×6, and two-figure single-pump/selective-close pass. An eight-stage blocking paging run visually passed navigation, fit and restoration; it **did not** change page capacity. ICC-tagged screenshot comparisons now normalize display-space captures to sRGB.
+- **Latest verification:** PR #65: **422 passed, 3 skipped** on Ubuntu and macOS, Ruff, `ty`, wheel smoke and hosted Kitty graphical checks passed.
 
-## Open boundaries
+## Acceptance still open
 
-- [Issue #31](https://github.com/josephcourtney/wskr/issues/31): Default physical history placement can move offscreen or overlap reflowed text. `WSKR_KITTY_ANCHOR=unicode` remains **opt-in**; it follows text rather than pinning a nonblocking plot to the viewport. Zero-history controls, independent window-mode verification and other returned-prompt geometries remain unqualified.
-- P3 still needs an actual blocking **page-capacity transition**, native appearance/theme contrast checks, and native REPL/IPython/pandas event-loop qualification (an opt-in post-cell pump is available). Unowned terminal input cannot be queried or pumped autonomously.
-- **P4/P5:** Rich inline Kitty graphics and optional dependency/packaging cleanup remain incomplete. iTerm2/Sixel are not supported graphics backends.
+- [Issue #31](https://github.com/josephcourtney/wskr/issues/31): physical history anchors can become offscreen during reflow. `WSKR_KITTY_ANCHOR=unicode` remains **opt-in**, not viewport-pinned; zero-history/unmanaged mode and returned-prompt controls need native screenshots.
+- **P3 native signoff:** A real page-capacity transition (`just native-paging-capacity`), dark/light owned measurements + screenshots (`just native-appearance`), and actual IPython/pandas/REPL host behavior. These harnesses exist but their required native results have **not** been reviewed.
+- **P4/P5:** Rich inline Kitty rendering, release/dependency/stub hardening. iTerm2/Sixel graphics remain unsupported.
 
-**Next:** [immediate tasks](TODO.md); [native evidence and limits](docs/phase3-native-macos-acceptance.md).
+**Next:** [acceptance tasks](TODO.md), [native evidence](docs/phase3-native-macos-acceptance.md).
