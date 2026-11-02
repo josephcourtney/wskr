@@ -230,3 +230,32 @@ AX access, the run fails without touching unrelated windows.
 This recovery strategy still requires a native run. An `unmanaged`
 window's floating state is **not itself evidence** that a missing AX
 reference is harmless or that geometric window actions can succeed.
+
+## Third native attempt — November 2, 2026, 15:31 UTC
+
+Evidence: `20261102T153127Z-unmanaged-resize-2.zip`, detached
+worktree `c942769`. The archive's `controller.json` records the precise
+cause: the initial `space --focus <test-label>` command succeeded and
+subsequent `query --spaces --space` returned the owned space as
+`has-focus=true`. On initial Kitty AX recovery, the controller issued the
+same `space --focus <test-label>` command again. Yabai rejected that
+redundant request with `cannot focus an already focused space`.
+No plot was tested; cleanup restored the previous space and removed the
+test space, with no orphan indicated.
+
+The controller now uses an **idempotent owned-space focus procedure**:
+query the focused UUID first; do not issue focus if already owned;
+if a focus call races with an external state change, accept yabai's
+specific already-focused error only after querying the active UUID again.
+Other errors and focus of an unrelated space remain failures.
+Regression tests cover those cases.
+
+The user's `just check` on `c942769` stopped on two formatter
+differences. After `just fix`, Ruff reported a separate
+`too-many-statements (52 > 50)` in the native resize plotting worker
+after addition of transmitted-PNG evidence. The recording code now
+extracts raster validation and exact PNG preservation into a helper,
+retaining the checks while reducing worker complexity.
+
+A full subsequent `just check` and real native run are required to
+verify both changes. Do not mark this failed ZIP as a native acceptance pass.
