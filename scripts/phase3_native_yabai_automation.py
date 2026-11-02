@@ -193,17 +193,30 @@ class NativeController:
             return
         self._await_owned_space_focus()
 
-    def _reactivate_owned_window(self) -> None:
-        """Focus only the disposable space and the exact private-socket Kitty window."""
+    def _refresh_owned_space_accessibility(self) -> None:
+        """Generate a real space activation without focusing Kitty's app.
+
+        Kitty focus-window can activate another OS space even when its remote
+        request targets our window. Refresh yabai's AX bookkeeping by switching
+        away and back using only previously recorded space UUIDs.
+        """
+        if self.previous_uuid is None or self.space_uuid is None:
+            msg = "Cannot refresh AX registration without both space UUIDs"
+            raise RuntimeError(msg)
+        if not self._is_owned_space_focused():
+            self._focus_owned_space()
+        else:
+            previous = next((s for s in self._spaces() if s["uuid"] == self.previous_uuid), None)
+            if previous is None:
+                msg = "Original space disappeared before AX recovery"
+                raise RuntimeError(msg)
+            self.yabai("space", "--focus", str(previous["index"]))
+            self.focus_observations.append(
+                {"stage": "ax_refresh_away", "space_uuid": self.previous_uuid}
+            )
         self._focus_owned_space()
-        self._identify_kitty_window(timeout=3.0)
-        self.kitty("focus-window", "--match", self._target())
         self.focus_observations.append(
-            {
-                "stage": "kitty_focus",
-                "kitty_window_id": self.kitty_window_id,
-                "space_uuid": self.space_uuid,
-            }
+            {"stage": "ax_refresh_return", "space_uuid": self.space_uuid}
         )
 
     def _spawn(self) -> None:
@@ -271,7 +284,7 @@ class NativeController:
         self._identify_kitty_window()
 
     def _await_window_identity(self, *, timeout: float = 25.0) -> None:
-        """Wait for two consistent AX-ready yabai snapshots before control."""
+        """Wait for stable AX access; retry once via owned-space activation."""
         deadline = time.monotonic() + timeout
         last_identity: tuple[int, int] | None = None
         stable_samples = 0
@@ -303,7 +316,7 @@ class NativeController:
                 else:
                     stable_samples = 0
                     if not refocused and time.monotonic() - last_unready >= _WINDOW_AX_REFOCUS_SECONDS:
-                        self._reactivate_owned_window()
+                        self._refresh_owned_space_accessibility()
                         refocused = True
                 last_identity = identity
                 if stable_samples >= _STABLE_WINDOW_SAMPLES:
