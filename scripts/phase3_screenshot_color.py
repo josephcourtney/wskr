@@ -9,10 +9,13 @@ from __future__ import annotations
 import hashlib
 from functools import lru_cache
 from io import BytesIO
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 from PIL import Image, ImageCms
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @lru_cache(maxsize=1)
