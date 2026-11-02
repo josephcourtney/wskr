@@ -25,6 +25,8 @@ _CASES = ("resize", "paging", "lifecycle", "appearance")
 _RUN_SECONDS = 240
 _COMMAND_SECONDS = 15
 _POLL_SECONDS = 0.1
+_EXACTLY_ONE = 1
+_MIN_SCREENSHOT_BYTES = 100
 _START_WIDTH = 1200
 _START_HEIGHT = 760
 _NARROW_WIDTHS = (620, 510, 430, 360)
@@ -33,7 +35,9 @@ _NARROW_HEIGHTS = (410, 340, 300, 260)
 
 def _invoke(argv: list[str], *, timeout: int = _COMMAND_SECONDS) -> str:
     """Return stdout or fail with the exact bounded command and stderr."""
-    proc = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, check=False)
+    proc = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - bounded exact argv
+        argv, capture_output=True, text=True, timeout=timeout, check=False
+    )
     if proc.returncode:
         msg = f"{argv!r}: exit {proc.returncode}: {proc.stderr.strip()}"
         raise RuntimeError(msg)
@@ -102,6 +106,7 @@ class NativeController:
         self.socket_path: Path | None = None
         self.rule_installed = False
         self.shrinks = 0
+        self.base_frame: dict | None = None
         self.events: list[dict] = []
         self.commands: list[dict] = []
 
@@ -127,7 +132,7 @@ class NativeController:
         before = {item["uuid"] for item in self._spaces()}
         self.yabai("space", "--create")
         created = [item for item in self._spaces() if item["uuid"] not in before]
-        if len(created) != 1:
+        if len(created) != _EXACTLY_ONE:
             msg = "Could not independently identify exactly one new test space"
             raise RuntimeError(msg)
         space = created[0]
@@ -172,7 +177,7 @@ class NativeController:
                 msg = "Dedicated Kitty process terminated before window identification"
                 raise RuntimeError(msg)
             matches = [w for w in self.query("--windows") if _window_matches(w, self.title)]
-            if len(matches) == 1:
+            if len(matches) == _EXACTLY_ONE:
                 self.window_id = int(matches[0]["id"])
                 self.yabai("rule", "--remove", self.rule_label)
                 self.rule_installed = False
@@ -219,13 +224,18 @@ class NativeController:
         self._verify()
         if self.state == "bsp":
             if small:
-                width = self._window()["frame"]["w"]
-                # Dedicated one-window BSP space: padding changes only this test.
-                side = min(480, int(width * (0.26 + 0.04 * min(self.shrinks, 3))))
-                vertical = min(270, 125 + 40 * min(self.shrinks, 3))
+                if self.base_frame is None:
+                    msg = "Missing initial BSP geometry"
+                    raise RuntimeError(msg)
+                # Absolute padding is derived from the ORIGINAL full viewport,
+                # not the progressively smaller test window's current frame.
+                fraction = 0.26 + 0.06 * min(self.shrinks, 3)
+                side = int(self.base_frame["w"] * fraction)
+                vertical = int(self.base_frame["h"] * fraction)
                 self.yabai("space", self.space_label, "--padding", f"abs:{vertical}:{vertical}:{side}:{side}")
             else:
                 self.yabai("space", self.space_label, "--padding", "abs:0:0:0:0")
+                self.base_frame = self._window()["frame"]
         else:
             index = min(self.shrinks, len(_NARROW_WIDTHS) - 1)
             width = _NARROW_WIDTHS[index] if small else _START_WIDTH
@@ -259,7 +269,7 @@ class NativeController:
             raise RuntimeError(msg)
         destination.parent.mkdir(parents=True, exist_ok=True)
         _invoke(["/usr/sbin/screencapture", "-x", "-l", str(self.window_id), "-o", str(destination)], timeout=30)
-        if not destination.is_file() or destination.stat().st_size < 100:
+        if not destination.is_file() or destination.stat().st_size < _MIN_SCREENSHOT_BYTES:
             msg = f"Native window-only capture failed: {stage}"
             raise RuntimeError(msg)
 
@@ -333,7 +343,7 @@ class NativeController:
                         msg = f"Native P3 harness returned {result['worker']['returncode']}"
                         raise RuntimeError(msg)
                     evidence = result["worker"].get("evidence_archive")
-                    if result["worker"].get("archive_count") != 1 or not evidence:
+                    if result["worker"].get("archive_count") != _EXACTLY_ONE or not evidence:
                         msg = "Unable to identify one unambiguous harness ZIP"
                         raise RuntimeError(msg)
                     source = Path(evidence).resolve()
