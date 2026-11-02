@@ -231,6 +231,19 @@ def _run_sequence(fd: int, directory: Path, report: dict) -> None:
     _take_page(report, directory, "restored_primary", -1)
 
 
+def _validate_worker(report: dict, worker: dict) -> None:
+    """Reject incomplete child evidence without indexing missing page frames."""
+    report["worker"] = worker
+    frames = worker["frames"]
+    if not worker["finished"] or len(frames) != _EXPECTED_FRAMES:
+        report["failures"].append("Expected six contact-sheet frames and a completed blocking session")
+        return
+    if frames[0]["geometry"]["width_px"] <= frames[3]["geometry"]["width_px"]:
+        report["failures"].append("Narrowing the terminal did not reduce measured viewport width")
+    if frames[0]["raster"][0] <= frames[3]["raster"][0]:
+        report["failures"].append("Narrowing the terminal did not reduce transmitted PNG width")
+
+
 def _finish_child(process: subprocess.Popen[bytes], fd: int, directory: Path, report: dict) -> None:
     """Complete the GUI transcript and qualify transmitted pages."""
     _run_sequence(fd, directory, report)
@@ -238,12 +251,7 @@ def _finish_child(process: subprocess.Popen[bytes], fd: int, directory: Path, re
     if code != 0:
         report["failures"].append(f"Plotting worker exited {code}")
         return
-    worker = json.loads((directory / "worker.json").read_text(encoding="utf-8"))
-    report["worker"] = worker
-    if not worker["finished"] or len(worker["frames"]) != _EXPECTED_FRAMES:
-        report["failures"].append("Expected six contact-sheet frames and a completed blocking session")
-    if worker["frames"] and worker["frames"][0]["geometry"]["width_px"] <= worker["frames"][3]["geometry"]["width_px"]:
-        report["failures"].append("Narrowing the terminal did not reduce measured raster width")
+    _validate_worker(report, json.loads((directory / "worker.json").read_text(encoding="utf-8")))
 
 
 def _main_parent(directory: Path, mode: str) -> int:
