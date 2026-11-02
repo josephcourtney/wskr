@@ -8,13 +8,16 @@ coalesced redraw and stable-resize events. Nothing is scheduled in background.
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING
 from weakref import WeakKeyDictionary
 
 from matplotlib._pylab_helpers import Gcf  # ruff: ignore[import-private-name]
 
 from wskr.render.matplotlib.core import WskrFigureCanvas
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import Any
 
 _callbacks: WeakKeyDictionary[Any, Callable[..., None]] = WeakKeyDictionary()
 
