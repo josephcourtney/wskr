@@ -152,9 +152,55 @@ def _wait_event(fd: int, expected: bytes, *, timeout: float = _MAX_SIGNAL_SECOND
             signal_byte = os.read(fd, 1)
             if signal_byte == expected:
                 return
+            if signal_byte == b"F":
+                continue  # A delayed resize event is not a completed restore.
             msg = f"Expected worker event {expected!r}, received {signal_byte!r}"
             raise RuntimeError(msg)
     msg = f"Worker did not send {expected!r} within the bounded GUI interaction window"
+    raise TimeoutError(msg)
+
+
+def _latest_frame(directory: Path) -> dict | None:
+    """Read the latest complete native render receipt, if available."""
+    path = directory / "worker.json"
+    if not path.is_file():
+        return None
+    try:
+        frames = json.loads(path.read_text(encoding="utf-8"))["frames"]
+    except (OSError, json.JSONDecodeError, KeyError):
+        return None
+    return frames[-1] if frames else None
+
+
+def _drain_events(fd: int) -> None:
+    """Discard obsolete resize signals without reading Kitty stdin."""
+    while select.select([fd], [], [], 0)[0]:
+        if not os.read(fd, 4096):
+            return
+
+
+def _wait_render(fd: int, directory: Path, prior: str, geometry: Geometry | None = None) -> dict:
+    """Match a new PNG receipt, not an arbitrary queued resize notification."""
+    deadline = time.monotonic() + _MAX_SIGNAL_SECONDS
+    while time.monotonic() < deadline:
+        frame = _latest_frame(directory)
+        if frame is not None and frame["sha256"] != prior:
+            measured = frame["geometry"]
+            if geometry is None or (
+                measured["width_px"] == geometry.width_px and measured["height_px"] == geometry.height_px
+            ):
+                _drain_events(fd)
+                return frame
+        remaining = deadline - time.monotonic()
+        if remaining > 0 and select.select([fd], [], [], min(1.0, remaining))[0]:
+            received = os.read(fd, 4096)
+            if not received:
+                msg = "Plotting child closed before expected new page PNG"
+                raise RuntimeError(msg)
+            if b"R" in received:
+                msg = "Plotting child restored the terminal before the expected page render"
+                raise RuntimeError(msg)
+    msg = "No matching new page PNG was transmitted after the requested navigation or resize"
     raise TimeoutError(msg)
 
 
@@ -241,33 +287,39 @@ def _expanded_geometry(initial: Geometry) -> Geometry:
 
 
 def _run_sequence(fd: int, directory: Path, report: dict) -> None:
-    _wait_event(fd, b"F")
+    first = _wait_render(fd, directory, "")
     _take_page(report, directory, "initial_page", 0)
+    report["stages"][-1]["frame_sha256"] = first["sha256"]
 
     _dialog("Click Continue, then focus Kitty and type n followed by Enter.")
-    _wait_event(fd, b"F")
+    next_frame = _wait_render(fd, directory, first["sha256"])
     _take_page(report, directory, "next_page", 1)
+    report["stages"][-1]["frame_sha256"] = next_frame["sha256"]
 
     _dialog("Click Continue, then focus Kitty and type p followed by Enter.")
-    _wait_event(fd, b"F")
+    previous = _wait_render(fd, directory, next_frame["sha256"])
     _take_page(report, directory, "previous_page", 0)
+    report["stages"][-1]["frame_sha256"] = previous["sha256"]
 
     _dialog("Make Kitty substantially narrower; you may leave its height unchanged. Click Continue after resizing.")
     narrow = _small_geometry(_geometry_from_stage(report["stages"][0]))
     report["narrow_geometry"] = asdict(narrow)
     report["narrow_page_capacity"] = plan_sheet_pages(report["figure_count"], narrow).page_size
     report["page_capacity_changed"] = report["narrow_page_capacity"] != report["initial_page_capacity"]
-    _wait_event(fd, b"F")
+    resized = _wait_render(fd, directory, previous["sha256"], narrow)
     _take_page(report, directory, "resized_page", 0)
+    report["stages"][-1]["frame_sha256"] = resized["sha256"]
 
     _dialog("Click Continue, focus Kitty and type n followed by Enter at the narrow size.")
-    _wait_event(fd, b"F")
+    small_next = _wait_render(fd, directory, resized["sha256"])
     _take_page(report, directory, "next_page_small", 1)
+    report["stages"][-1]["frame_sha256"] = small_next["sha256"]
 
     _dialog("Expand Kitty approximately to its original width; its height need not change.")
-    _expanded_geometry(_geometry_from_stage(report["stages"][0]))
-    _wait_event(fd, b"F")
+    large = _expanded_geometry(_geometry_from_stage(report["stages"][0]))
+    expanded = _wait_render(fd, directory, small_next["sha256"], large)
     _take_page(report, directory, "expanded_page", 1)
+    report["stages"][-1]["frame_sha256"] = expanded["sha256"]
 
     _dialog("Click Continue, focus Kitty and press Enter on a BLANK input line to close paging.")
     _wait_event(fd, b"R")
@@ -275,15 +327,18 @@ def _run_sequence(fd: int, directory: Path, report: dict) -> None:
 
 
 def _validate_worker(report: dict, worker: dict) -> None:
-    """Reject incomplete child evidence without indexing missing page frames."""
+    """Reject incomplete child evidence while permitting intermediate drag redraws."""
     report["worker"] = worker
     frames = worker["frames"]
-    if not worker["finished"] or len(frames) != _EXPECTED_FRAMES:
-        report["failures"].append("Expected six contact-sheet frames and a completed blocking session")
+    if not worker["finished"] or len(frames) < _EXPECTED_FRAMES:
+        report["failures"].append("Expected at least six contact-sheet frames and a completed blocking session")
         return
-    if frames[0]["geometry"]["width_px"] <= frames[3]["geometry"]["width_px"]:
+    first = frames[0]
+    smallest_viewport = min(frame["geometry"]["width_px"] for frame in frames)
+    smallest_raster = min(frame["raster"][0] for frame in frames)
+    if first["geometry"]["width_px"] <= smallest_viewport:
         report["failures"].append("Narrowing the terminal did not reduce measured viewport width")
-    if frames[0]["raster"][0] <= frames[3]["raster"][0]:
+    if first["raster"][0] <= smallest_raster:
         report["failures"].append("Narrowing the terminal did not reduce transmitted PNG width")
 
 
