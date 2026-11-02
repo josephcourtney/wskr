@@ -17,9 +17,8 @@ from wskr.render.matplotlib.core import WskrFigureCanvas
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from typing import Any
 
-_callbacks: WeakKeyDictionary[Any, Callable[..., None]] = WeakKeyDictionary()
+_callbacks: WeakKeyDictionary[object, Callable[..., None]] = WeakKeyDictionary()
 
 
 def _pump_after_cell(_result: object = None) -> None:
@@ -31,7 +30,7 @@ def _pump_after_cell(_result: object = None) -> None:
             break
 
 
-def load_ipython_extension(ipython: Any) -> None:
+def load_ipython_extension(ipython: object) -> None:
     """Register an idempotent host-owned post-cell redraw opportunity."""
     if ipython in _callbacks:
         return
@@ -47,4 +46,5 @@ def unload_ipython_extension(ipython: Any) -> None:
     """Remove only the callback that wskr registered on this shell."""
     callback = _callbacks.pop(ipython, None)
     if callback is not None:
-        ipython.events.unregister("post_run_cell", callback)
+        events = getattr(ipython, "events")
+        events.unregister("post_run_cell", callback)
