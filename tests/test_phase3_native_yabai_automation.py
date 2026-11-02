@@ -241,9 +241,7 @@ def test_window_lookup_uses_full_snapshot_after_yabai_selector_rejects_id(
     assert controller._window() == state
 
 
-def test_window_disappearance_fails_with_candidate_evidence(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_window_disappearance_fails_with_candidate_evidence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     controller = NativeController(root=tmp_path, state="bsp", case="resize", height=2)
     controller.window_id = 7225
     controller.space_index = 3
@@ -268,9 +266,7 @@ def test_window_id_reuse_rejected_even_if_application_and_space_match(
         controller._window()
 
 
-def test_spawn_waits_for_two_accessibility_ready_snapshots(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_spawn_waits_for_two_accessibility_ready_snapshots(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     controller = NativeController(root=tmp_path, state="unmanaged", case="resize", height=2)
     controller.space_index = 3
     raw = {
@@ -339,9 +335,7 @@ def test_space_focus_must_be_verified_not_inferred_from_command_success(
 ) -> None:
     controller = NativeController(root=tmp_path, state="bsp", case="resize", height=2)
     controller.space_uuid = "owned"
-    monkeypatch.setattr(
-        controller, "query", lambda *_args: {"uuid": "unrelated", "index": 1, "has-focus": True}
-    )
+    monkeypatch.setattr(controller, "query", lambda *_args: {"uuid": "unrelated", "index": 1, "has-focus": True})
     monkeypatch.setattr("scripts.phase3_native_yabai_automation._WINDOW_FOCUS_SECONDS", 0.01)
     with pytest.raises(RuntimeError, match="did not become active"):
         controller._await_owned_space_focus()
