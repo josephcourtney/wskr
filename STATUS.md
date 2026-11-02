@@ -12,7 +12,7 @@ Handoff for the adopted [design](DESIGN.md) and [plan](PLAN.md). Pending actions
 ## Open boundaries
 
 - [Issue #31](https://github.com/josephcourtney/wskr/issues/31): Default physical history placement can move offscreen or overlap reflowed text. `WSKR_KITTY_ANCHOR=unicode` remains **opt-in**; it follows text rather than pinning a nonblocking plot to the viewport. Zero-history controls, independent window-mode verification and other returned-prompt geometries remain unqualified.
-- P3 still needs an actual blocking **page-capacity transition**, native appearance/theme contrast checks, and explicit REPL/IPython/pandas event-loop integration. Unowned terminal input cannot be queried or pumped autonomously.
+- P3 still needs an actual blocking **page-capacity transition**, native appearance/theme contrast checks, and native REPL/IPython/pandas event-loop qualification (an opt-in post-cell pump is available). Unowned terminal input cannot be queried or pumped autonomously.
 - **P4/P5:** Rich inline Kitty graphics and optional dependency/packaging cleanup remain incomplete. iTerm2/Sixel are not supported graphics backends.
 
 **Next:** [immediate tasks](TODO.md); [native evidence and limits](docs/phase3-native-macos-acceptance.md).
