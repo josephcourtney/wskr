@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from scripts import phase3_native_control_bridge as native_control
 from scripts.phase3_native_macos_resize import _capture, _clear_scrollback, _dialog, _save
 from wskr.terminal.profile import Source, TerminalProfile
 
@@ -165,6 +166,8 @@ def main() -> int:
         parser.error("Run this in Kitty")
     if os.getenv("WSKR_FIT") != "contain":
         parser.error("Use WSKR_FIT=contain")
+    if native_control.enabled():
+        native_control.request("ready", case="appearance", mode=args.mode)
     directory = Path("artifacts/phase3-native-appearance") / (
         datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + f"-{args.mode}"
     )

@@ -30,6 +30,7 @@ from unittest.mock import patch
 import numpy as np
 from PIL import Image
 
+from scripts import phase3_native_control_bridge as native_control
 from scripts.phase3_screenshot_color import read_screenshot_srgb
 
 if TYPE_CHECKING:
@@ -166,12 +167,17 @@ def _seed_history(lines: int) -> None:
 def _screenshot(directory: Path, stage: str) -> dict:
     path = directory / f"{stage}.png"
     for attempt in range(_SCREENSHOT_ATTEMPTS):
-        completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed argv
-            ["/usr/sbin/screencapture", "-x", "-i", "-w", "-o", str(path)],
-            check=False,
-            timeout=180,
-        )
-        if completed.returncode or not path.is_file():
+        if native_control.enabled():
+            native_control.request("capture", stage=stage, path=str(path.resolve()))
+            succeeded = path.is_file()
+        else:
+            completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed argv
+                ["/usr/sbin/screencapture", "-x", "-i", "-w", "-o", str(path)],
+                check=False,
+                timeout=180,
+            )
+            succeeded = completed.returncode == 0 and path.is_file()
+        if not succeeded:
             msg = f"Kitty-window screenshot failed or was cancelled ({stage}). Check Screen Recording permission."
             raise RuntimeError(msg)
         if not _mostly_black(path):
@@ -213,7 +219,10 @@ def _geometry() -> Geometry:
 
 
 def _dialog(prompt: str) -> None:
-    """Use a separate native GUI prompt so plot anchors do not scroll."""
+    """Use GUI prompts manually, or explicit controller checkpoints in automation."""
+    if native_control.enabled():
+        native_control.request("dialog", prompt=prompt)
+        return
     script = f'display dialog "{prompt}" buttons {{"Cancel", "Continue"}} default button "Continue"'
     completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed argv
         ["/usr/bin/osascript", "-e", script],
@@ -265,6 +274,17 @@ def _verify_source(figure: Figure, frames: list[dict], original: tuple[tuple[flo
         raise AssertionError(msg)
 
 
+def _inspect_and_save_frame(directory: Path, index: int, png: bytes, geometry: Geometry) -> tuple[int, int]:
+    """Retain the exact transmitted PNG and ensure it fits the measured viewport."""
+    with Image.open(BytesIO(png)) as image:
+        size = image.size
+    if not 0 < size[0] <= geometry.width_px or not 0 < size[1] <= geometry.height_px:
+        msg = f"Raster {size} exceeds viewport {geometry}"
+        raise AssertionError(msg)
+    (directory / f"transmitted-frame-{index}.png").write_bytes(png)
+    return size
+
+
 def _worker(directory: Path, height: int, mode: str, *, clean_scrollback: bool, history_lines: int) -> None:
     import matplotlib as mpl  # ruff: ignore[import-outside-top-level]
 
@@ -313,12 +333,8 @@ def _worker(directory: Path, height: int, mode: str, *, clean_scrollback: bool, 
     send = NativeKittyTransport.send_anchored_image
 
     def record(transport: NativeKittyTransport, png: bytes) -> None:
-        with Image.open(BytesIO(png)) as image:
-            size = image.size
         geometry = _geometry()
-        if not 0 < size[0] <= geometry.width_px or not 0 < size[1] <= geometry.height_px:
-            msg = f"Raster {size} exceeds viewport {geometry}"
-            raise AssertionError(msg)
+        size = _inspect_and_save_frame(directory, len(report["frames"]) + 1, png, geometry)
         send(transport, png)
         report["frames"].append({"raster": list(size), "geometry": asdict(geometry)})
         _save(report, directory)
@@ -378,6 +394,12 @@ def _worker_argv(directory: Path, *, mode: str, height: int, clean_scrollback: b
     ]
 
 
+def _coordinate_window_start(mode: str) -> None:
+    """Wait for explicitly requested automatic native window preparation."""
+    if native_control.enabled():
+        native_control.request("ready", case="resize", mode=mode)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("unmanaged", "yabai"), required=True)
@@ -420,6 +442,7 @@ def main() -> int:
             raise
         return 0
 
+    _coordinate_window_start(args.mode)
     directory = Path("artifacts/phase3-native-resize") / (
         datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         + f"-{args.mode}-h{args.height}"

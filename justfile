@@ -54,7 +54,7 @@ phase2:
 # Phase 3: explicit Matplotlib ownership, non-destructive multi-figure show,
 # and scoped native display replacement.
 phase3:
-  uv run pytest -q tests/test_phase3_figure_ownership.py tests/test_phase3_viewport_fit.py tests/test_phase3_interactive_lifecycle.py tests/test_phase3_pty_blocking.py tests/test_phase3_blocking_resize.py tests/test_phase3_nonblocking_resize.py tests/test_phase3_live_viewport.py tests/test_phase3_owned_live_automation.py tests/test_phase3_native_macos_harness.py tests/test_phase3_native_macos_lifecycle.py tests/test_phase3_native_macos_paging.py tests/test_phase3_native_macos_appearance.py tests/test_phase3_ipython_pump.py tests/test_phase3_screenshot_color.py tests/test_phase3_contact_sheet.py tests/test_phase3_paging.py tests/test_phase0_baseline.py tests/test_mpl_base.py tests/test_mpl_kitty.py tests/test_canvas.py tests/test_backend_profile_defaults.py tests/test_terminal_figure.py
+  uv run pytest -q tests/test_phase3_figure_ownership.py tests/test_phase3_viewport_fit.py tests/test_phase3_interactive_lifecycle.py tests/test_phase3_pty_blocking.py tests/test_phase3_blocking_resize.py tests/test_phase3_nonblocking_resize.py tests/test_phase3_live_viewport.py tests/test_phase3_owned_live_automation.py tests/test_phase3_native_macos_harness.py tests/test_phase3_native_macos_lifecycle.py tests/test_phase3_native_macos_paging.py tests/test_phase3_native_macos_appearance.py tests/test_phase3_native_yabai_automation.py tests/test_phase3_ipython_pump.py tests/test_phase3_screenshot_color.py tests/test_phase3_contact_sheet.py tests/test_phase3_paging.py tests/test_phase0_baseline.py tests/test_mpl_base.py tests/test_mpl_kitty.py tests/test_canvas.py tests/test_backend_profile_defaults.py tests/test_terminal_figure.py
 
 # Manually verify the experimental exclusive live viewport inside Kitty.
 # It restores the primary screen at completion or keyboard interrupt.
@@ -110,6 +110,22 @@ native-paging-capacity mode="unmanaged":
 # This erases screen/scrollback in a disposable test window; actual theme change is manual.
 native-appearance mode="unmanaged":
   WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python -m scripts.phase3_native_macos_appearance --mode '{{mode}}'
+
+# Unattended native Kitty acceptance: creates and destroys a dedicated yabai
+# space/window, controls geometry/input/colors, captures OS-window evidence.
+# Requires macOS, working yabai space management, Kitty and Screen Recording.
+native-auto state="unmanaged" case="resize" height="2":
+  WSKR_FIT=contain uv run python -m scripts.phase3_native_yabai_automation --state '{{state}}' --case '{{case}}' --height {{height}}
+
+# Representative automated matrix across unmanaged, floating and BSP tiling.
+# A failed run stops the matrix; no case is silently skipped.
+native-auto-matrix:
+  set -e; for mode in unmanaged floating bsp float-space; do \
+    for scenario in resize paging lifecycle appearance; do \
+      WSKR_FIT=contain uv run python -m scripts.phase3_native_yabai_automation --state "$mode" --case "$scenario" --height 2; \
+    done; \
+    WSKR_FIT=contain uv run python -m scripts.phase3_native_yabai_automation --state "$mode" --case resize --height 6; \
+  done
 
 # Complete validation plus isolated Kitty screenshots and one run-specific ZIP.
 evidence *args:
