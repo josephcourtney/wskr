@@ -234,9 +234,7 @@ def test_color_profile_shifted_native_screenshot_keeps_all_page_tiles(tmp_path: 
         _check_page(report, stage, page)
         assert report["failures"] == []
         assert all(stage["color_pixels"][i] >= 1300 for i in range(page * 4, page * 4 + 4))
-        assert all(
-            stage["color_pixels"][i] < 600 for i in range(9) if i not in range(page * 4, page * 4 + 4)
-        )
+        assert all(stage["color_pixels"][i] < 600 for i in range(9) if i not in range(page * 4, page * 4 + 4))
 
 
 def test_profile_tolerant_detector_rejects_blank_and_ghost_tile(tmp_path: Path) -> None:
