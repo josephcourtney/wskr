@@ -19,12 +19,15 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
 
 from PIL import Image
 
 from scripts.phase3_native_macos_resize import _capture, _clear_scrollback, _geometry, _save
+
+if TYPE_CHECKING:
+    from wskr.render.matplotlib.kitty import KittyFigureManager
 
 _VISIBLE_PIXELS = 800
 
@@ -58,7 +61,6 @@ def _worker(directory: Path, mode: str) -> None:  # ruff: ignore[too-many-statem
     import matplotlib.pyplot as plt  # ruff: ignore[import-outside-top-level]
 
     from wskr.protocol.kitty_native import NativeKittyTransport  # ruff: ignore[import-outside-top-level]
-    from wskr.render.matplotlib.kitty import KittyFigureManager  # ruff: ignore[import-outside-top-level]
 
     report: dict = {
         "mode": mode,
