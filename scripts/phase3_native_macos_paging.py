@@ -411,8 +411,7 @@ def _validate_worker(report: dict, worker: dict) -> None:
         for frame in frames
     )
     raster_shrank = any(
-        frame["raster"][0] < first["raster"][0] or frame["raster"][1] < first["raster"][1]
-        for frame in frames
+        frame["raster"][0] < first["raster"][0] or frame["raster"][1] < first["raster"][1] for frame in frames
     )
     if not viewport_shrank:
         report["failures"].append("Terminal viewport did not shrink in either dimension")
@@ -502,7 +501,8 @@ def _argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--mode", choices=("unmanaged", "yabai"), required=True)
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument(
-        "--require-capacity-change", action="store_true",
+        "--require-capacity-change",
+        action="store_true",
         help="Require a measured paging capacity transition during interactive resize",
     )
     parser.add_argument("--event-fd", type=int, help=argparse.SUPPRESS)
