@@ -56,6 +56,8 @@ _MAX_UNEXPECTED_PIXELS = 600
 _MAX_SIGNAL_SECONDS = 100
 _COLOR_TOLERANCE = 12
 _EXPECTED_FRAMES = 6
+_MIN_TILE_CHANNEL_SPREAD = 30
+_MIN_TERMINAL_ROWS = 4
 
 
 def _palette(count: int) -> tuple[tuple[str, tuple[int, int, int]], ...]:
@@ -64,7 +66,7 @@ def _palette(count: int) -> tuple[tuple[str, tuple[int, int, int]], ...]:
     if count <= len(colors):
         return tuple(colors[:count])
     for rgb in product((40, 80, 120, 160, 200, 240), repeat=3):
-        if max(rgb) - min(rgb) < 30:
+        if max(rgb) - min(rgb) < _MIN_TILE_CHANNEL_SPREAD:
             continue  # Avoid gray tiles matching terminal chrome or prompt.
         if any(all(abs(a - b) <= 2 * _COLOR_TOLERANCE for a, b in zip(rgb, prior, strict=True)) for _, prior in colors):
             continue
@@ -76,7 +78,7 @@ def _palette(count: int) -> tuple[tuple[str, tuple[int, int, int]], ...]:
 
 
 def _figure_count(geometry: Geometry) -> int:
-    """Always put more figures in the test than fit on its first page."""
+    """Ensure more test figures than can fit on the initial page."""
     return max(len(_COLORS), plan_sheet_pages(len(_COLORS), geometry).page_size + 2)
 
 
@@ -213,7 +215,7 @@ def _start_geometry() -> Geometry:
     """Require only an ordinary usable Kitty window, not an exact height."""
     return _until_valid(
         "Use any normally sized Kitty window (at least 400x240 terminal pixels); click Continue",
-        lambda g: g.width_px >= _MIN_USABLE_WIDTH and g.height_px >= _MIN_USABLE_HEIGHT and g.rows >= 4,
+        lambda g: g.width_px >= _MIN_USABLE_WIDTH and g.height_px >= _MIN_USABLE_HEIGHT and g.rows >= _MIN_TERMINAL_ROWS,
     )
 
 
@@ -222,7 +224,7 @@ def _small_geometry(initial: Geometry) -> Geometry:
     target = round(initial.width_px * _SHRINK_FRACTION)
     return _until_valid(
         f"Make Kitty noticeably narrower (measured width below {target} px); height may stay unchanged",
-        lambda g: g.width_px <= target and g.height_px >= _MIN_USABLE_HEIGHT and g.rows >= 4,
+        lambda g: g.width_px <= target and g.height_px >= _MIN_USABLE_HEIGHT and g.rows >= _MIN_TERMINAL_ROWS,
     )
 
 
@@ -231,7 +233,7 @@ def _expanded_geometry(initial: Geometry) -> Geometry:
     target = round(initial.width_px * _RESTORE_FRACTION)
     return _until_valid(
         f"Expand Kitty toward its original width (at least {target} measured px)",
-        lambda g: g.width_px >= target and g.height_px >= _MIN_USABLE_HEIGHT and g.rows >= 4,
+        lambda g: g.width_px >= target and g.height_px >= _MIN_USABLE_HEIGHT and g.rows >= _MIN_TERMINAL_ROWS,
     )
 
 
