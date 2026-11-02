@@ -161,9 +161,21 @@ def test_own_space_uses_action_then_selector_for_focus(tmp_path: Path, monkeypat
     created = {"uuid": "new", "index": 3}
     calls: list[tuple[str, ...]] = []
     space_lists = iter(([original], [original, created]))
-    monkeypatch.setattr(controller, "query", lambda *_args: original)
+    focused = False
+
+    def fake_query(*_args: str) -> dict:
+        return created if focused else original
+
+    def fake_yabai(*args: str) -> str:
+        nonlocal focused
+        calls.append(args)
+        if args == ("space", "--focus", controller.space_label):
+            focused = True
+        return ""
+
+    monkeypatch.setattr(controller, "query", fake_query)
     monkeypatch.setattr(controller, "_spaces", lambda: next(space_lists))
-    monkeypatch.setattr(controller, "yabai", lambda *args: calls.append(args) or "")
+    monkeypatch.setattr(controller, "yabai", fake_yabai)
     controller._own_space()
     assert controller.space_uuid == "new"
     assert calls == [
@@ -301,3 +313,36 @@ def test_spawn_waits_for_two_accessibility_ready_snapshots(
     assert controller.window_owner_pid == 2205
     assert observed[:3] == [False, True, True]
     assert ("rule", "--remove", controller.rule_label) in commands
+
+
+def test_reactivate_owned_window_uses_private_kitty_socket_and_own_space(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller = NativeController(root=tmp_path, state="unmanaged", case="resize", height=2)
+    controller.space_uuid = "owned"
+    controller.kitty_window_id = 7
+    commands: list[tuple[str, ...]] = []
+    monkeypatch.setattr(controller, "yabai", lambda *args: commands.append(args) or "")
+    monkeypatch.setattr(controller, "kitty", lambda *args: commands.append(args) or "")
+    monkeypatch.setattr(controller, "_await_owned_space_focus", lambda: None)
+    monkeypatch.setattr(controller, "_identify_kitty_window", lambda **_kw: None)
+    controller._reactivate_owned_window()
+    assert commands == [
+        ("space", "--focus", controller.space_label),
+        ("focus-window", "--match", "id:7"),
+    ]
+    assert controller.focus_observations[-1]["kitty_window_id"] == 7
+
+
+def test_space_focus_must_be_verified_not_inferred_from_command_success(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller = NativeController(root=tmp_path, state="bsp", case="resize", height=2)
+    controller.space_uuid = "owned"
+    monkeypatch.setattr(
+        controller, "query", lambda *_args: {"uuid": "unrelated", "index": 1, "has-focus": True}
+    )
+    monkeypatch.setattr("scripts.phase3_native_yabai_automation._WINDOW_FOCUS_SECONDS", 0.01)
+    with pytest.raises(RuntimeError, match="did not become active"):
+        controller._await_owned_space_focus()
+    assert controller.focus_observations[-1]["uuid"] == "unrelated"
