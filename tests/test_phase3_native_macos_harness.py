@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,7 @@ from scripts.phase3_native_macos_resize import (
     _screenshot,
     _seed_history,
     _visible,
+    _worker_argv,
 )
 
 pytestmark = pytest.mark.medium
@@ -266,3 +268,52 @@ def test_history_order_keeps_clean_and_nonoverlapping_cases(tmp_path: Path) -> N
     report["history_lines"] = 0
     _record_history_order(report, {"stage": "resized", "screenshot": str(image)})
     assert report["visual_failures"] == []
+
+
+@pytest.mark.parametrize(
+    ("mode", "height", "history_lines"),
+    [("unmanaged", 2, 0), ("unmanaged", 6, 96), ("yabai", 2, 96)],
+)
+def test_native_resize_worker_uses_importable_module(
+    tmp_path: Path, mode: str, height: int, history_lines: int
+) -> None:
+    argv = _worker_argv(
+        tmp_path,
+        mode=mode,
+        height=height,
+        clean_scrollback=True,
+        history_lines=history_lines,
+    )
+    assert argv[:3] == [sys.executable, "-m", "scripts.phase3_native_macos_resize"]
+    assert argv[3:11] == [
+        "--worker", "--mode", mode, "--height", str(height), "--directory", str(tmp_path.resolve()),
+        "--clean-scrollback",
+    ]
+    assert argv[11:] == (["--history-lines", str(history_lines)] if history_lines else [])
+
+
+def test_native_resize_module_help_imports_without_kitty() -> None:
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, "-m", "scripts.phase3_native_macos_resize", "--help"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=20,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "--clean-scrollback" in result.stdout
+    assert "--history-lines" in result.stdout
+
+
+def test_all_native_resize_just_recipes_launch_as_module() -> None:
+    recipes = {
+        "native-resize mode=",
+        "native-resize-clean mode=",
+        "native-resize-history mode=",
+    }
+    lines = (Path(__file__).resolve().parents[1] / "justfile").read_text(encoding="utf-8").splitlines()
+    for recipe in recipes:
+        line_index = next(i for i, line in enumerate(lines) if line.startswith(recipe))
+        assert "uv run python -m scripts.phase3_native_macos_resize" in lines[line_index + 1]
