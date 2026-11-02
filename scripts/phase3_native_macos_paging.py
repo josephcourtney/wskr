@@ -304,12 +304,37 @@ def _start_geometry() -> Geometry:
     )
 
 
-def _small_geometry(initial: Geometry) -> Geometry:
-    """Accept any substantial width reduction; ignore cell-step rounding."""
+def _capacity_changed(initial: Geometry, current: Geometry, count: int) -> bool:
+    """Determine whether a real measured resize changes contact-sheet capacity."""
+    return plan_sheet_pages(count, current).page_size != plan_sheet_pages(count, initial).page_size
+
+
+def _small_geometry(initial: Geometry, *, count: int = len(_COLORS), require_capacity_change: bool = False) -> Geometry:
+    """Accept an actual smaller viewport; optionally require a capacity boundary."""
     target = round(initial.width_px * _SHRINK_FRACTION)
+    if require_capacity_change:
+        prompt = (
+            f"Initial page capacity is {plan_sheet_pages(count, initial).page_size}. "
+            "Make Kitty shorter or narrower until page capacity changes; "
+            "click Continue to remeasure. Try reducing HEIGHT if narrowing alone does not work."
+        )
+    else:
+        prompt = f"Make Kitty noticeably narrower (measured width below {target} px); height may stay unchanged"
     return _until_valid(
-        f"Make Kitty noticeably narrower (measured width below {target} px); height may stay unchanged",
-        lambda g: g.width_px <= target and g.height_px >= _MIN_USABLE_HEIGHT and g.rows >= _MIN_TERMINAL_ROWS,
+        prompt,
+        lambda g: (
+            g.width_px >= _MIN_USABLE_WIDTH
+            and g.height_px >= _MIN_USABLE_HEIGHT
+            and g.rows >= _MIN_TERMINAL_ROWS
+            and (
+                (
+                    _capacity_changed(initial, g, count)
+                    and (g.width_px < initial.width_px or g.height_px < initial.height_px)
+                )
+                if require_capacity_change
+                else g.width_px <= target
+            )
+        ),
     )
 
 
@@ -337,11 +362,21 @@ def _run_sequence(fd: int, directory: Path, report: dict) -> None:
     _take_page(report, directory, "previous_page", 0)
     report["stages"][-1]["frame_sha256"] = previous["sha256"]
 
-    _dialog("Make Kitty substantially narrower; you may leave its height unchanged. Click Continue after resizing.")
-    narrow = _small_geometry(_geometry_from_stage(report["stages"][0]))
+    require_change = report["require_capacity_change"]
+    _dialog(
+        "Resize the Kitty window. For a capacity transition, reduce HEIGHT as well as width if needed. "
+        "Click Continue after changing the window."
+    )
+    narrow = _small_geometry(
+        _geometry_from_stage(report["stages"][0]),
+        count=report["figure_count"],
+        require_capacity_change=require_change,
+    )
     report["narrow_geometry"] = asdict(narrow)
     report["narrow_page_capacity"] = plan_sheet_pages(report["figure_count"], narrow).page_size
     report["page_capacity_changed"] = report["narrow_page_capacity"] != report["initial_page_capacity"]
+    if require_change and not report["page_capacity_changed"]:
+        report["failures"].append("Measured resize failed to cross an actual paging-capacity boundary")
     resized = _wait_render(fd, directory, previous["sha256"], narrow)
     _take_page(report, directory, "resized_page", 0)
     report["stages"][-1]["frame_sha256"] = resized["sha256"]
@@ -370,12 +405,18 @@ def _validate_worker(report: dict, worker: dict) -> None:
         report["failures"].append("Expected at least six contact-sheet frames and a completed blocking session")
         return
     first = frames[0]
-    smallest_viewport = min(frame["geometry"]["width_px"] for frame in frames)
-    smallest_raster = min(frame["raster"][0] for frame in frames)
-    if first["geometry"]["width_px"] <= smallest_viewport:
-        report["failures"].append("Narrowing the terminal did not reduce measured viewport width")
-    if first["raster"][0] <= smallest_raster:
-        report["failures"].append("Narrowing the terminal did not reduce transmitted PNG width")
+    viewport_shrank = any(
+        frame["geometry"]["width_px"] < first["geometry"]["width_px"]
+        or frame["geometry"]["height_px"] < first["geometry"]["height_px"]
+        for frame in frames
+    )
+    raster_shrank = any(
+        frame["raster"][0] < first["raster"][0] or frame["raster"][1] < first["raster"][1] for frame in frames
+    )
+    if not viewport_shrank:
+        report["failures"].append("Terminal viewport did not shrink in either dimension")
+    if not raster_shrank:
+        report["failures"].append("Transmitted PNG did not shrink in either dimension")
 
 
 def _finish_child(process: subprocess.Popen[bytes], fd: int, directory: Path, report: dict) -> None:
@@ -388,11 +429,12 @@ def _finish_child(process: subprocess.Popen[bytes], fd: int, directory: Path, re
     _validate_worker(report, json.loads((directory / "worker.json").read_text(encoding="utf-8")))
 
 
-def _main_parent(directory: Path, mode: str) -> int:
+def _main_parent(directory: Path, mode: str, *, require_capacity_change: bool = False) -> int:
     directory.mkdir(parents=True, exist_ok=False)
     report: dict = {
         "mode": mode,
         "mode_is_label_only": True,
+        "require_capacity_change": require_capacity_change,
         "macos": platform.mac_ver()[0],
         "input_owner": "foreground_plotting_child",
         "stages": [],
@@ -458,6 +500,11 @@ def _argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("unmanaged", "yabai"), required=True)
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--require-capacity-change",
+        action="store_true",
+        help="Require a measured paging capacity transition during interactive resize",
+    )
     parser.add_argument("--event-fd", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--figure-count", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--directory", type=Path, help=argparse.SUPPRESS)
@@ -485,7 +532,7 @@ def main() -> int:
     directory = Path("artifacts/phase3-native-paging") / (
         datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + f"-{args.mode}"
     )
-    return _main_parent(directory, args.mode)
+    return _main_parent(directory, args.mode, require_capacity_change=args.require_capacity_change)
 
 
 if __name__ == "__main__":

@@ -234,6 +234,22 @@ def _redraw_foreground_figures(managers: list[FigureManagerBase], *, page_index:
     return plan
 
 
+def _navigate_foreground_page(
+    managers: list[FigureManagerBase], current: Geometry | None, index: int, command: str
+) -> tuple[int, SheetPages | None, Geometry | None]:
+    """Replan on a pending resize before applying a canonical navigation line."""
+    measured = read_geometry() or current
+    selection = _sheet_for_managers(managers, measured)
+    plan = selection[2] if selection is not None else None
+    index = min(index, plan.total_pages - 1) if plan is not None else 0
+    if plan is not None and plan.total_pages > 1:
+        index = (index + (1 if command == "n" else -1)) % plan.total_pages
+        plan = _redraw_foreground_figures(managers, page_index=index)
+    else:
+        print(_page_prompt(plan, index, measured), end="", flush=True)
+    return index, plan, measured
+
+
 def _wait_for_foreground_resize(managers: list[FigureManagerBase], start: Geometry | None) -> None:
     """Own canonical input; navigate fitted pages and debounce resize changes.
 
@@ -262,10 +278,9 @@ def _wait_for_foreground_resize(managers: list[FigureManagerBase], start: Geomet
             command = line.strip().lower() if isinstance(line, str) else ""
             if command in {"", "q"}:
                 return
-            if plan is not None and plan.total_pages > 1 and command in {"n", "p"}:
-                offset = 1 if command == "n" else -1
-                index = (index + offset) % plan.total_pages
-                _redraw_foreground_figures(managers, page_index=index)
+            if command in {"n", "p"}:
+                index, plan, current = _navigate_foreground_page(managers, current, index, command)
+                pending = None
             else:
                 print(_page_prompt(plan, index, current), end="", flush=True)
             continue
