@@ -47,10 +47,10 @@ _COLORS = (
     ("#879de8", (135, 157, 232)),
 )
 _MIN_START_WIDTH = 950
-_MIN_START_HEIGHT = 420
+_MIN_START_HEIGHT = 520
 _MAX_START_HEIGHT = 650
 _MIN_SMALL_WIDTH = 500
-_MAX_SMALL_WIDTH = 760
+_MAX_SMALL_WIDTH = 560
 _MIN_COLOR_PIXELS = 1300
 _MAX_UNEXPECTED_PIXELS = 600
 _MAX_SIGNAL_SECONDS = 100
@@ -184,14 +184,14 @@ def _worker(directory: Path, event_fd: int) -> None:  # ruff: ignore[too-many-st
 
 def _start_geometry() -> Geometry:
     return _until_valid(
-        "Set Kitty at least 950 physical pixels wide and 420-650 pixels high; click Continue",
+        "Set Kitty at least 950 physical pixels wide and 520-650 pixels high; click Continue",
         lambda g: g.width_px >= _MIN_START_WIDTH and _MIN_START_HEIGHT <= g.height_px <= _MAX_START_HEIGHT,
     )
 
 
 def _small_geometry() -> Geometry:
     return _until_valid(
-        "Shrink Kitty to 500-760 physical pixels wide, keeping height at 420-650 px; click Continue",
+        "Shrink Kitty to 500-560 physical pixels wide, keeping height at 420-650 px; click Continue",
         lambda g: _MIN_SMALL_WIDTH <= g.width_px <= _MAX_SMALL_WIDTH
         and _MIN_START_HEIGHT <= g.height_px <= _MAX_START_HEIGHT,
     )
@@ -209,7 +209,7 @@ def _run_sequence(fd: int, directory: Path, report: dict) -> None:
     _wait_event(fd, b"F")
     _take_page(report, directory, "previous_page", 0)
 
-    _dialog("Shrink Kitty to 500-760 px wide and 420-650 px high, then click Continue.")
+    _dialog("Shrink Kitty to 500-560 px wide and 420-650 px high, then click Continue.")
     _small_geometry()
     _wait_event(fd, b"F")
     _take_page(report, directory, "resized_page", 0)
