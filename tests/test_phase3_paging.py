@@ -228,7 +228,8 @@ def test_navigation_replans_if_capacity_changes_while_user_types(monkeypatch) ->
     monkeypatch.setattr(core.select, "select", lambda *args: ([17], [], []))
     monkeypatch.setattr(core, "read_geometry", lambda: narrow)
     monkeypatch.setattr(
-        core, "_sheet_for_managers",
+        core,
+        "_sheet_for_managers",
         lambda _managers, geometry: ([], [], plan_sheet_pages(9, geometry)),
     )
 
