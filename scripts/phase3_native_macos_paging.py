@@ -31,6 +31,7 @@ import numpy as np
 from PIL import Image
 
 from scripts.phase3_native_macos_resize import _capture, _clear_scrollback, _dialog, _geometry, _save, _until_valid
+from scripts.phase3_screenshot_color import read_screenshot_srgb
 from wskr.render.matplotlib.sheet import plan_sheet_pages
 
 if TYPE_CHECKING:
@@ -54,7 +55,8 @@ _RESTORE_FRACTION = 0.85
 _MIN_COLOR_PIXELS = 1300
 _MAX_UNEXPECTED_PIXELS = 600
 _MAX_SIGNAL_SECONDS = 100
-_COLOR_TOLERANCE = 80
+_COLOR_TOLERANCE_UNTAGGED = 80
+_COLOR_TOLERANCE_SRGB = 8
 _SCREENSHOT_SAMPLE_STEP = 2
 _GENERATED_CHANNEL_LEVELS = (64, 96, 128, 160, 192, 224, 255)
 _MIN_GENERATED_BRIGHTNESS = 192
@@ -118,35 +120,39 @@ def _figures_on_page(geometry: Geometry, page_index: int, count: int = len(_COLO
     return list(range(selection.start, min(selection.stop, count)))
 
 
-def _color_pixels(path: Path, count: int = len(_COLORS)) -> list[int]:
-    """Classify screenshot tiles by nearest RGB color with conversion tolerance.
+def _color_pixels_with_metadata(path: Path, count: int = len(_COLORS)) -> tuple[list[int], dict[str, str | None]]:
+    """Compare in sRGB when an ICC profile is available.
 
-    Native macOS captures can transform source PNG colors through a display
-    profile. Exact RGB comparisons falsely call visibly present panels absent.
-    Assign each sampled pixel to its one nearest palette color, so expanded
-    tolerances cannot double-count adjacent colors or ordinary terminal text.
+    Tagged screenshots use a tight residual tolerance after an explicit ICC
+    conversion. Untagged screenshots retain bounded nearest-color fallback
+    rather than incorrectly assuming transformed display pixels are exact.
     """
-    with Image.open(path) as source:
-        pixels = np.asarray(source.convert("RGB"))[::_SCREENSHOT_SAMPLE_STEP, ::_SCREENSHOT_SAMPLE_STEP].astype(
-            np.int16
-        )
-    best_squared = np.full(pixels.shape[:2], _COLOR_TOLERANCE**2 + 1, dtype=np.int32)
-    best_index = np.full(pixels.shape[:2], -1, dtype=np.int16)
+    pixels, metadata = read_screenshot_srgb(path)
+    sampled = pixels[::_SCREENSHOT_SAMPLE_STEP, ::_SCREENSHOT_SAMPLE_STEP].astype(np.int16)
+    tolerance = _COLOR_TOLERANCE_SRGB if metadata["conversion"] == "icc_to_srgb" else _COLOR_TOLERANCE_UNTAGGED
+    best_squared = np.full(sampled.shape[:2], tolerance**2 + 1, dtype=np.int32)
+    best_index = np.full(sampled.shape[:2], -1, dtype=np.int16)
     for index, (_, rgb) in enumerate(_palette(count)):
-        delta = pixels.astype(np.int32) - np.asarray(rgb, dtype=np.int32)
+        delta = sampled.astype(np.int32) - np.asarray(rgb, dtype=np.int32)
         squared = np.sum(delta * delta, axis=2, dtype=np.int32)
-        selected = (squared < best_squared) & (squared <= _COLOR_TOLERANCE**2)
+        selected = (squared < best_squared) & (squared <= tolerance**2)
         best_squared[selected] = squared[selected]
         best_index[selected] = index
     counts = np.bincount(best_index[best_index >= 0], minlength=count)
-    return (counts * _SCREENSHOT_SAMPLE_STEP**2).tolist()
+    return (counts * _SCREENSHOT_SAMPLE_STEP**2).tolist(), metadata
+
+
+def _color_pixels(path: Path, count: int = len(_COLORS)) -> list[int]:
+    """Return per-tile counts from the color-managed screenshot."""
+    counts, _ = _color_pixels_with_metadata(path, count)
+    return counts
 
 
 def _check_page(report: dict, stage: dict, index: int) -> None:
     count = report.get("figure_count", len(_COLORS))
     visible = _figures_on_page(_geometry_from_stage(stage), index, count)
     stage["expected_figures"] = visible
-    stage["color_pixels"] = _color_pixels(Path(stage["screenshot"]), count)
+    stage["color_pixels"], stage["color_capture"] = _color_pixels_with_metadata(Path(stage["screenshot"]), count)
     for number, count in enumerate(stage["color_pixels"]):
         if number in visible and count < _MIN_COLOR_PIXELS:
             report["failures"].append(f"{stage['stage']}: expected figure {number + 1}, got {count} pixels")
@@ -165,7 +171,9 @@ def _take_page(report: dict, directory: Path, stage: str, page_index: int) -> No
     if page_index >= 0:
         _check_page(report, evidence, page_index)
     else:
-        evidence["color_pixels"] = _color_pixels(Path(evidence["screenshot"]), report.get("figure_count", len(_COLORS)))
+        evidence["color_pixels"], evidence["color_capture"] = _color_pixels_with_metadata(
+            Path(evidence["screenshot"]), report.get("figure_count", len(_COLORS))
+        )
         if any(count > _MAX_UNEXPECTED_PIXELS for count in evidence["color_pixels"]):
             report["failures"].append(f"{stage}: contact-sheet tile remained on the primary screen")
     _save(report, directory)
