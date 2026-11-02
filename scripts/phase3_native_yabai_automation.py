@@ -176,19 +176,34 @@ class NativeController:
         self.socket_dir = Path(tempfile.mkdtemp(prefix="wskr-native-", dir="/tmp"))
         socket = self.socket_dir / "kitty-{kitty_pid}.sock"
         argv = [
-            "kitty", "--single-instance=no", "--title", self.title,
-            "--override", "allow_remote_control=socket-only",
-            "--listen-on", f"unix:{socket}",
-            sys.executable, "-m", "scripts.phase3_native_auto_entry",
-            "--case", self.case, "--height", str(self.height),
-            "--mode", "unmanaged" if self.state == "unmanaged" else "yabai",
+            "kitty",
+            "--single-instance=no",
+            "--title",
+            self.title,
+            "--override",
+            "allow_remote_control=socket-only",
+            "--listen-on",
+            f"unix:{socket}",
+            sys.executable,
+            "-m",
+            "scripts.phase3_native_auto_entry",
+            "--case",
+            self.case,
+            "--height",
+            str(self.height),
+            "--mode",
+            "unmanaged" if self.state == "unmanaged" else "yabai",
         ]
         self.commands.append({"argv": argv})
         # Retain the process bootstrap stderr even when its GUI exits too early
         # for yabai to provide a stable window record.
         with (self.root / "kitty-launch.log").open("wb") as log:
             self.kitty_process = subprocess.Popen(  # ruff: ignore[subprocess-without-shell-equals-true] - dedicated app
-                argv, cwd=Path(__file__).resolve().parents[1], env=env, stdout=log, stderr=subprocess.STDOUT
+                argv,
+                cwd=Path(__file__).resolve().parents[1],
+                env=env,
+                stdout=log,
+                stderr=subprocess.STDOUT,
             )
         self.socket_path = Path(str(socket).replace("{kitty_pid}", str(self.kitty_process.pid)))
         self._await_window_identity()
@@ -217,13 +232,15 @@ class NativeController:
                 raise RuntimeError(msg)
             if matches:
                 match = matches[0]
-                self.window_observations.append({
-                    "id": match.get("id"),
-                    "pid": match.get("pid"),
-                    "space": match.get("space"),
-                    "has_ax_reference": match.get("has-ax-reference"),
-                    "title": match.get("title"),
-                })
+                self.window_observations.append(
+                    {
+                        "id": match.get("id"),
+                        "pid": match.get("pid"),
+                        "space": match.get("space"),
+                        "has_ax_reference": match.get("has-ax-reference"),
+                        "title": match.get("title"),
+                    }
+                )
                 identity = (int(match["id"]), int(match["pid"]))
                 ready = match.get("has-ax-reference") is not False
                 stable_samples = stable_samples + 1 if ready and identity == last_identity else int(ready)
@@ -372,7 +389,9 @@ class NativeController:
             msg = "Refusing screenshot path outside wskr artifacts"
             raise RuntimeError(msg)
         destination.parent.mkdir(parents=True, exist_ok=True)
-        _invoke(["/usr/sbin/screencapture", "-x", "-l", str(self.window_id), "-o", str(destination)], timeout=30)
+        _invoke(
+            ["/usr/sbin/screencapture", "-x", "-l", str(self.window_id), "-o", str(destination)], timeout=30
+        )
         if not destination.is_file() or destination.stat().st_size < _MIN_SCREENSHOT_BYTES:
             msg = f"Native window-only capture failed: {stage}"
             raise RuntimeError(msg)
