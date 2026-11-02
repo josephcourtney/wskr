@@ -203,3 +203,66 @@ def test_intermediate_drag_frames_do_not_fail_paging_validation() -> None:
     report: dict = {"failures": []}
     _validate_worker(report, {"finished": True, "frames": frames})
     assert report["failures"] == []
+
+
+def test_color_profile_shifted_native_screenshot_keeps_all_page_tiles(tmp_path: Path) -> None:
+    """Synthetic ColorSync-like shifts must not erase real figures from checks."""
+    background = (50, 56, 60)
+    # Representative transformed RGB values measured from a native Kitty
+    # screenshot, not a committed copy of the user's window.
+    measured = (
+        (218, 60, 74),
+        (69, 138, 213),
+        (97, 184, 111),
+        (220, 143, 64),
+        (142, 79, 206),
+        (89, 178, 173),
+        (214, 205, 86),
+        (189, 96, 138),
+    )
+    geometry = Geometry(18, 160, 2240, 486)
+    for page in (0, 1):
+        pixels = np.empty((486, 1000, 3), dtype=np.uint8)
+        pixels[:] = background
+        for offset, index in enumerate(range(page * 4, page * 4 + 4)):
+            x = 40 + offset * 230
+            pixels[75:225, x : x + 180, :] = measured[index]
+        path = tmp_path / f"page-{page}.png"
+        Image.fromarray(pixels).save(path)
+        report: dict = {"failures": []}
+        stage = _stage(path, geometry)
+        _check_page(report, stage, page)
+        assert report["failures"] == []
+        assert all(stage["color_pixels"][i] >= 1300 for i in range(page * 4, page * 4 + 4))
+        assert all(
+            stage["color_pixels"][i] < 600 for i in range(9) if i not in range(page * 4, page * 4 + 4)
+        )
+
+
+def test_profile_tolerant_detector_rejects_blank_and_ghost_tile(tmp_path: Path) -> None:
+    background = (50, 56, 60)
+    pixels = np.empty((486, 1000, 3), dtype=np.uint8)
+    pixels[:] = background
+    blank = tmp_path / "blank.png"
+    Image.fromarray(pixels).save(blank)
+    assert _color_pixels(blank, count=20) == [0] * 20
+
+    # A wrong-page colored tile must still be detected.
+    pixels[100:250, 50:250, :] = (142, 79, 206)
+    wrong = tmp_path / "wrong.png"
+    Image.fromarray(pixels).save(wrong)
+    report: dict = {"failures": [], "figure_count": 9}
+    _check_page(report, _stage(wrong, Geometry(18, 160, 2240, 486)), 0)
+    assert any("unexpected figure 5" in failure for failure in report["failures"])
+    assert any("expected figure 1" in failure for failure in report["failures"])
+
+
+def test_generated_extra_colors_are_bright_and_separated_from_terminal_background() -> None:
+    palette = _palette(20)
+    assert len(palette) == 20
+    assert len({rgb for _, rgb in palette}) == 20
+    background = np.asarray((50, 56, 60), dtype=np.int32)
+    for _, rgb in palette[9:]:
+        channels = np.asarray(rgb, dtype=np.int32)
+        assert int(np.sum((channels - background) ** 2)) > 80**2
+        assert max(rgb) >= 192
