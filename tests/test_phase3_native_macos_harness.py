@@ -286,7 +286,13 @@ def test_native_resize_worker_uses_importable_module(
     )
     assert argv[:3] == [sys.executable, "-m", "scripts.phase3_native_macos_resize"]
     assert argv[3:11] == [
-        "--worker", "--mode", mode, "--height", str(height), "--directory", str(tmp_path.resolve()),
+        "--worker",
+        "--mode",
+        mode,
+        "--height",
+        str(height),
+        "--directory",
+        str(tmp_path.resolve()),
         "--clean-scrollback",
     ]
     assert argv[11:] == (["--history-lines", str(history_lines)] if history_lines else [])
