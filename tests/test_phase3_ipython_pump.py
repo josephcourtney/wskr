@@ -67,8 +67,10 @@ def test_ipython_extension_drains_all_registered_figures_once_per_cell(monkeypat
 
 def test_ipython_extension_leaves_unrelated_callbacks_and_managers_alone(monkeypatch) -> None:
     shell = Shell()
+
     def callback(_result: object) -> None:
         pass
+
     shell.events.register("post_run_cell", callback)
     monkeypatch.setattr(ipython.Gcf, "get_all_fig_managers", lambda: [SimpleNamespace(canvas=object())])
     ipython.load_ipython_extension(shell)
