@@ -8,7 +8,7 @@ Terminal-native Matplotlib display using the Kitty graphics protocol, with trans
 - Direct Kitty PNG transport (without `kitty icat`) with scoped image/placement IDs, replacement and explicit deletion. An attached `xterm-kitty` TTY is required.
 - Provenance-aware kernel/CSI geometry, safe OSC and Kitty XTGETTCAP measurements (palette, foreground/background, font family/size, DPI and opacity) through an explicit input-owning client; scoped, figure-local appearance without changing `rcParams`. Unattended pyplot does not read shared terminal input.
 - Preserved explicit figure dimensions/DPI and standard PNG/SVG `savefig` exports; display-only `WSKR_SCALE` and optional `WSKR_FIT=contain`.
-- Nonblocking, terminal-history-resident static figures; explicit foreground `show(block=True)` with an alternate screen, Enter-to-close, fitted multi-figure contact sheets and `n`/`p` paging.
+- Nonblocking, terminal-history-resident static figures; explicit foreground `show(block=True)` with an alternate screen, Enter-to-close, fitted multi-figure contact sheets and `n`/`p` paging. Nonblocking figure redraws can be coordinated through an application-owned event pump.
 - Explicit `owned_viewport(fig)` for an application with exclusive foreground terminal ownership, application-driven `refresh()` and `poll_resize()`, and previous-screen restoration on exit.
 
 **Not yet supported end-to-end:** unattended theme-change recoloring of existing figures, unattended IPython/REPL redraw, viewport-pinned *nonblocking history* images, arbitrary independent placement, Rich inline Kitty panels/tables, and iTerm2/Sixel graphics. Rich names currently return visible diagnostics, not inline images. See [TODO.md](TODO.md).
@@ -41,7 +41,7 @@ WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python example.py
 
 `WSKR_SCALE` scales only terminal pixels and is applied before optional containment. Without `WSKR_FIT=contain`, the backend does not silently resize an explicitly sized figure. `show(block=None)` follows Matplotlib interactive-mode semantics: it blocks in a noninteractive foreground script with exclusive TTY access, and returns in interactive or unowned sessions. `show(block=False)` explicitly retains nonblocking history output. `show(block=True)` requires foreground stdin/stdout on the same Kitty TTY and closes managed images on dismissal.
 
-When the application pumps `canvas.flush_events()` or `plt.pause()`, a fitted nonblocking figure can be redrawn following a stable resize. Interactive applications may opt into `WSKR_IDLE_REDRAW=coalesce` to queue repeated `draw_idle()` calls until the next event pump. A pump on one pyplot figure also drains pending backend-managed figures. The default remains immediate; this does not add an unattended REPL/IPython event loop. The placement stays attached to its *original scrollback anchor*, not the current viewport. For older Kitty versions without P/Q parent-relative placement, set `WSKR_KITTY_PARENT=off` to use ordinary scoped physical placements instead; this fallback is not viewport-pinned. Under Kitty 0.49.2, native experiments with 96 wrapped history lines showed a fitted redraw can be off-screen after shrinking even though upload and placement succeeded. See [placement semantics](docs/phase3-placement-semantics.md).
+When the application pumps `canvas.flush_events()` or `plt.pause()`, a fitted nonblocking figure can be redrawn following a stable resize. Interactive applications may opt into `WSKR_IDLE_REDRAW=coalesce` to queue repeated `draw_idle()` calls until the next event pump. A pump on one pyplot figure also drains pending backend-managed figures. The default remains immediate; this does not add an unattended REPL/IPython event loop. Nonblocking placement is **history-relative, not viewport-pinned**. The default physical parent can become obscured or overlap wrapped history under Kitty 0.49.2 despite correct PNG transmission. In a compatible Kitty, opt into `WSKR_KITTY_ANCHOR=unicode` to bind the image to a transparent Unicode-placeholder text cell; native macOS evidence supports selected 9×2/9×6 scrollback/reflow cases, but not a universal placement guarantee. For older Kitty without P/Q parent-relative placement, `WSKR_KITTY_PARENT=off` instead uses ordinary scoped physical placement. Neither mode provides unattended viewport pinning. See [placement semantics](docs/phase3-placement-semantics.md) and [native acceptance](docs/phase3-native-macos-acceptance.md).
 
 ## Foreground-owned live viewport
 
@@ -88,22 +88,24 @@ with use_profile(profile):
 
 `input_queue` is an application-owned input buffer, not a provided wskr global. `probe_owned_profile` rejects redirected/background/mismatched TTYs and never runs implicitly. For tests or applications with an existing terminal query dispatcher, `probe_profile(color_query=..., geometry_query=..., kitty_query=...)` accepts bounded input-owner callbacks. The public query helpers are `query_osc`, `query_csi`, and `query_kitty_field` from `wskr.terminal.query`.
 
-Known Kitty runtime font and DPI are **measurements**, not instructions to install fonts or substitute physical DPI for rasterization DPI. If the measured font is unavailable on the Python host, new figures use Matplotlib's installed monospace fallback. Re-running the probe and scoping a new profile gives *new figures* the current theme; already-rendered figures are not recolored, nor are custom artist colors overridden. Explicit Matplotlib style and sizing values remain authoritative. A non-owning REPL cannot automatically interrogate OSC replies safely.
+Known Kitty runtime font and DPI are **measurements**, not instructions to install fonts or substitute physical DPI for rasterization DPI. If the measured font is unavailable on the Python host, new figures use Matplotlib's installed monospace fallback. Re-running the probe and scoping a new profile gives *new figures* the current theme. An explicitly owned live viewport may call `refresh_theme(profile)` to update **backend-owned** figure/axes and label colors; historical PNGs and explicitly styled artists are not automatically recolored. Explicit Matplotlib style and sizing values remain authoritative. A non-owning REPL cannot automatically interrogate OSC replies safely.
 
 `RichPlot` and `RichImage` retain their historical imports under `wskr.render.rich`. Currently they display a diagnostic fallback for unavailable inline graphics, even with `WSKR_PROTOCOL=kitty`. Do not use them for image-bearing Rich panels or tables until Phase 4 is complete. The older `kitty_legacy` comparison implementation requires a Kitty executable and is not the supported primary transport.
 
 ## Verification and project documents
 
 ```sh
-just check             # syntax, Ruff, ty, pytest
-just phase1           # terminal-profile and query tests
-just phase2           # protocol tests
-just phase3           # Matplotlib lifecycle tests
-just test-native-gui  # native macOS: isolated Kitty/yabai acceptance matrix
+just check           # syntax, formatting, Ruff, ty, pytest
+just phase1          # terminal-profile and query tests
+just phase2          # graphics-protocol tests
+just phase3          # Matplotlib and screenshot-evidence tests
+just test-native-gui # opt-in automated native macOS owned-viewport matrix
 ```
 
-The supported wheel selection and PNG/SVG exports are qualified separately from real Kitty graphics. P3 lifecycle [PR #46](https://github.com/josephcourtney/wskr/pull/46) passed **381 tests, 3 skipped** per platform on Ubuntu and macOS; installed-wheel selection/exports and hosted real-Kitty graphical regressions also passed. See [P3 follow-up acceptance](docs/phase3-lifecycle-acceptance-20261101.md). The new Kitty XTGETTCAP appearance reads have PTY/mock validation but not yet independent native macOS graphical qualification. [PR #43](https://github.com/josephcourtney/wskr/pull/43) records six independently reviewed native macOS owned-viewport scenarios; this does not qualify history-anchored output. See [Phase 2 evidence](docs/phase2-validation.md), [Phase 3 evidence](docs/phase3-validation.md), and the [native acceptance guide](docs/phase3-owned-live-automated-acceptance.md).
+Native macOS Kitty also has **manual, opt-in** evidence recipes: `just native-resize-history unmanaged 2 96` (scrollback/reflow), `just native-lifecycle unmanaged` (two-figure redraw and close), and `just native-paging unmanaged` (foreground `n`/`p`/Enter and resize). These tests may **erase the disposable test window's screen and scrollback** and request selected-window screenshots; do not run them in a terminal containing history you wish to retain.
 
-Project roles follow [POLICY.md](POLICY.md): [DESIGN](DESIGN.md) contains stable requirements, [PLAN](PLAN.md) execution strategy, [STATUS](STATUS.md) current handoff, [TODO](TODO.md) immediate work, [CHANGELOG](CHANGELOG.md) completed user-visible changes, and [ADRs](docs/adr/) architectural rationale.
+Installed-wheel backend selection, PNG/SVG exports, hosted Kitty graphics and multiple native macOS scenarios have been qualified separately. The eight-stage native blocking-paging run confirms navigation, fitted raster resizing and primary-screen restoration, but not a change in page capacity. Native screenshot colors are converted from their embedded ICC display profile to sRGB **for acceptance checks only**; rendering and transmitted pixels are unchanged. See [current status](STATUS.md), [P3 evidence](docs/phase3-native-macos-acceptance.md) and [P3 lifecycle evidence](docs/phase3-lifecycle-acceptance-20261101.md).
+
+Documentation roles follow [POLICY.md](POLICY.md): [DESIGN](DESIGN.md) records stable requirements, [PLAN](PLAN.md) execution strategy, [STATUS](STATUS.md) the current handoff, [TODO](TODO.md) pending work, [CHANGELOG](CHANGELOG.md) completed changes and [ADRs](docs/adr/) decisions.
 
 License: [GPL-3.0-only](LICENSE.md).

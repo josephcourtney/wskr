@@ -16,7 +16,7 @@ Design invariants `INV-01` through `INV-12` apply at every phase. Architecture r
 
 - Enumerate installed backend names, entry points, supported Matplotlib/Python versions, `wskr.init`, `RichPlot`/`RichImage`, `ImageProtocol`, registry behavior and `WSKR_*` settings.
 - Pin baseline behavior for `plt.show`, `plt.ion`, multi-figure state, `savefig`, redirected/non-TTY output, sizing, OSC dark-mode detection and Rich placement.
-- Identify unsupported/incorrect functionality explicitly: the current `kitty` transport requires the external binary and uses `icat`; the experimental direct path needs proper Kitty PNG framing/Base64; Sixel and iTerm2 are placeholders; global import modifies Matplotlib settings.
+- Identify the original baseline limitations explicitly: external `kitty icat` transport, incomplete experimental direct PNG framing, Sixel/iTerm2 placeholders and import-time Matplotlib side effects. Keep these historical findings in baseline evidence, not in current-status claims.
 - Review existing test fixtures and real-Kitty screenshot helper dependencies. Do not assume an automated test implies a successful live Kitty display.
 - Record a compatibility map and toolchain blockers, including mismatched boilerplate in `justfile` and `pyproject.toml`.
 
@@ -24,7 +24,7 @@ Design invariants `INV-01` through `INV-12` apply at every phase. Architecture r
 
 ## Phase 1 — Terminal profile, safe queries, style defaults
 
-**Design references:** `INV-02`–`INV-06`, DESIGN ``5–6.
+**Design references:** `INV-02`–`INV-06`, [DESIGN §§5–6](DESIGN.md#5-terminal-measurements-and-safe-interrogation).
 
 Implementation ordering:
 
@@ -38,7 +38,7 @@ Implementation ordering:
 
 ## Phase 2 — Standards-correct Kitty transport
 
-**Design references:** `INV-07`–`INV-09`, DESIGN `7, [ADR-003](docs/adr/0003-kitty-transport-and-placement.md).
+**Design references:** `INV-07`–`INV-09`, [DESIGN §7](DESIGN.md#7-kitty-image-protocol-and-placement), [ADR-003](docs/adr/0003-kitty-transport-and-placement.md).
 
 1. Introduce a codec tested independently from terminal writes: explicit PNG `f=100`, Base64 payloads, ≤4096-byte chunks, `m` continuation flags, and proper command framing.
 2. Create image and placement abstractions with IDs, cleanup and optional acknowledgments.
@@ -50,7 +50,7 @@ Implementation ordering:
 
 ## Phase 3 — Stock Matplotlib lifecycle and live behavior
 
-**Design references:** `INV-01`, `INV-02`, `INV-08`, DESIGN ``4, 6.
+**Design references:** `INV-01`, `INV-02`, `INV-08`, [DESIGN §§4–6](DESIGN.md#4-matplotlib-interface-contract).
 
 1. Refactor the Agg-derived canvas/manager to use supported Matplotlib hooks without global style mutation or unconditional manager destruction.
 2. Track which figures have backend-derived default dimensions. Respect explicit `figsize`, `dpi`, `set_size_inches` and export settings.
@@ -63,7 +63,7 @@ Implementation ordering:
 
 ## Phase 4 — Shared Rich graphics
 
-**Design references:** `INV-08`, `INV-11`, DESIGN `8.
+**Design references:** `INV-08`, `INV-11`, [DESIGN §8](DESIGN.md#8-rich-composition).
 
 1. Route `RichImage` and `RichPlot` through the same protocol encoder/image manager as pyplot.
 2. Implement Kitty virtual placements and correct Unicode placeholder row/column diacritics and ID encoding.
@@ -79,10 +79,10 @@ Implementation ordering:
 2. Preserve or explicitly deprecate historical module paths and environment configuration.
 3. Remove misleading advertised Sixel/iTerm2 stubs; retain protocol extensibility but demand independent end-to-end tests for new transports.
 4. Validate source/wheel builds, install from wheel, normal imports, terminal/headless output and reproducible local test commands.
-5. Update `README.md`, `STATUS.md`, `TODO.md` and curated `CHANGELOG.md` to reflect only completed work; document remaining limitations.
+5. Maintain `README.md` as supported usage, `STATUS.md` as current accepted/pending handoff, `TODO.md` as pending work only, and `CHANGELOG.md` as notable completed changes; document unsupported capabilities honestly.
 6. Review all changes against `POLICY.md` and `AGENTS.md`.
 
-**Gate P5:** All acceptance requirements in DESIGN `10 have evidence, observed live-Kitty runs are reported separately, and no unimplemented capability is marketed as complete.
+**Gate P5:** All acceptance requirements in [DESIGN §10](DESIGN.md#10-acceptance-invariants) have evidence, observed live-Kitty runs are reported separately, and no unimplemented capability is marketed as complete.
 
 ## Compatibility migration map
 
