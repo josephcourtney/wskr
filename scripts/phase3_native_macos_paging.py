@@ -215,7 +215,9 @@ def _start_geometry() -> Geometry:
     """Require only an ordinary usable Kitty window, not an exact height."""
     return _until_valid(
         "Use any normally sized Kitty window (at least 400x240 terminal pixels); click Continue",
-        lambda g: g.width_px >= _MIN_USABLE_WIDTH and g.height_px >= _MIN_USABLE_HEIGHT and g.rows >= _MIN_TERMINAL_ROWS,
+        lambda g: (
+            g.width_px >= _MIN_USABLE_WIDTH and g.height_px >= _MIN_USABLE_HEIGHT and g.rows >= _MIN_TERMINAL_ROWS
+        ),
     )
 
 
