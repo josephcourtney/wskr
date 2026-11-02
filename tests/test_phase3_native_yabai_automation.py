@@ -142,13 +142,8 @@ def test_distinct_kitty_and_yabai_window_ids_are_never_confused(tmp_path: Path, 
 
 def test_ambiguous_kitty_internal_windows_cannot_receive_input(tmp_path: Path, monkeypatch) -> None:
     controller = NativeController(root=tmp_path, state="bsp", case="paging", height=2)
-    monkeypatch.setattr(
-        controller,
-        "kitty",
-        lambda *_args: json.dumps(
-            [{"tabs": [{"windows": [{"id": 19}, {"id": 20}]}]}]
-        ),
-    )
+    ambiguous = [{"tabs": [{"windows": [{"id": 19}, {"id": 20}]}]}]
+    monkeypatch.setattr(controller, "kitty", lambda *_args: json.dumps(ambiguous))
     with pytest.raises(RuntimeError, match="exactly one Kitty-internal"):
         controller._identify_kitty_window(timeout=0.01)
     with pytest.raises(RuntimeError, match="not established"):
@@ -320,6 +315,7 @@ def test_reactivate_owned_window_uses_private_kitty_socket_and_own_space(
     commands: list[tuple[str, ...]] = []
     monkeypatch.setattr(controller, "yabai", lambda *args: commands.append(args) or "")
     monkeypatch.setattr(controller, "kitty", lambda *args: commands.append(args) or "")
+    monkeypatch.setattr(controller, "_is_owned_space_focused", lambda: False)
     monkeypatch.setattr(controller, "_await_owned_space_focus", lambda: None)
     monkeypatch.setattr(controller, "_identify_kitty_window", lambda **_kw: None)
     controller._reactivate_owned_window()
@@ -365,3 +361,47 @@ def test_persistent_no_ax_window_fails_without_binding_a_false_ready_window(
         controller._await_window_identity(timeout=0.02)
     assert controller.window_id is None
     assert controller.window_observations[-1]["has_ax_reference"] is False
+
+
+def test_owned_space_focus_is_noop_when_already_active(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller = NativeController(root=tmp_path, state="unmanaged", case="resize", height=2)
+    controller.space_uuid = "owned"
+    commands: list[tuple[str, ...]] = []
+    monkeypatch.setattr(controller, "query", lambda *_args: {"uuid": "owned", "has-focus": True})
+    monkeypatch.setattr(controller, "yabai", lambda *args: commands.append(args) or "")
+    controller._focus_owned_space()
+    assert commands == []
+    assert controller.focus_observations[-1]["uuid"] == "owned"
+
+
+def test_focus_race_is_accepted_only_when_target_space_becomes_active(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller = NativeController(root=tmp_path, state="unmanaged", case="resize", height=2)
+    controller.space_uuid = "owned"
+    states = iter([{"uuid": "previous", "has-focus": True}, {"uuid": "owned", "has-focus": True}])
+    monkeypatch.setattr(controller, "query", lambda *_args: next(states))
+    def already_focused(*_args: str) -> str:
+        msg = "cannot focus an already focused space"
+        raise RuntimeError(msg)
+
+    monkeypatch.setattr(controller, "yabai", already_focused)
+    controller._focus_owned_space()
+    assert controller.focus_observations[-1]["stage"] == "already_focused_race"
+
+
+def test_focus_race_never_mistakes_unrelated_space_for_success(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller = NativeController(root=tmp_path, state="unmanaged", case="resize", height=2)
+    controller.space_uuid = "owned"
+    monkeypatch.setattr(controller, "query", lambda *_args: {"uuid": "other", "has-focus": True})
+    def already_focused(*_args: str) -> str:
+        msg = "cannot focus an already focused space"
+        raise RuntimeError(msg)
+
+    monkeypatch.setattr(controller, "yabai", already_focused)
+    with pytest.raises(RuntimeError, match="already focused"):
+        controller._focus_owned_space()
