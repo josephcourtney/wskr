@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from scripts import phase3_native_control_bridge as bridge
 from scripts.phase3_native_auto_entry import command
 from scripts.phase3_native_yabai_automation import NativeController, _action, _state_matches, _window_matches
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
 
 pytestmark = pytest.mark.medium
 
@@ -73,12 +77,14 @@ def test_controller_rejects_unrelated_windows_on_test_space(tmp_path: Path, monk
     controller.window_id = 100
     window = {"id": 100, "title": controller.title, "app": "kitty", "space": 5, "is-floating": False}
     unrelated = {"id": 101, "title": "Unrelated", "app": "Other", "space": 5}
+
     def fake_query(*args: str) -> dict:
         if args[:2] == ("--windows", "--window"):
             return window
         if args[:2] == ("--spaces", "--space"):
             return {"index": 5, "type": "bsp"}
-        raise AssertionError(f"Unexpected single-object query: {args!r}")
+        msg = f"Unexpected single-object query: {args!r}"
+        raise AssertionError(msg)
 
     monkeypatch.setattr(controller, "query", fake_query)
     monkeypatch.setattr(controller, "query_list", lambda *_args: [window, unrelated])
@@ -273,6 +279,7 @@ def test_spawn_waits_for_two_accessibility_ready_snapshots(
 
     class FakeProcess:
         pid = 4444
+
         def poll(self) -> None:
             return None
 
