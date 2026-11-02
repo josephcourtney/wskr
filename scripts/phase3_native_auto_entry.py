@@ -42,7 +42,9 @@ def main() -> int:
         parser.error("Only the explicit native yabai controller may launch this entrypoint")
     base = Path("artifacts") / f"phase3-native-{args.case}"
     before = set(base.glob("*.zip"))
-    completed = subprocess.run(command(args.case, args.height, args.mode), check=False)  # ruff: ignore[subprocess-without-shell-equals-true] - fixed argv
+    completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed argv
+        command(args.case, args.height, args.mode), check=False
+    )
     new_archives = list(set(base.glob("*.zip")) - before)
     evidence = str(new_archives[0].resolve()) if len(new_archives) == 1 else None
     result = {
@@ -61,7 +63,9 @@ def main() -> int:
     # A deterministic real zsh prompt is independently checkable through
     # Kitty's window-scoped get-text API; no synthetic keyboard input needed.
     os.environ["PROMPT"] = "WSKR_NATIVE_AUTO_PROMPT> "
-    os.execv("/bin/zsh", ["/bin/zsh", "-f", "-i"])  # ruff: ignore[start-process-with-no-shell] - test-only owned terminal
+    os.execv(  # ruff: ignore[start-process-with-no-shell] - test-only owned terminal
+        "/bin/zsh", ["/bin/zsh", "-f", "-i"]
+    )
     return 1
 
 
