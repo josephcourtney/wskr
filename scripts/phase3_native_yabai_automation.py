@@ -26,6 +26,7 @@ _RUN_SECONDS = 240
 _COMMAND_SECONDS = 15
 _POLL_SECONDS = 0.1
 _EXACTLY_ONE = 1
+_STABLE_WINDOW_SAMPLES = 2
 _MIN_SCREENSHOT_BYTES = 100
 _START_WIDTH = 1200
 _START_HEIGHT = 760
@@ -227,7 +228,7 @@ class NativeController:
                 ready = match.get("has-ax-reference") is not False
                 stable_samples = stable_samples + 1 if ready and identity == last_identity else int(ready)
                 last_identity = identity
-                if stable_samples >= 2:
+                if stable_samples >= _STABLE_WINDOW_SAMPLES:
                     self._bind_window_identity(identity)
                     return
             else:
