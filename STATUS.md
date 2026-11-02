@@ -4,10 +4,10 @@ Handoff: [DESIGN](DESIGN.md), [PLAN](PLAN.md), [TODO](TODO.md).
 
 ## State — P3 lifecycle follow-up
 
-- **P0–P2 accepted.** `wskr_kitty` uses Agg and native Kitty PNG with bounded queries and scoped image cleanup. P1 offers foreground-owner-only OSC/CSI/Kitty queries and scoped pyplot defaults; no unowned input reads.
-- **P3 partial.** Default `show(block=None)` follows Matplotlib foreground/noninteractive blocking; explicit `block=False` preserves history. Explicit `block=True` and `owned_viewport()` use scoped alternate screens. An event pump drains multiple backend figures; owned viewport supports backend-only `refresh_theme(profile)` without input reads. Unattended REPL/IPython loops remain external.
+- **P0–P2 accepted.** `wskr_kitty` uses Agg and native Kitty PNG with bounded queries and scoped image cleanup. P1 provides owned terminal queries and scoped pyplot defaults; no foreign input reads.
+- **P3 partial.** Default `show(block=None)` follows Matplotlib foreground/noninteractive blocking; explicit `block=False` preserves history. Explicit `block=True` and `owned_viewport()` use scoped alternate screens. An event pump drains multiple backend figures; owned viewport supports backend-only `refresh_theme(profile)` without input reads. REPL scheduling requires cooperation.
 - **Native owned-viewport acceptance:** [PR #43](https://github.com/josephcourtney/wskr/pull/43) records all six 9×2/9×6 scenarios passing in unmanaged Kitty, yabai-floating and genuine BSP, with resize/restore; only `owned_viewport(fig)` is qualified.
-- **Installed wheel:** [PR #34](https://github.com/josephcourtney/wskr/pull/34) verifies both Kitty backend selection forms and PNG/SVG exports from outside the checkout. Latest PR #54: **391 passed, 3 skipped** on Ubuntu/macOS; hosted Kitty passed.
+- **Wheel:** [PR #34](https://github.com/josephcourtney/wskr/pull/34) verifies both Kitty backend selection forms and PNG/SVG exports from outside the checkout. Latest PR #54: **391 passed, 3 skipped** on Ubuntu/macOS; hosted Kitty passed.
 
 ## Open boundaries
 
