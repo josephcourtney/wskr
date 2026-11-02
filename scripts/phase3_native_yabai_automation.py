@@ -19,7 +19,6 @@ import time
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 _STATES = ("unmanaged", "floating", "bsp", "float-space")
 _CASES = ("resize", "paging", "lifecycle", "appearance")
@@ -43,10 +42,6 @@ def _invoke(argv: list[str], *, timeout: int = _COMMAND_SECONDS) -> str:
         msg = f"{argv!r}: exit {proc.returncode}: {proc.stderr.strip()}"
         raise RuntimeError(msg)
     return proc.stdout
-
-
-def _json(argv: list[str]) -> Any:
-    return json.loads(_invoke(argv))
 
 
 def _window_matches(window: dict, title: str) -> bool:
@@ -123,14 +118,14 @@ class NativeController:
         self.commands.append({"argv": argv, "output": output[:1000]})
         return output
 
-    def query(self, *args: str) -> Any:
+    def query(self, *args: str) -> dict | list[dict]:
         return json.loads(self.yabai("query", *args))
 
     def _spaces(self) -> list[dict]:
         result = self.query("--spaces")
         if not isinstance(result, list):
             msg = "yabai --spaces returned an unexpected schema"
-            raise RuntimeError(msg)
+            raise TypeError(msg)
         return result
 
     def _own_space(self) -> None:
@@ -147,7 +142,7 @@ class NativeController:
         self.space_index = int(space["index"])
         self.yabai("space", str(self.space_index), "--label", self.space_label)
         self.yabai("space", self.space_label, "--layout", "float" if self.state == "float-space" else "bsp")
-        self.yabai("space", self.space_label, "--focus")
+        self.yabai("space", "--focus", self.space_label)
 
     def _spawn(self) -> None:
         rule = [
@@ -457,13 +452,13 @@ class NativeController:
         if self.previous_uuid:
             try:
                 prior = next(s for s in self._spaces() if s["uuid"] == self.previous_uuid)
-                self.yabai("space", str(prior["index"]), "--focus")
+                self.yabai("space", "--focus", str(prior["index"]))
             except (OSError, RuntimeError, StopIteration, KeyError, subprocess.TimeoutExpired) as exc:
                 self.cleanup_errors.append(f"prior space restoration: {exc}")
         if self.space_uuid:
             try:
                 created = next(s for s in self._spaces() if s["uuid"] == self.space_uuid)
-                self.yabai("space", str(created["index"]), "--destroy")
+                self.yabai("space", "--destroy", str(created["index"]))
             except (OSError, RuntimeError, StopIteration, KeyError, subprocess.TimeoutExpired) as exc:
                 self.cleanup_errors.append(f"owned test space destruction: {exc}")
         if self.socket_dir is not None:
