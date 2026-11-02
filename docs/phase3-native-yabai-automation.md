@@ -348,3 +348,47 @@ existing ZIP's `controller.json` commands/cleanup fields and capture
 the daemon logs; distinguish a socket drop during the test from
 an unavailable daemon at entry. **A green portable suite is not a
 native GUI acceptance.**
+
+## Seventh native attempt — November 2, 2026, 16:12 UTC
+
+At `a5967ba` in the locally formatted verification worktree,
+`just fix` and `just check` passed (syntax, Ruff, `ty`,
+**470 passed / 3 skipped**). The new Space-activation procedure
+completed, and the user observed a temporary Space and Kitty window,
+but the test window (macOS ID 8154, PID 86324, owned Space index 5)
+remained `has-ax-reference=false` through the startup deadline.
+Focus history explicitly shows a completed activation of original
+Space 4 and a return to the owned Space 5. **No plot was started.**
+The console reported an archive at
+`20261102T161200Z-unmanaged-resize-2.zip`; that archive is not
+yet attached for inspection.
+
+The source of the user's fork, `josephcourtney/yabai` on its
+`master` branch, explains an important distinction:
+
+- `window_manager_query_windows_for_spaces` obtains native window
+  IDs independent of Accessibility. If `window_manager_find_window`
+  cannot find an internally tracked object, the query uses
+  `window_nonax_serialize`, which explicitly emits
+  `has-ax-reference=false`.
+- `window_manager_create_and_add_window` can decline to track a
+  window if its AX subrole is unknown or `window_observe` fails;
+  `window_observe` requires the configured window AX notifications
+  to register. A missing AX element is another possible upstream
+  failure before the create path is reached.
+- The fact that the window is visible on a focused Space therefore
+  does **not** establish that yabai successfully registered it. The
+  controller must not bypass this gate to call window-ID resize.
+
+**Next investigation should target yabai's AX discovery/observer path**
+rather than adding further focus retries. Compare the test Kitty
+window's AX status with other Kitty windows in a full
+`yabai -m query --windows` snapshot, identify the running fork and
+whether its debug output reports
+`could not observe`, `ignoring AXUnknown`, or
+`AXObserverAddNotification ... failed` for the test window, and
+inspect the native archive's controller metadata. The fork's
+`debug_output` setting and `--verbose` startup flag are
+available, but do **not** change global yabai settings or restart an
+unknown service as part of wskr's acceptance harness. Record actual
+source/binary revisions before attributing a particular mechanism.
