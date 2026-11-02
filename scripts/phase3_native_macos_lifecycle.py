@@ -93,7 +93,10 @@ def _worker(directory: Path, mode: str) -> None:  # ruff: ignore[too-many-statem
     figures = {"red": red_fig, "blue": blue_fig}
     # The backend-specific manager transport is intentionally inspected only
     # within this acceptance harness, never presented as a public API.
-    transports = {label: cast("KittyFigureManager", fig.canvas.manager).transport for label, fig in figures.items()}
+    transports = {
+        label: cast("NativeKittyTransport", cast("KittyFigureManager", fig.canvas.manager).transport)
+        for label, fig in figures.items()
+    }
     labels = {id(transport): label for label, transport in transports.items()}
     original = {label: (tuple(fig.get_size_inches()), fig.dpi) for label, fig in figures.items()}
     original_send = NativeKittyTransport.send_anchored_image
