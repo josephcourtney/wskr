@@ -111,6 +111,22 @@ native-paging-capacity mode="unmanaged":
 native-appearance mode="unmanaged":
   WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python -m scripts.phase3_native_macos_appearance --mode '{{mode}}'
 
+# Unattended native Kitty acceptance: creates and destroys a dedicated yabai
+# space/window, controls geometry/input/colors, captures OS-window evidence.
+# Requires macOS, working yabai space management, Kitty and Screen Recording.
+native-auto state="unmanaged" case="resize" height="2":
+  WSKR_FIT=contain uv run python -m scripts.phase3_native_yabai_automation --state '{{state}}' --case '{{case}}' --height {{height}}
+
+# Representative automated matrix across unmanaged, floating and BSP tiling.
+# A failed run stops the matrix; no case is silently skipped.
+native-auto-matrix:
+  for mode in unmanaged floating bsp float-space; do \
+    for scenario in resize paging lifecycle appearance; do \
+      WSKR_FIT=contain uv run python -m scripts.phase3_native_yabai_automation --state "$mode" --case "$scenario" --height 2; \
+    done; \
+    WSKR_FIT=contain uv run python -m scripts.phase3_native_yabai_automation --state "$mode" --case resize --height 6; \
+  done
+
 # Complete validation plus isolated Kitty screenshots and one run-specific ZIP.
 evidence *args:
   uv run python scripts/phase1_evidence.py {{args}}
