@@ -1,20 +1,18 @@
 # wskr — Current status
 
-Handoff: [DESIGN](DESIGN.md), [PLAN](PLAN.md), [TODO](TODO.md).
+Handoff for the adopted [design](DESIGN.md) and [plan](PLAN.md). Pending actions are in [TODO.md](TODO.md); historical evidence remains in the linked reports and commits.
 
-## State — P3 lifecycle follow-up
+## Implemented and qualified
 
-- **P0–P2 accepted.** `wskr_kitty` uses Agg and native Kitty PNG with bounded queries and scoped image cleanup. P1 provides owned terminal queries and scoped pyplot defaults; no foreign input reads.
-- **P3 partial.** `show(block=None)` blocks noninteractive foreground sessions; `block=False` preserves history. Explicit `block=True` and `owned_viewport()` use scoped alternate screens. An event pump drains multiple backend figures; owned viewport supports backend-only `refresh_theme(profile)` without input reads. REPL pump requires host cooperation.
-- **Native owned-viewport acceptance:** [PR #43](https://github.com/josephcourtney/wskr/pull/43) records all six 9×2/9×6 scenarios passing in unmanaged Kitty, yabai-floating and genuine BSP, with resize/restore; only `owned_viewport(fig)` is qualified.
-- **Wheel:** [PR #34](https://github.com/josephcourtney/wskr/pull/34) verifies both Kitty backend selection forms and PNG/SVG exports from outside the checkout. PR #58: **403 passed, 3 skipped** on Ubuntu/macOS; hosted Kitty passed.
+- **P0–P2:** Stock Agg-backed `wskr_kitty`, native Kitty PNG transport, bounded input-owned terminal probing, provenance-aware appearance, scoped placements and cleanup, and ordinary PNG/SVG exports. Installed-wheel backend selection has been tested.
+- **P3 core:** `show(block=None)` uses foreground/noninteractive blocking semantics; `block=False` retains history. Blocking views use an alternate screen; `owned_viewport(fig)` supports application-driven resize and owned-theme refresh. A cooperative `flush_events()`/`plt.pause()` pump redraws multiple figures without reading shell input.
+- **Native macOS evidence:** Six owned-viewport cases passed; opt-in Unicode history anchors passed seeded-history 9×2/9×6 resize cases; a two-figure Unicode test passed single-pump redraw, selective `plt.close` and post-child cleanup. Blocking `n`/`p` paging, fitted resize and primary-screen restoration passed eight visually inspected screenshots; page capacity stayed at four figures per page.
+- **Color evidence:** An embedded display ICC profile explains native screenshot RGB shifts; native acceptance checks now normalize tagged captures to sRGB. PR #60: **411 passed, 3 skipped** on each of Ubuntu/macOS, plus hosted Kitty graphical, Ruff, `ty` and wheel checks.
 
 ## Open boundaries
 
-- [Issue #31](https://github.com/josephcourtney/wskr/issues/31): Physical history anchors can overlap/offscreen plots. Opt-in `WSKR_KITTY_ANCHOR=unicode` passed native 9×2/9×6 yabai and one unmanaged-labelled 9×6 test (96-history). Zero-history, full unmanaged 9×2 stage evidence and other prompt geometries remain open; one zsh prompt passes. Nonblocking output is not viewport-pinned.
-- P3 implements typed theme refresh, coordinated flush and P/Q fallback (`WSKR_KITTY_PARENT=off`) without foreign input reads.
-- P1 has owned Kitty font/size/DPI/opacity probes, OSC-preferred runtime colors and cell-based font/stroke defaults; `use_profile` styles new figures only. Unowned REPLs cannot query safely; native appearance-query signoff pending.
-- Opt-in Unicode 2-figure native test: one pump updates both figures; independent `plt.close` deletes only owned images; child exit remains clean. Blank rows persist. Native 8-stage blocking navigation/resize/alt-screen restore visually passes (2240→868→2548 px); measured page capacity did not change. REPL scheduling and history controls remain P3 gaps.
-- Legacy `RichPlot` sizing can mutate figures; P3 guarantees do not extend to P4.
+- [Issue #31](https://github.com/josephcourtney/wskr/issues/31): Default physical history placement can move offscreen or overlap reflowed text. `WSKR_KITTY_ANCHOR=unicode` remains **opt-in**; it follows text rather than pinning a nonblocking plot to the viewport. Zero-history controls, independent window-mode verification and other returned-prompt geometries remain unqualified.
+- P3 still needs an actual blocking **page-capacity transition**, native appearance/theme contrast checks, and explicit REPL/IPython/pandas event-loop integration. Unowned terminal input cannot be queried or pumped autonomously.
+- **P4/P5:** Rich inline Kitty graphics and optional dependency/packaging cleanup remain incomplete. iTerm2/Sixel are not supported graphics backends.
 
-**Next:** [TODO.md](TODO.md); [P3 follow-up evidence](docs/phase3-lifecycle-acceptance-20261101.md).
+**Next:** [immediate tasks](TODO.md); [native evidence and limits](docs/phase3-native-macos-acceptance.md).
