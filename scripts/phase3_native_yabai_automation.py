@@ -385,7 +385,7 @@ class NativeController:
                 self._size(small=False)
             elif step == "retry":
                 self._verify()
-            elif step in ("dark", "light"):
+            elif step in {"dark", "light"}:
                 self._theme(light=step == "light")
             else:
                 self._verify()
@@ -504,7 +504,7 @@ class NativeController:
             self._spawn()
             result["worker"] = self._await_worker()
             result["passed_protocol_checks"] = True
-        except (OSError, ValueError, RuntimeError, TimeoutError, subprocess.TimeoutExpired) as exc:
+        except (OSError, ValueError, TypeError, RuntimeError, TimeoutError, subprocess.TimeoutExpired) as exc:
             result["error"] = str(exc)
             result["passed_protocol_checks"] = False
         finally:
