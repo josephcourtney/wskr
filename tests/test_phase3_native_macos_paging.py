@@ -13,8 +13,8 @@ from PIL import Image
 from scripts.phase3_native_macos_paging import (
     _COLORS,
     _argument_parser,
-    _check_page,
     _capacity_changed,
+    _check_page,
     _color_pixels,
     _expanded_geometry,
     _figure_count,
