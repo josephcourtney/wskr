@@ -81,7 +81,10 @@ def _color_pixels(path: Path) -> list[int]:
     """Count solid tile colors in a screenshot; content ordering still needs review."""
     with Image.open(path) as source:
         pixels = np.asarray(source.convert("RGB"), dtype=np.int16)
-    return [int(np.count_nonzero(np.all(np.abs(pixels - np.asarray(rgb)) <= _COLOR_TOLERANCE, axis=2))) for _, rgb in _COLORS]
+    return [
+        int(np.count_nonzero(np.all(np.abs(pixels - np.asarray(rgb)) <= _COLOR_TOLERANCE, axis=2)))
+        for _, rgb in _COLORS
+    ]
 
 
 def _check_page(report: dict, stage: dict, index: int) -> None:
@@ -239,10 +242,7 @@ def _finish_child(process: subprocess.Popen[bytes], fd: int, directory: Path, re
     report["worker"] = worker
     if not worker["finished"] or len(worker["frames"]) != _EXPECTED_FRAMES:
         report["failures"].append("Expected six contact-sheet frames and a completed blocking session")
-    if (
-        worker["frames"]
-        and worker["frames"][0]["geometry"]["width_px"] <= worker["frames"][3]["geometry"]["width_px"]
-    ):
+    if worker["frames"] and worker["frames"][0]["geometry"]["width_px"] <= worker["frames"][3]["geometry"]["width_px"]:
         report["failures"].append("Narrowing the terminal did not reduce measured raster width")
 
 
@@ -272,7 +272,15 @@ def _main_parent(directory: Path, mode: str) -> int:
         )
         os.close(write_fd)
         _finish_child(process, read_fd, directory, report)
-    except (OSError, ValueError, AssertionError, RuntimeError, TimeoutError, KeyboardInterrupt, subprocess.SubprocessError):
+    except (
+        OSError,
+        ValueError,
+        AssertionError,
+        RuntimeError,
+        TimeoutError,
+        KeyboardInterrupt,
+        subprocess.SubprocessError,
+    ):
         (directory / "error.txt").write_text(traceback.format_exc(), encoding="utf-8")
         report["failures"].append("Paging GUI coordination failed; see error.txt")
     finally:
