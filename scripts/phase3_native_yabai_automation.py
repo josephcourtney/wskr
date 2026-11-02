@@ -188,25 +188,42 @@ class NativeController:
         )
         self.socket_path = Path(str(socket).replace("{kitty_pid}", str(self.kitty_process.pid)))
         deadline = time.monotonic() + 25
+        last_identity: tuple[int, int] | None = None
+        stable_samples = 0
         while time.monotonic() < deadline:
             if self.kitty_process.poll() is not None:
                 msg = "Dedicated Kitty process terminated before window identification"
                 raise RuntimeError(msg)
             matches = [w for w in self.query_list("--windows") if _window_matches(w, self.title)]
-            if len(matches) == _EXACTLY_ONE:
-                self.window_id = int(matches[0]["id"])
-                self.yabai("rule", "--remove", self.rule_label)
-                self.rule_installed = False
-                if self.state == "floating" and self._window().get("is-floating") is False:
-                    self.yabai("window", str(self.window_id), "--toggle", "float")
-                self._verify()
-                self._identify_kitty_window()
-                return
-            if len(matches) > 1:
+            if len(matches) > _EXACTLY_ONE:
                 msg = "Ambiguous Kitty test-window identity"
                 raise RuntimeError(msg)
+            if matches:
+                match = matches[0]
+                self.window_observations.append({
+                    "id": match.get("id"),
+                    "pid": match.get("pid"),
+                    "space": match.get("space"),
+                    "has_ax_reference": match.get("has-ax-reference"),
+                    "title": match.get("title"),
+                })
+                # macOS may publish a window record before AX can resolve it.
+                # Bind only after two consistent ready snapshots.
+                identity = (int(match["id"]), int(match["pid"]))
+                ready = match.get("has-ax-reference") is not False
+                stable_samples = stable_samples + 1 if ready and identity == last_identity else 1 if ready else 0
+                last_identity = identity
+                if stable_samples >= 2:
+                    self.window_id, self.window_owner_pid = identity
+                    self.yabai("rule", "--remove", self.rule_label)
+                    self.rule_installed = False
+                    if self.state == "floating" and self._window().get("is-floating") is False:
+                        self.yabai("window", str(self.window_id), "--toggle", "float")
+                    self._verify()
+                    self._identify_kitty_window()
+                    return
             time.sleep(_POLL_SECONDS)
-        msg = "Timed out locating the unique native Kitty test window"
+        msg = f"Kitty window did not stabilize in yabai; observations={self.window_observations[-5:]}"
         raise TimeoutError(msg)
 
     def _identify_kitty_window(self, *, timeout: float = 10.0) -> None:
