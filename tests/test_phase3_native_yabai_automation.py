@@ -139,11 +139,7 @@ def test_ambiguous_kitty_internal_windows_cannot_receive_input(tmp_path: Path, m
             [{"tabs": [{"windows": [{"id": 19}, {"id": 20}]}]}]
         ),
     )
-    monkeypatch.setattr("scripts.phase3_native_yabai_automation.time.sleep", lambda _seconds: None)
-    # Avoid a real 10-second wall-clock deadline in portable regression.
-    times = iter([0.0, 15.0])
-    monkeypatch.setattr("scripts.phase3_native_yabai_automation.time.monotonic", lambda: next(times))
     with pytest.raises(RuntimeError, match="exactly one Kitty-internal"):
-        controller._identify_kitty_window()
+        controller._identify_kitty_window(timeout=0.01)
     with pytest.raises(RuntimeError, match="not established"):
         controller._target()
