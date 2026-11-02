@@ -325,6 +325,7 @@ def test_ax_refresh_switches_away_and_back_without_kitty_focus(
         return ""
 
     monkeypatch.setattr(controller, "_spaces", lambda: [{"uuid": "previous", "index": 4}])
+    monkeypatch.setattr(controller, "_await_focused_space_uuid", lambda uuid: focus == uuid or None)
     monkeypatch.setattr(controller, "_is_owned_space_focused", lambda: focus == "owned")
     monkeypatch.setattr(controller, "_await_owned_space_focus", lambda: None)
     monkeypatch.setattr(controller, "yabai", fake_yabai)
@@ -437,3 +438,24 @@ def test_focus_race_never_mistakes_unrelated_space_for_success(tmp_path: Path, m
     monkeypatch.setattr(controller, "yabai", already_focused)
     with pytest.raises(RuntimeError, match="already focused"):
         controller._focus_owned_space()
+
+
+def test_ax_refresh_never_returns_to_owned_space_before_prior_space_activates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller = NativeController(root=tmp_path, state="unmanaged", case="resize", height=2)
+    controller.previous_uuid = "previous"
+    controller.space_uuid = "owned"
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(controller, "_is_owned_space_focused", lambda: True)
+    monkeypatch.setattr(controller, "_spaces", lambda: [{"uuid": "previous", "index": 4}])
+    monkeypatch.setattr(controller, "yabai", lambda *args: calls.append(args) or "")
+
+    def fail_activation(_uuid: str) -> None:
+        msg = "Original space not activated"
+        raise RuntimeError(msg)
+
+    monkeypatch.setattr(controller, "_await_focused_space_uuid", fail_activation)
+    with pytest.raises(RuntimeError, match="Original space not activated"):
+        controller._refresh_owned_space_accessibility()
+    assert calls == [("space", "--focus", "4")]
