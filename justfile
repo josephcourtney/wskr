@@ -101,6 +101,11 @@ native-lifecycle mode="unmanaged":
 native-paging mode="unmanaged":
   WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python -m scripts.phase3_native_macos_paging --mode '{{mode}}'
 
+# Strict P3 native acceptance: require the measured page capacity to change.
+# The terminal can be made shorter OR narrower; no exact pixel size is needed.
+native-paging-capacity mode="unmanaged":
+  WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python -m scripts.phase3_native_macos_paging --mode '{{mode}}' --require-capacity-change
+
 # Complete validation plus isolated Kitty screenshots and one run-specific ZIP.
 evidence *args:
   uv run python scripts/phase1_evidence.py {{args}}
