@@ -194,6 +194,8 @@ class NativeController:
                 self.window_id = int(matches[0]["id"])
                 self.yabai("rule", "--remove", self.rule_label)
                 self.rule_installed = False
+                if self.state == "floating" and self._window().get("is-floating") is False:
+                    self.yabai("window", str(self.window_id), "--toggle", "float")
                 self._verify()
                 self._identify_kitty_window()
                 return
@@ -256,15 +258,11 @@ class NativeController:
             msg = "An unrelated window entered the dedicated test space; aborting"
             raise RuntimeError(msg)
         if not _state_matches(window, space, self.state):
-            if self.state == "floating" and window.get("is-floating") is False:
-                self.yabai("window", str(self.window_id), "--toggle", "float")
-                window = self._window()
-            if not _state_matches(window, space, self.state):
-                msg = (
-                    f"Requested {self.state} but observed floating={window.get('is-floating')}, "
-                    f"space={space.get('type')}"
-                )
-                raise RuntimeError(msg)
+            msg = (
+                f"Requested {self.state} but observed floating={window.get('is-floating')}, "
+                f"space={space.get('type')}"
+            )
+            raise RuntimeError(msg)
         return {"window": window, "space": space, "requested_state": self.state, "verified": True}
 
     def _size(self, *, small: bool) -> None:
