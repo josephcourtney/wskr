@@ -183,16 +183,32 @@ class NativeController:
             "--mode", "unmanaged" if self.state == "unmanaged" else "yabai",
         ]
         self.commands.append({"argv": argv})
-        self.kitty_process = subprocess.Popen(  # ruff: ignore[subprocess-without-shell-equals-true] - dedicated app
-            argv, cwd=Path(__file__).resolve().parents[1], env=env
-        )
+        # Retain the process bootstrap stderr even when its GUI exits too early
+        # for yabai to provide a stable window record.
+        with (self.root / "kitty-launch.log").open("wb") as log:
+            self.kitty_process = subprocess.Popen(  # ruff: ignore[subprocess-without-shell-equals-true] - dedicated app
+                argv, cwd=Path(__file__).resolve().parents[1], env=env, stdout=log, stderr=subprocess.STDOUT
+            )
         self.socket_path = Path(str(socket).replace("{kitty_pid}", str(self.kitty_process.pid)))
+        self._await_window_identity()
+
+    def _bind_window_identity(self, identity: tuple[int, int]) -> None:
+        self.window_id, self.window_owner_pid = identity
+        self.yabai("rule", "--remove", self.rule_label)
+        self.rule_installed = False
+        if self.state == "floating" and self._window().get("is-floating") is False:
+            self.yabai("window", str(self.window_id), "--toggle", "float")
+        self._verify()
+        self._identify_kitty_window()
+
+    def _await_window_identity(self) -> None:
+        """Wait for two consistent AX-ready yabai snapshots before control."""
         deadline = time.monotonic() + 25
         last_identity: tuple[int, int] | None = None
         stable_samples = 0
         while time.monotonic() < deadline:
-            if self.kitty_process.poll() is not None:
-                msg = "Dedicated Kitty process terminated before window identification"
+            if self.kitty_process is not None and self.kitty_process.poll() is not None:
+                msg = "Dedicated Kitty process terminated before window identification; see kitty-launch.log"
                 raise RuntimeError(msg)
             matches = [w for w in self.query_list("--windows") if _window_matches(w, self.title)]
             if len(matches) > _EXACTLY_ONE:
@@ -207,20 +223,12 @@ class NativeController:
                     "has_ax_reference": match.get("has-ax-reference"),
                     "title": match.get("title"),
                 })
-                # macOS may publish a window record before AX can resolve it.
-                # Bind only after two consistent ready snapshots.
                 identity = (int(match["id"]), int(match["pid"]))
                 ready = match.get("has-ax-reference") is not False
                 stable_samples = stable_samples + 1 if ready and identity == last_identity else int(ready)
                 last_identity = identity
                 if stable_samples >= 2:
-                    self.window_id, self.window_owner_pid = identity
-                    self.yabai("rule", "--remove", self.rule_label)
-                    self.rule_installed = False
-                    if self.state == "floating" and self._window().get("is-floating") is False:
-                        self.yabai("window", str(self.window_id), "--toggle", "float")
-                    self._verify()
-                    self._identify_kitty_window()
+                    self._bind_window_identity(identity)
                     return
             else:
                 last_identity = None
