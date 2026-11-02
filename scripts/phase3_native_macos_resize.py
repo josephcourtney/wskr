@@ -387,6 +387,12 @@ def _worker_argv(directory: Path, *, mode: str, height: int, clean_scrollback: b
     ]
 
 
+def _coordinate_window_start(mode: str) -> None:
+    """Wait for explicitly requested automatic native window preparation."""
+    if native_control.enabled():
+        native_control.request("ready", case="resize", mode=mode)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("unmanaged", "yabai"), required=True)
@@ -429,8 +435,7 @@ def main() -> int:
             raise
         return 0
 
-    if native_control.enabled():
-        native_control.request("ready", case="resize", mode=args.mode)
+    _coordinate_window_start(args.mode)
     directory = Path("artifacts/phase3-native-resize") / (
         datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         + f"-{args.mode}-h{args.height}"
