@@ -54,7 +54,7 @@ def test_unknown_dialog_is_not_silently_approved() -> None:
     ],
 )
 def test_management_mode_requires_observed_yabai_state(
-    state: str, layout: str, floating: bool, expected: bool
+    state: str, layout: str, *, floating: bool, expected: bool
 ) -> None:
     assert _state_matches({"is-floating": floating}, {"type": layout}, state) is expected
 
@@ -73,13 +73,15 @@ def test_controller_rejects_unrelated_windows_on_test_space(tmp_path: Path, monk
     controller.window_id = 100
     window = {"id": 100, "title": controller.title, "app": "kitty", "space": 5, "is-floating": False}
     unrelated = {"id": 101, "title": "Unrelated", "app": "Other", "space": 5}
-    def fake_query(*args: str):
+    def fake_query(*args: str) -> dict:
         if args[:2] == ("--windows", "--window"):
             return window
         if args[:2] == ("--spaces", "--space"):
             return {"index": 5, "type": "bsp"}
-        return [window, unrelated]
+        raise AssertionError(f"Unexpected single-object query: {args!r}")
+
     monkeypatch.setattr(controller, "query", fake_query)
+    monkeypatch.setattr(controller, "query_list", lambda *_args: [window, unrelated])
     with pytest.raises(RuntimeError, match="unrelated window"):
         controller._verify()
 
@@ -88,6 +90,7 @@ def test_bridge_uses_atomic_events_and_bounded_ack(tmp_path: Path, monkeypatch) 
     (tmp_path / "events").mkdir()
     (tmp_path / "acks").mkdir()
     monkeypatch.setenv("WSKR_NATIVE_CONTROL_DIR", str(tmp_path))
+
     def controller_tick(_delay: float) -> None:
         for event_path in (tmp_path / "events").glob("*.json"):
             event = json.loads(event_path.read_text(encoding="utf-8"))
