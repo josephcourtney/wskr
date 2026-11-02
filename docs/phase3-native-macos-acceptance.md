@@ -351,3 +351,53 @@ nor qualify the 9x2 resized-stage screenshots absent their ZIP.
 Zero-history Unicode controls, explicit-close behavior, multi-figure
 redraw, and REPL integration remain open. Do not declare general viewport
 pinning or change the default anchor based on this result.
+
+## Native multi-figure lifecycle and explicit-close acceptance
+
+The separate opt-in `just native-lifecycle unmanaged` command tests
+Matplotlib's nonblocking multi-figure ownership and cleanup. It is **not** a
+resize test. Run it in a fresh **disposable** Kitty window: it deliberately
+clears that window's visible screen and saved scrollback.
+
+```sh
+git switch main && git pull --ff-only && uv sync
+just native-lifecycle unmanaged
+```
+
+The recipe selects the experimental `WSKR_KITTY_ANCHOR=unicode`, enables
+`WSKR_IDLE_REDRAW=coalesce` and fits images into measured viewport geometry.
+To compare the alternative parent mode, invoke the Python script directly
+with the same variables but `WSKR_KITTY_ANCHOR=physical` and save distinct
+evidence. Do not run simultaneous native GUI screenshot harnesses.
+
+The harness uses two independent red/blue figures and produces five
+Kitty-window screenshots, selected through the macOS window picker:
+
+1. `initial`: both figures visible after `plt.show(block=False)`.
+2. `pumped`: each figure has a changed bar height; a **single**
+   `red_fig.canvas.flush_events()` updates both queued canvases.
+3. `after_red_close`: `plt.close(red_fig)` deletes only red's placement;
+   blue must remain visible.
+4. `after_blue_close`: `plt.close(blue_fig)` deletes blue's placement;
+   neither bar should remain visible.
+5. `after_child_exit`: neither figure reappears when the plotting Python
+   process exits.
+
+The JSON evidence records PNG transmission counts by figure (1 each after
+initial show; 2 each after one pump), pixel containment, source figure
+dimensions, bounded manager image ownership and stage-specific red/blue
+pixel counts. Resource counts must be 2+2, 2+2, 0+2, then 0+0. A mismatch
+fails protocol acceptance. Color failures are recorded without dropping
+remaining screenshots. The outer command ZIPs the results under
+`artifacts/phase3-native-lifecycle/`.
+
+The test still requires inspection for overlapping images, correct prompt
+placement, text readability, retained blank cells after image deletion,
+and unintended screen clearing. Its `mode` argument merely labels
+the intended yabai configuration and does not establish it.
+
+Upload the evidence ZIP, including failed runs. A screenshot of the actual
+shell prompt **after the outer command returns** separately qualifies
+shell prompt behavior; the harness's `after_child_exit` stage cannot do so.
+Do not claim full native multi-figure or close acceptance from the portable
+tests or the availability of this script alone.
