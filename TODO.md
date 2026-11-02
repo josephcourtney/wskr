@@ -8,7 +8,7 @@ Only pending work. See [STATUS.md](STATUS.md) for accepted behavior, [PLAN.md](P
 - [ ] **Blocking paging capacity:** Run `just native-paging-capacity unmanaged` and resize until measured page capacity actually changes; verify the new `plan_sheet_pages` capacity, `n`/`p` ordering and fitted rasters, and capture the returned shell prompt. The existing eight-stage visual run held capacity at four figures per page.
 - [ ] **Cooperative shell integration:** Validate the opt-in `%load_ext wskr.render.matplotlib.ipython` post-cell pump with real interactive IPython/pandas and standard Python REPL in native Kitty. Verify `plt.ion()`, multi-figure redraw, `%unload_ext` and no foreign stdin reads; the portable host-dispatcher tests alone do not qualify an actual interactive shell.
 
-- [ ] **Native PTY verification, PR #67:** Rerun `uv run pytest -q tests/test_phase3_blocking_resize.py::test_actual_foreground_pty_redraws_when_kernel_viewport_changes -vv` and `just check` after the explicit 30-second timeout replaces the incompatible 5-second default. If the test now fails its protocol assertions, inspect captured PTY output instead of increasing timeouts again.
+- [ ] **Native yabai controller qualification:** On the automation branch run `just check`, then `just native-auto unmanaged resize 2`, `just native-auto floating resize 6`, `just native-auto bsp paging 2`, and `just native-auto float-space appearance 2`. Review complete controller and nested harness screenshot evidence; verify rule/space cleanup and returned zsh prompt. Expand to `just native-auto-matrix` only after representative cases pass. Preserve manual fallback when yabai cannot create test spaces.
 
 ## Next implementation boundary
 
