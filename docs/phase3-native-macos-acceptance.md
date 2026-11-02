@@ -366,9 +366,15 @@ just native-lifecycle unmanaged
 
 The recipe selects the experimental `WSKR_KITTY_ANCHOR=unicode`, enables
 `WSKR_IDLE_REDRAW=coalesce` and fits images into measured viewport geometry.
-To compare the alternative parent mode, invoke the Python script directly
-with the same variables but `WSKR_KITTY_ANCHOR=physical` and save distinct
-evidence. Do not run simultaneous native GUI screenshot harnesses.
+To compare the alternative parent mode, run the **module** from the
+repository root with the same environment but `WSKR_KITTY_ANCHOR=physical`:
+
+```sh
+WSKR_FIT=contain WSKR_IDLE_REDRAW=coalesce WSKR_KITTY_ANCHOR=physical \
+  MPLBACKEND=wskr_kitty uv run python -m scripts.phase3_native_macos_lifecycle --mode unmanaged
+```
+
+Save that evidence separately. Do not run simultaneous native GUI screenshot harnesses.
 
 The harness uses two independent red/blue figures and produces five
 Kitty-window screenshots, selected through the macOS window picker:
