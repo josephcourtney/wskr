@@ -94,7 +94,7 @@ native-resize-history mode="unmanaged" height="2" lines="96":
 # Opt-in native Kitty two-figure lifetime acceptance. Erases this disposable
 # test window's screen and scrollback; saves selected-window screenshot ZIP.
 native-lifecycle mode="unmanaged":
-  WSKR_FIT=contain WSKR_IDLE_REDRAW=coalesce WSKR_KITTY_ANCHOR=unicode MPLBACKEND=wskr_kitty uv run python scripts/phase3_native_macos_lifecycle.py --mode '{{mode}}'
+  WSKR_FIT=contain WSKR_IDLE_REDRAW=coalesce WSKR_KITTY_ANCHOR=unicode MPLBACKEND=wskr_kitty uv run python -m scripts.phase3_native_macos_lifecycle --mode '{{mode}}'
 
 # Complete validation plus isolated Kitty screenshots and one run-specific ZIP.
 evidence *args:

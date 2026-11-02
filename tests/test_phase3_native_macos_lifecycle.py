@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
-from scripts.phase3_native_macos_lifecycle import _assess_stage, _require_uploads
+from scripts.phase3_native_macos_lifecycle import _assess_stage, _require_uploads, _worker_command
 
 pytestmark = pytest.mark.medium
 
@@ -65,3 +69,34 @@ def test_single_pump_requires_one_new_upload_per_live_figure() -> None:
         _require_uploads({"uploads": {"red": 2, "blue": 1}}, {"red": 2, "blue": 2}, "pumped")
     with pytest.raises(AssertionError, match="queued"):
         _require_uploads({"uploads": {"red": 2, "blue": 1}}, {"red": 1, "blue": 1}, "queued")
+
+
+def test_native_lifecycle_worker_uses_module_import_context(tmp_path: Path) -> None:
+    """The worker must not repeat the direct-file import failure."""
+    argv = _worker_command(tmp_path / "evidence", "unmanaged")
+    assert argv == [
+        sys.executable,
+        "-m",
+        "scripts.phase3_native_macos_lifecycle",
+        "--worker",
+        "--mode",
+        "unmanaged",
+        "--directory",
+        str((tmp_path / "evidence").resolve()),
+    ]
+
+
+def test_native_lifecycle_entrypoint_imports_as_module() -> None:
+    """Smoke-test the actual command before checking native GUI requirements."""
+    root = Path(__file__).resolve().parents[1]
+    completed = subprocess.run(
+        [sys.executable, "-m", "scripts.phase3_native_macos_lifecycle", "--help"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=20,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert "--mode" in completed.stdout
+    assert "--worker" not in completed.stdout

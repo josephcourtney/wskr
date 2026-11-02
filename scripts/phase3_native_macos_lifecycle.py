@@ -1,6 +1,7 @@
 """Native Kitty acceptance for a two-figure event pump and explicit close.
 
-Run in a fresh *disposable* macOS Kitty window. Erases this window's
+Run with python -m scripts.phase3_native_macos_lifecycle in a fresh
+*disposable* macOS Kitty window. Erases this window's
 scrollback, captures window-only screenshots and never reads keyboard input.
 The mode label does not independently attest actual yabai management.
 """
@@ -168,6 +169,20 @@ def _worker(directory: Path, mode: str) -> None:  # ruff: ignore[too-many-statem
     _save(report, directory)
 
 
+def _worker_command(directory: Path, mode: str) -> list[str]:
+    """Relaunch as a repository module so sibling imports remain resolvable."""
+    return [
+        sys.executable,
+        "-m",
+        "scripts.phase3_native_macos_lifecycle",
+        "--worker",
+        "--mode",
+        mode,
+        "--directory",
+        str(directory.resolve()),
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("unmanaged", "yabai"), required=True)
@@ -195,15 +210,7 @@ def main() -> int:
     )
     directory.mkdir(parents=True, exist_ok=False)
     completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed local argv
-        [
-            sys.executable,
-            str(Path(__file__).resolve()),
-            "--worker",
-            "--mode",
-            args.mode,
-            "--directory",
-            str(directory.resolve()),
-        ],
+        _worker_command(directory, args.mode),
         check=False,
     )
     if completed.returncode:
