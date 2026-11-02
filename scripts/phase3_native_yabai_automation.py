@@ -162,13 +162,15 @@ class NativeController:
         deadline = time.monotonic() + _WINDOW_FOCUS_SECONDS
         while time.monotonic() < deadline:
             focused = self.query("--spaces", "--space")
-            self.focus_observations.append({
-                "stage": "space_focus",
-                "uuid": focused.get("uuid"),
-                "index": focused.get("index"),
-                "has_focus": focused.get("has-focus"),
-                "is_visible": focused.get("is-visible"),
-            })
+            self.focus_observations.append(
+                {
+                    "stage": "space_focus",
+                    "uuid": focused.get("uuid"),
+                    "index": focused.get("index"),
+                    "has_focus": focused.get("has-focus"),
+                    "is_visible": focused.get("is-visible"),
+                }
+            )
             if focused.get("uuid") == self.space_uuid and focused.get("has-focus") is not False:
                 return
             time.sleep(_POLL_SECONDS)
@@ -181,11 +183,13 @@ class NativeController:
         self._await_owned_space_focus()
         self._identify_kitty_window(timeout=3.0)
         self.kitty("focus-window", "--match", self._target())
-        self.focus_observations.append({
-            "stage": "kitty_focus",
-            "kitty_window_id": self.kitty_window_id,
-            "space_uuid": self.space_uuid,
-        })
+        self.focus_observations.append(
+            {
+                "stage": "kitty_focus",
+                "kitty_window_id": self.kitty_window_id,
+                "space_uuid": self.space_uuid,
+            }
+        )
 
     def _spawn(self) -> None:
         rule = [
@@ -251,9 +255,9 @@ class NativeController:
         self._verify()
         self._identify_kitty_window()
 
-    def _await_window_identity(self) -> None:
+    def _await_window_identity(self, *, timeout: float = 25.0) -> None:
         """Wait for two consistent AX-ready yabai snapshots before control."""
-        deadline = time.monotonic() + 25
+        deadline = time.monotonic() + timeout
         last_identity: tuple[int, int] | None = None
         stable_samples = 0
         refocused = False
