@@ -357,7 +357,7 @@ def test_persistent_no_ax_window_fails_without_binding_a_false_ready_window(
         def poll(self) -> None:
             return None
 
-    controller.kitty_process = LiveProcess()
+    monkeypatch.setattr(controller, "kitty_process", LiveProcess())
     snapshot = {
         "id": 7598,
         "pid": 32467,
