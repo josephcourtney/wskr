@@ -83,11 +83,13 @@ def _figure_count(geometry: Geometry) -> int:
     return max(len(_COLORS), plan_sheet_pages(len(_COLORS), geometry).page_size + 2)
 
 
-def _worker_argv(event_fd: int, directory: Path, figure_count: int = len(_COLORS)) -> list[str]:
+def _worker_argv(event_fd: int, directory: Path, figure_count: int = len(_COLORS), *, mode: str = "unmanaged") -> list[str]:
     return [
         sys.executable,
         "-m",
         "scripts.phase3_native_macos_paging",
+        "--mode",
+        mode,
         "--worker",
         "--event-fd",
         str(event_fd),
@@ -377,7 +379,7 @@ def _main_parent(directory: Path, mode: str) -> int:
     process: subprocess.Popen[bytes] | None = None
     try:
         process = subprocess.Popen(  # ruff: ignore[subprocess-without-shell-equals-true] - direct local module child
-            _worker_argv(write_fd, directory, report["figure_count"]),
+            _worker_argv(write_fd, directory, report["figure_count"], mode=mode),
             pass_fds=(write_fd,),
         )
         os.close(write_fd)
@@ -417,13 +419,19 @@ def _main_parent(directory: Path, mode: str) -> int:
     return 0
 
 
-def main() -> int:
+def _argument_parser() -> argparse.ArgumentParser:
+    """Expose identical parent and worker argument validation for tests."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("unmanaged", "yabai"), required=True)
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--event-fd", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--figure-count", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--directory", type=Path, help=argparse.SUPPRESS)
+    return parser
+
+
+def main() -> int:
+    parser = _argument_parser()
     args = parser.parse_args()
     if sys.platform != "darwin" or not sys.stdin.isatty() or not sys.stdout.isatty():
         parser.error("This test requires native macOS with a foreground interactive Kitty TTY")
