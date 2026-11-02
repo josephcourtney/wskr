@@ -654,3 +654,36 @@ The strict gate still records the intermediate raster and restores the
 primary screen; it does **not** independently verify the final shell
 prompt after the outer harness returns. Capture that prompt in a separate
 post-command screenshot. Do not infer acceptance from a passing JSON alone.
+
+## Native Kitty owned appearance and theme contrast qualification — pending GUI run
+
+Run `just native-appearance unmanaged` in a **fresh, disposable** Kitty
+window with `WSKR_FIT=contain`. This test clears that window's screen and
+scrollback. It requires choosing the same Kitty window for each screenshot.
+
+The outer test first asks the user to configure the window with a **dark**
+foreground/background theme. It then issues explicitly owned OSC/Kitty
+appearance queries with `probe_owned_profile(owns_input=True,
+on_unmatched=...)`, scopes those values to new pyplot figure construction,
+and captures `initial_dark.png` in `owned_viewport(fig)`.
+
+The user then changes the **same** window to a **light** theme via Kitty's
+settings or a theme reload. The test probes again, calls
+`view.refresh_theme(profile)` to update only backend-owned figure/axes,
+title/label/ticks/spines/grid colors, captures `changed_light.png`, and
+restores the primary screen. It also captures `restored_primary.png`.
+
+The report records background/foreground hex values, provenance, measured
+font/size, DPI, opacity, is-dark classification, foreground/background
+WCAG relative luminance contrast, whether owned colors changed, unmatched
+terminal-query reply byte count, capture geometry, and screenshot ICC
+metadata. It rejects unknown/hint-only foreground/background, a
+non-transition, text contrast below **4.5:1**, or no owned refresh. It
+does not assert the UI pixels or window-manager mode are correct without
+independent screenshot review.
+
+This test exercises a foreground **input-owning** client; it does not
+qualify active appearance interrogation from an unowned REPL. If native
+Kitty does not supply a given optional font/DPI/opacity field, the
+correct result is an explicit unknown provenance, not an inferred
+measurement. User-selected colors and data artists must remain intact.
