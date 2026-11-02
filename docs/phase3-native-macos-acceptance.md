@@ -581,3 +581,48 @@ the user screenshot archive.
 non-clipped fitted content across the tested resize and restoration of the
 primary screen. **Still open:** true changes in page capacity, actual
 post-harness shell prompt, and broader window-manager/terminal geometries.
+
+## ICC-aware screenshot evidence — November 2, 2026
+
+The prior 8-stage paging evidence
+`20261102T030748Z-unmanaged.zip` establishes the source of the apparent
+color mismatch. All eight unmodified macOS screenshots contain the same
+4,032-byte ICC profile named `Display`. The screenshots' raw RGB values
+are **display-profile coordinates**, not the sRGB coordinates in the PNG
+submitted to Kitty. On these captures, Pillow/LittleCMS
+`ImageCms.profileToProfile(display, sRGB)` recovers the requested colors
+to within 0–1 8-bit channel units on solid tile interiors:
+
+| Requested source sRGB | Captured display RGB | Recovered sRGB |
+| --- | --- | --- |
+| (237, 36, 68) | (218, 60, 74) | (237, 36, 68) |
+| (35, 140, 219) | (69, 138, 213) | (34, 140, 219) |
+| (55, 187, 103) | (97, 184, 111) | (55, 187, 103) |
+| (233, 138, 40) | (220, 143, 64) | (233, 138, 39) |
+
+This explains the old false-negative color counts far more specifically than
+a loose RGB tolerance. The shared `scripts/phase3_screenshot_color.py`
+reader converts tagged window captures to sRGB **before** testing palette,
+red/blue presence, and history ordering. It does **not** change the PNG
+sent to Kitty or modify the original screenshot. Every paging/resize stage
+records the conversion mode, ICC profile description, and SHA-256 of the
+embedded profile (not the profile bytes separately). Tagged screenshots
+are tested with a tight 8-unit RGB Euclidean radius and exclusive
+nearest-palette assignment. Untagged captures retain the documented
+80-unit fallback and are marked `untagged_assumed_srgb`; malformed
+embedded ICC profiles are errors, not an implicit fallback.
+
+In an offline reclassification of the eight supplied screenshots,
+the initial, previous and resized pages each yield four correct
+sRGB color tiles (approximately 37,500 classified pixels per tile);
+the next-page and expanded stages each yield the other four. The
+restored-primary screenshot has **zero** classified tile pixels.
+This supports the ICC conversion's accuracy for this particular
+profile and monitor. It does not determine exactly which process
+performed the display-space conversion (Kitty versus compositor versus
+capture), nor prove the same transform on a different monitor.
+
+The existing private original screenshots are sufficient to reproduce
+these checks; they are not committed. A future native run will additionally
+embed profile provenance in its JSON report. Keep manual screenshot review
+and the separate page-capacity/prompt acceptance limits.
