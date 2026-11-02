@@ -82,6 +82,7 @@ def _action(prompt: str) -> str:
     msg = f"Unrecognized native GUI checkpoint: {prompt}"
     raise ValueError(msg)
 
+
 class NativeController:
     """Own only a uniquely titled Kitty window and a newly created yabai space."""
 
@@ -494,6 +495,12 @@ class NativeController:
             return
         try:
             created = next(s for s in self._spaces() if s["uuid"] == self.space_uuid)
+            # Never destroy a space that an unrelated window has entered;
+            # yabai would otherwise relocate the owner's window on destruction.
+            occupied = [w for w in self.query_list("--windows") if w.get("space") == created["index"]]
+            if occupied:
+                msg = f"Owned test space still contains windows: {[w.get('id') for w in occupied]}"
+                raise RuntimeError(msg)
             self.yabai("space", "--destroy", str(created["index"]))
         except (OSError, RuntimeError, StopIteration, KeyError, subprocess.TimeoutExpired) as exc:
             self.cleanup_errors.append(f"owned test space destruction: {exc}")
