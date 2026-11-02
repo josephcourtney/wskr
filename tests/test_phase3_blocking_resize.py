@@ -129,6 +129,9 @@ def _reap(child: int) -> int:
     return status
 
 
+# This test intentionally allows a 22-second PTY transaction and up to 3 seconds
+# for child cleanup; the project-wide 5-second default is too short on macOS.
+@pytest.mark.timeout(30)
 def test_actual_foreground_pty_redraws_when_kernel_viewport_changes() -> None:
     child, master = pty.fork()
     if child == 0:
