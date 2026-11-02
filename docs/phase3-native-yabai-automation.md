@@ -291,3 +291,22 @@ Native validation is still needed to determine whether the deliberate
 Space activation repairs AX registration. The first 9×2 automation
 pass and its unresolved apparent figure-title clipping remain separate
 evidence; a successful AX recovery is **not yet established**.
+
+## Fifth local static run — November 2, 2026, 15:52 UTC
+
+User log from locally Ruff-formatted detached worktree at `7a2ce9f`:
+syntax, Ruff lint/format and `ty` **passed**. Pytest recorded
+**469 passed, 3 skipped, 1 failed**. The failing test
+`test_ax_refresh_when_previous_space_is_focused_only_activates_own_space`
+found two identical `space --focus <owned-label>` calls. In the
+inactive-owned-space branch, `_refresh_owned_space_accessibility`
+called `_focus_owned_space` once inside the branch and again after
+the branch. This is a real controller defect, correctly detected by
+the regression.
+
+Commit `090a5c4` removes the inner call. When owned is inactive the
+controller focuses it once; when owned is active it verifies an
+intermediate switch to the recorded original Space, then focuses owned
+once. **No native test ran in this attempt:** `just check && ...`
+short-circuited at pytest. Verify the new code and full suite before
+drawing any conclusion about the native AX issue.
