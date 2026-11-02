@@ -326,3 +326,28 @@ that appearance issue is independent of this placement result.
 Unicode anchoring remains opt-in, and issue #31 remains open for zero-history
 controls, independent management-mode verification as needed, complete
 shell-prompt acceptance, explicit-close cleanup, and multi-figure behavior.
+
+## Unicode-anchor native 9x2 — post-harness prompt evidence, November 1, 2026
+
+The user supplied a **separate screenshot after the outer harness returned to
+an interactive zsh shell** for the opt-in Unicode 9x2 / 96-line run labelled
+`unmanaged`. The output identifies the archive as
+`20261102T011410Z-unmanaged-h2-clean-history96.zip` and prints
+`PROTOCOL + SCREENSHOT PIXEL CHECKS PASSED`. The archive and report from
+this particular run have **not** been supplied for inspection; this is
+not independent review of all five intermediate resize stages.
+
+Visual inspection of the post-harness screenshot establishes that history
+line `WSKR_HISTORY_0095` precedes the retained bar plot, the harness
+prints its result and archive path below the plot, and the actual interactive
+zsh prompt and input cursor appear below the harness output. There is no
+visible plot/history, plot/output or plot/prompt overlap. **Post-outer-harness
+shell-prompt placement passes in this one configuration**, rather than
+merely asserting persistence after the plotting child exits.
+
+The image does not independently establish whether the window was excluded
+from yabai management (the harness `mode=unmanaged` argument is descriptive),
+nor qualify the 9x2 resized-stage screenshots absent their ZIP.
+Zero-history Unicode controls, explicit-close behavior, multi-figure
+redraw, and REPL integration remain open. Do not declare general viewport
+pinning or change the default anchor based on this result.
