@@ -98,7 +98,7 @@ def test_worker_uses_same_importable_module_and_dedicated_pipe(tmp_path: Path) -
     ]
 
 
-@pytest.mark.parametrize("mode", ("unmanaged", "yabai"))
+@pytest.mark.parametrize("mode", ["unmanaged", "yabai"])
 def test_native_paging_worker_argv_satisfies_real_argument_parser(tmp_path: Path, mode: str) -> None:
     """Catch omissions of parser-required flags before native GUI testing."""
     argv = _worker_argv(17, tmp_path, 13, mode=mode)
