@@ -15,7 +15,7 @@ import platform
 import select
 import shutil
 import signal
-import subprocess
+import subprocess  # ruff: ignore[suspicious-subprocess-import] - fixed module child on the caller's foreground TTY
 import sys
 import time
 import traceback
@@ -54,6 +54,8 @@ _MAX_SMALL_WIDTH = 560
 _MIN_COLOR_PIXELS = 1300
 _MAX_UNEXPECTED_PIXELS = 600
 _MAX_SIGNAL_SECONDS = 100
+_COLOR_TOLERANCE = 12
+_EXPECTED_FRAMES = 6
 
 
 def _worker_argv(event_fd: int, directory: Path) -> list[str]:
@@ -79,7 +81,7 @@ def _color_pixels(path: Path) -> list[int]:
     """Count solid tile colors in a screenshot; content ordering still needs review."""
     with Image.open(path) as source:
         pixels = np.asarray(source.convert("RGB"), dtype=np.int16)
-    return [int(np.count_nonzero(np.all(np.abs(pixels - np.asarray(rgb)) <= 12, axis=2))) for _, rgb in _COLORS]
+    return [int(np.count_nonzero(np.all(np.abs(pixels - np.asarray(rgb)) <= _COLOR_TOLERANCE, axis=2))) for _, rgb in _COLORS]
 
 
 def _check_page(report: dict, stage: dict, index: int) -> None:
@@ -125,7 +127,7 @@ def _wait_event(fd: int, expected: bytes, *, timeout: float = _MAX_SIGNAL_SECOND
     raise TimeoutError(msg)
 
 
-def _worker(directory: Path, event_fd: int) -> None:  # ruff: ignore[too-many-statements] - native GUI transcript
+def _worker(directory: Path, event_fd: int) -> None:
     import matplotlib as mpl  # ruff: ignore[import-outside-top-level]
 
     mpl.use("module://wskr.render.matplotlib.kitty")
@@ -226,7 +228,25 @@ def _run_sequence(fd: int, directory: Path, report: dict) -> None:
     _take_page(report, directory, "restored_primary", -1)
 
 
-def _main_parent(directory: Path, mode: str) -> int:  # ruff: ignore[too-many-statements] - GUI coordinator
+def _finish_child(process: subprocess.Popen[bytes], fd: int, directory: Path, report: dict) -> None:
+    """Complete the GUI transcript and qualify transmitted pages."""
+    _run_sequence(fd, directory, report)
+    code = process.wait(timeout=10)
+    if code != 0:
+        report["failures"].append(f"Plotting worker exited {code}")
+        return
+    worker = json.loads((directory / "worker.json").read_text(encoding="utf-8"))
+    report["worker"] = worker
+    if not worker["finished"] or len(worker["frames"]) != _EXPECTED_FRAMES:
+        report["failures"].append("Expected six contact-sheet frames and a completed blocking session")
+    if (
+        worker["frames"]
+        and worker["frames"][0]["geometry"]["width_px"] <= worker["frames"][3]["geometry"]["width_px"]
+    ):
+        report["failures"].append("Narrowing the terminal did not reduce measured raster width")
+
+
+def _main_parent(directory: Path, mode: str) -> int:
     directory.mkdir(parents=True, exist_ok=False)
     report: dict = {
         "mode": mode,
@@ -251,19 +271,8 @@ def _main_parent(directory: Path, mode: str) -> int:  # ruff: ignore[too-many-st
             pass_fds=(write_fd,),
         )
         os.close(write_fd)
-        _run_sequence(read_fd, directory, report)
-        code = process.wait(timeout=10)
-        if code != 0:
-            report["failures"].append(f"Plotting worker exited {code}")
-        else:
-            worker = json.loads((directory / "worker.json").read_text(encoding="utf-8"))
-            report["worker"] = worker
-            if not worker["finished"] or len(worker["frames"]) != 6:
-                report["failures"].append("Expected six contact-sheet frames and a completed blocking session")
-            if worker["frames"]:
-                if worker["frames"][0]["geometry"]["width_px"] <= worker["frames"][3]["geometry"]["width_px"]:
-                    report["failures"].append("Narrowing the terminal did not reduce measured raster width")
-    except BaseException:
+        _finish_child(process, read_fd, directory, report)
+    except (OSError, ValueError, AssertionError, RuntimeError, TimeoutError, KeyboardInterrupt, subprocess.SubprocessError):
         (directory / "error.txt").write_text(traceback.format_exc(), encoding="utf-8")
         report["failures"].append("Paging GUI coordination failed; see error.txt")
     finally:
