@@ -306,7 +306,7 @@ def test_fitted_kitty_anchor_survives_replacement_and_static_exit(monkeypatch) -
     assert first is not None
     assert any(f"a=T,f=100,t=d,i={anchor[0]}".encode() in x and b"c=32,r=5" in x for x in frames)
     assert any(f"P={anchor[0]},Q={anchor[1]}".encode() in x for x in frames)
-    assert not any(b"\\x1b[H" in x or b"\\x1b[?1049" in x for x in frames)
+    assert not any(b"\x1b[H" in x or b"\x1b[?1049" in x for x in frames)
 
     transport.send_anchored_image(source.getvalue())
     second = transport._display_image_id
@@ -386,9 +386,9 @@ def test_opt_in_unicode_parent_follows_history_cell_and_preserves_child_lifecycl
     assert any(b"a=p," in x and b"U=1" in x and b"c=1,r=1" in x for x in packets)
     glyph = chr(0x10EEEE).encode("utf-8")
     assert sum(glyph in x for x in packets) == 1
-    assert any(glyph in x and x.endswith(b"\\r\\n" * 5) for x in packets)
+    assert any(glyph in x and x.endswith(b"\r\n" * 5) for x in packets)
     assert any(f"P={anchor[0]},Q={anchor[1]}".encode() in x for x in packets)
-    assert not any(b"\\x1b[H" in x or b"\\x1b[?1049" in x for x in packets)
+    assert not any(b"\x1b[H" in x or b"\x1b[?1049" in x for x in packets)
 
     transport.send_anchored_image(dummy_png)
     assert transport._anchor == anchor
