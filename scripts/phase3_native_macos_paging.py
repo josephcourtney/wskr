@@ -54,28 +54,38 @@ _RESTORE_FRACTION = 0.85
 _MIN_COLOR_PIXELS = 1300
 _MAX_UNEXPECTED_PIXELS = 600
 _MAX_SIGNAL_SECONDS = 100
-_COLOR_TOLERANCE = 12
+_COLOR_TOLERANCE = 80
+_SCREENSHOT_SAMPLE_STEP = 2
+_GENERATED_CHANNEL_LEVELS = (64, 96, 128, 160, 192, 224, 255)
+_MIN_GENERATED_BRIGHTNESS = 192
 _EXPECTED_FRAMES = 6
-_MIN_TILE_CHANNEL_SPREAD = 30
+_MIN_TILE_CHANNEL_SPREAD = 80
 _MIN_TERMINAL_ROWS = 4
 
 
 def _palette(count: int) -> tuple[tuple[str, tuple[int, int, int]], ...]:
-    """Generate distinguishable solid tiles for any measured page capacity."""
+    """Generate widely separated bright colors for arbitrary page capacities."""
     colors = list(_COLORS)
     if count <= len(colors):
         return tuple(colors[:count])
-    for red, green, blue in product((40, 80, 120, 160, 200, 240), repeat=3):
-        rgb = (red, green, blue)
-        if max(rgb) - min(rgb) < _MIN_TILE_CHANNEL_SPREAD:
-            continue  # Avoid gray tiles matching terminal chrome or prompt.
-        if any(all(abs(a - b) <= 2 * _COLOR_TOLERANCE for a, b in zip(rgb, prior, strict=True)) for _, prior in colors):
-            continue
+    candidates = [
+        (red, green, blue)
+        for red, green, blue in product(_GENERATED_CHANNEL_LEVELS, repeat=3)
+        if max(red, green, blue) >= _MIN_GENERATED_BRIGHTNESS
+        and max(red, green, blue) - min(red, green, blue) >= _MIN_TILE_CHANNEL_SPREAD
+    ]
+    while len(colors) < count and candidates:
+
+        def separation(rgb: tuple[int, int, int]) -> int:
+            return min(sum((a - b) ** 2 for a, b in zip(rgb, previous, strict=True)) for _, previous in colors)
+
+        rgb = max(candidates, key=separation)
+        candidates.remove(rgb)
         colors.append((f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}", rgb))
-        if len(colors) == count:
-            return tuple(colors)
-    msg = f"Not enough unique test colors for {count} figures"
-    raise ValueError(msg)
+    if len(colors) != count:
+        msg = f"Not enough distinct test colors for {count} figures"
+        raise ValueError(msg)
+    return tuple(colors)
 
 
 def _figure_count(geometry: Geometry) -> int:
@@ -109,13 +119,27 @@ def _figures_on_page(geometry: Geometry, page_index: int, count: int = len(_COLO
 
 
 def _color_pixels(path: Path, count: int = len(_COLORS)) -> list[int]:
-    """Count selected test tile colors; visual ordering still needs review."""
+    """Classify screenshot tiles by nearest RGB color with conversion tolerance.
+
+    Native macOS captures can transform source PNG colors through a display
+    profile. Exact RGB comparisons falsely call visibly present panels absent.
+    Assign each sampled pixel to its one nearest palette color, so expanded
+    tolerances cannot double-count adjacent colors or ordinary terminal text.
+    """
     with Image.open(path) as source:
-        pixels = np.asarray(source.convert("RGB"), dtype=np.int16)
-    return [
-        int(np.count_nonzero(np.all(np.abs(pixels - np.asarray(rgb)) <= _COLOR_TOLERANCE, axis=2)))
-        for _, rgb in _palette(count)
-    ]
+        pixels = np.asarray(source.convert("RGB"))[::_SCREENSHOT_SAMPLE_STEP, ::_SCREENSHOT_SAMPLE_STEP].astype(
+            np.int16
+        )
+    best_squared = np.full(pixels.shape[:2], _COLOR_TOLERANCE**2 + 1, dtype=np.int32)
+    best_index = np.full(pixels.shape[:2], -1, dtype=np.int16)
+    for index, (_, rgb) in enumerate(_palette(count)):
+        delta = pixels.astype(np.int32) - np.asarray(rgb, dtype=np.int32)
+        squared = np.sum(delta * delta, axis=2, dtype=np.int32)
+        selected = (squared < best_squared) & (squared <= _COLOR_TOLERANCE**2)
+        best_squared[selected] = squared[selected]
+        best_index[selected] = index
+    counts = np.bincount(best_index[best_index >= 0], minlength=count)
+    return (counts * _SCREENSHOT_SAMPLE_STEP**2).tolist()
 
 
 def _check_page(report: dict, stage: dict, index: int) -> None:

@@ -538,3 +538,46 @@ the constructed subprocess arguments actually satisfy the production
 argument parser for both `unmanaged` and `yabai`. Repeat
 `just native-paging unmanaged` in a fresh disposable Kitty window;
 full native screenshot acceptance remains pending.
+
+## Native blocking paging — first complete visual sequence, November 1, 2026
+
+User evidence: `20261102T030748Z-unmanaged.zip` on macOS 27.0.1
+in a Kitty window labelled unmanaged (the harness does not independently
+verify yabai state). The eight genuine Kitty-window screenshots and
+`report.json`/`worker.json` were inspected. **The navigation, fitted resize,
+and alternate-screen restoration are visually correct in this run.**
+
+| Stage | Terminal pixels and cells | Transmitted raster | Visible output |
+| --- | --- | --- | --- |
+| `primary_before` | 2240×486, 160×18 | No graphic | Original primary-screen sentinel |
+| `initial_page` | 2240×486, 160×18 | 2240×432 | Figures 1–4, page 1/3 |
+| `next_page` | 2240×486, 160×18 | 2240×432 | Figures 5–8, page 2/3 |
+| `previous_page` | 2240×486, 160×18 | 2240×432 | Figures 1–4, page 1/3 |
+| `resized_page` | 868×486, 62×18 | 868×432 | Figures 1–4, fitted |
+| `next_page_small` | 868×486, 62×18 | 868×432 | Figures 5–8, fitted |
+| `expanded_page` | 2548×486, 182×18 | 2548×432 | Figures 5–8 |
+| `restored_primary` | 2548×486, 182×18 | No graphic | Original sentinel and `WSKR_PAGING_DONE` |
+
+The worker produced all six expected PNG receipts, each with an individually
+recorded SHA-256 and measured geometry; `finished: true`. The terminal
+height remained 486 px. `page_capacity_changed: false`: four figures still
+fit on each page when narrowed, so this run does **not** qualify an actual
+page-capacity change or two-column to one-column transition. The screenshot
+after alternate-screen restoration does not show the full interactive shell
+prompt after the outer harness returns.
+
+The original acceptance result was **false negative**. macOS window capture
+transformed panel colors compared with the requested Matplotlib RGB.
+For example, source red `(237, 36, 68)` was captured as `(218, 60, 74)`.
+The former 12-unit per-channel pixel check returned zero counts despite
+visibly present figures. Other visible panel colors showed similar shifts.
+The fixed detector assigns sampled pixels exclusively to their nearest
+palette entry within bounded RGB distance, retains wrong-page/ghost
+rejection, and uses brighter, more separated generated colors for tall
+windows. Tests use synthetic color-converted pixels rather than committing
+the user screenshot archive.
+
+**Qualified by screenshot inspection:** page navigation via `n`/`p`,
+non-clipped fitted content across the tested resize and restoration of the
+primary screen. **Still open:** true changes in page capacity, actual
+post-harness shell prompt, and broader window-manager/terminal geometries.
