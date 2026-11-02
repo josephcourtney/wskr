@@ -346,3 +346,28 @@ def test_space_focus_must_be_verified_not_inferred_from_command_success(
     with pytest.raises(RuntimeError, match="did not become active"):
         controller._await_owned_space_focus()
     assert controller.focus_observations[-1]["uuid"] == "unrelated"
+
+
+def test_persistent_no_ax_window_fails_without_binding_a_false_ready_window(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller = NativeController(root=tmp_path, state="unmanaged", case="resize", height=2)
+
+    class LiveProcess:
+        def poll(self) -> None:
+            return None
+
+    controller.kitty_process = LiveProcess()
+    snapshot = {
+        "id": 7598,
+        "pid": 32467,
+        "app": "kitty",
+        "title": controller.title,
+        "space": 2,
+        "has-ax-reference": False,
+    }
+    monkeypatch.setattr(controller, "query_list", lambda *_args: [snapshot])
+    with pytest.raises(TimeoutError, match="usable yabai Accessibility reference"):
+        controller._await_window_identity(timeout=0.02)
+    assert controller.window_id is None
+    assert controller.window_observations[-1]["has_ax_reference"] is False
