@@ -22,6 +22,7 @@ import traceback
 from dataclasses import asdict
 from datetime import UTC, datetime
 from io import BytesIO
+from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
@@ -46,19 +47,43 @@ _COLORS = (
     ("#cb598c", (203, 89, 140)),
     ("#879de8", (135, 157, 232)),
 )
-_MIN_START_WIDTH = 950
-_MIN_START_HEIGHT = 520
-_MAX_START_HEIGHT = 650
-_MIN_SMALL_WIDTH = 500
-_MAX_SMALL_WIDTH = 560
+_MIN_USABLE_WIDTH = 400
+_MIN_USABLE_HEIGHT = 240
+_SHRINK_FRACTION = 0.85
+_RESTORE_FRACTION = 0.85
 _MIN_COLOR_PIXELS = 1300
 _MAX_UNEXPECTED_PIXELS = 600
 _MAX_SIGNAL_SECONDS = 100
 _COLOR_TOLERANCE = 12
 _EXPECTED_FRAMES = 6
+_MIN_TILE_CHANNEL_SPREAD = 30
+_MIN_TERMINAL_ROWS = 4
 
 
-def _worker_argv(event_fd: int, directory: Path) -> list[str]:
+def _palette(count: int) -> tuple[tuple[str, tuple[int, int, int]], ...]:
+    """Generate distinguishable solid tiles for any measured page capacity."""
+    colors = list(_COLORS)
+    if count <= len(colors):
+        return tuple(colors[:count])
+    for red, green, blue in product((40, 80, 120, 160, 200, 240), repeat=3):
+        rgb = (red, green, blue)
+        if max(rgb) - min(rgb) < _MIN_TILE_CHANNEL_SPREAD:
+            continue  # Avoid gray tiles matching terminal chrome or prompt.
+        if any(all(abs(a - b) <= 2 * _COLOR_TOLERANCE for a, b in zip(rgb, prior, strict=True)) for _, prior in colors):
+            continue
+        colors.append((f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}", rgb))
+        if len(colors) == count:
+            return tuple(colors)
+    msg = f"Not enough unique test colors for {count} figures"
+    raise ValueError(msg)
+
+
+def _figure_count(geometry: Geometry) -> int:
+    """Ensure more test figures than can fit on the initial page."""
+    return max(len(_COLORS), plan_sheet_pages(len(_COLORS), geometry).page_size + 2)
+
+
+def _worker_argv(event_fd: int, directory: Path, figure_count: int = len(_COLORS)) -> list[str]:
     return [
         sys.executable,
         "-m",
@@ -68,29 +93,32 @@ def _worker_argv(event_fd: int, directory: Path) -> list[str]:
         str(event_fd),
         "--directory",
         str(directory.resolve()),
+        "--figure-count",
+        str(figure_count),
     ]
 
 
-def _figures_on_page(geometry: Geometry, page_index: int) -> list[int]:
-    plan = plan_sheet_pages(len(_COLORS), geometry)
-    selection = plan.page_slice(min(page_index, plan.total_pages - 1))
-    return list(range(selection.start, min(selection.stop, len(_COLORS))))
+def _figures_on_page(geometry: Geometry, page_index: int, count: int = len(_COLORS)) -> list[int]:
+    plan = plan_sheet_pages(count, geometry)
+    selection = plan.page_slice(page_index)
+    return list(range(selection.start, min(selection.stop, count)))
 
 
-def _color_pixels(path: Path) -> list[int]:
-    """Count solid tile colors in a screenshot; content ordering still needs review."""
+def _color_pixels(path: Path, count: int = len(_COLORS)) -> list[int]:
+    """Count selected test tile colors; visual ordering still needs review."""
     with Image.open(path) as source:
         pixels = np.asarray(source.convert("RGB"), dtype=np.int16)
     return [
         int(np.count_nonzero(np.all(np.abs(pixels - np.asarray(rgb)) <= _COLOR_TOLERANCE, axis=2)))
-        for _, rgb in _COLORS
+        for _, rgb in _palette(count)
     ]
 
 
 def _check_page(report: dict, stage: dict, index: int) -> None:
-    visible = _figures_on_page(_geometry_from_stage(stage), index)
+    count = report.get("figure_count", len(_COLORS))
+    visible = _figures_on_page(_geometry_from_stage(stage), index, count)
     stage["expected_figures"] = visible
-    stage["color_pixels"] = _color_pixels(Path(stage["screenshot"]))
+    stage["color_pixels"] = _color_pixels(Path(stage["screenshot"]), count)
     for number, count in enumerate(stage["color_pixels"]):
         if number in visible and count < _MIN_COLOR_PIXELS:
             report["failures"].append(f"{stage['stage']}: expected figure {number + 1}, got {count} pixels")
@@ -109,7 +137,7 @@ def _take_page(report: dict, directory: Path, stage: str, page_index: int) -> No
     if page_index >= 0:
         _check_page(report, evidence, page_index)
     else:
-        evidence["color_pixels"] = _color_pixels(Path(evidence["screenshot"]))
+        evidence["color_pixels"] = _color_pixels(Path(evidence["screenshot"]), report.get("figure_count", len(_COLORS)))
         if any(count > _MAX_UNEXPECTED_PIXELS for count in evidence["color_pixels"]):
             report["failures"].append(f"{stage}: contact-sheet tile remained on the primary screen")
     _save(report, directory)
@@ -124,13 +152,59 @@ def _wait_event(fd: int, expected: bytes, *, timeout: float = _MAX_SIGNAL_SECOND
             signal_byte = os.read(fd, 1)
             if signal_byte == expected:
                 return
+            if signal_byte == b"F":
+                continue  # A delayed resize event is not a completed restore.
             msg = f"Expected worker event {expected!r}, received {signal_byte!r}"
             raise RuntimeError(msg)
     msg = f"Worker did not send {expected!r} within the bounded GUI interaction window"
     raise TimeoutError(msg)
 
 
-def _worker(directory: Path, event_fd: int) -> None:
+def _latest_frame(directory: Path) -> dict | None:
+    """Read the latest complete native render receipt, if available."""
+    path = directory / "worker.json"
+    if not path.is_file():
+        return None
+    try:
+        frames = json.loads(path.read_text(encoding="utf-8"))["frames"]
+    except (OSError, json.JSONDecodeError, KeyError):
+        return None
+    return frames[-1] if frames else None
+
+
+def _drain_events(fd: int) -> None:
+    """Discard obsolete resize signals without reading Kitty stdin."""
+    while select.select([fd], [], [], 0)[0]:
+        if not os.read(fd, 4096):
+            return
+
+
+def _wait_render(fd: int, directory: Path, prior: str, geometry: Geometry | None = None) -> dict:
+    """Match a new PNG receipt, not an arbitrary queued resize notification."""
+    deadline = time.monotonic() + _MAX_SIGNAL_SECONDS
+    while time.monotonic() < deadline:
+        frame = _latest_frame(directory)
+        if frame is not None and frame["sha256"] != prior:
+            measured = frame["geometry"]
+            if geometry is None or (
+                measured["width_px"] == geometry.width_px and measured["height_px"] == geometry.height_px
+            ):
+                _drain_events(fd)
+                return frame
+        remaining = deadline - time.monotonic()
+        if remaining > 0 and select.select([fd], [], [], min(1.0, remaining))[0]:
+            received = os.read(fd, 4096)
+            if not received:
+                msg = "Plotting child closed before expected new page PNG"
+                raise RuntimeError(msg)
+            if b"R" in received:
+                msg = "Plotting child restored the terminal before the expected page render"
+                raise RuntimeError(msg)
+    msg = "No matching new page PNG was transmitted after the requested navigation or resize"
+    raise TimeoutError(msg)
+
+
+def _worker(directory: Path, event_fd: int, figure_count: int) -> None:
     import matplotlib as mpl  # ruff: ignore[import-outside-top-level]
 
     mpl.use("module://wskr.render.matplotlib.kitty")
@@ -141,7 +215,7 @@ def _worker(directory: Path, event_fd: int) -> None:
     plt.ioff()
     figures = []
     original = []
-    for number, (color, _) in enumerate(_COLORS, start=1):
+    for number, (color, _) in enumerate(_palette(figure_count), start=1):
         fig = plt.figure(figsize=(3, 2), dpi=80, facecolor=color)
         fig.text(0.5, 0.5, f"Figure {number}", fontsize=32, ha="center", va="center", color="white")
         figures.append(fig)
@@ -185,46 +259,67 @@ def _worker(directory: Path, event_fd: int) -> None:
 
 
 def _start_geometry() -> Geometry:
+    """Require only an ordinary usable Kitty window, not an exact height."""
     return _until_valid(
-        "Set Kitty at least 950 physical pixels wide and 520-650 pixels high; click Continue",
-        lambda g: g.width_px >= _MIN_START_WIDTH and _MIN_START_HEIGHT <= g.height_px <= _MAX_START_HEIGHT,
-    )
-
-
-def _small_geometry() -> Geometry:
-    return _until_valid(
-        "Shrink Kitty to 500-560 physical pixels wide, keeping height at 520-650 px; click Continue",
+        "Use any normally sized Kitty window (at least 400x240 terminal pixels); click Continue",
         lambda g: (
-            _MIN_SMALL_WIDTH <= g.width_px <= _MAX_SMALL_WIDTH and _MIN_START_HEIGHT <= g.height_px <= _MAX_START_HEIGHT
+            g.width_px >= _MIN_USABLE_WIDTH and g.height_px >= _MIN_USABLE_HEIGHT and g.rows >= _MIN_TERMINAL_ROWS
         ),
     )
 
 
+def _small_geometry(initial: Geometry) -> Geometry:
+    """Accept any substantial width reduction; ignore cell-step rounding."""
+    target = round(initial.width_px * _SHRINK_FRACTION)
+    return _until_valid(
+        f"Make Kitty noticeably narrower (measured width below {target} px); height may stay unchanged",
+        lambda g: g.width_px <= target and g.height_px >= _MIN_USABLE_HEIGHT and g.rows >= _MIN_TERMINAL_ROWS,
+    )
+
+
+def _expanded_geometry(initial: Geometry) -> Geometry:
+    """Accept approximate restoration without requiring exact pixel dimensions."""
+    target = round(initial.width_px * _RESTORE_FRACTION)
+    return _until_valid(
+        f"Expand Kitty toward its original width (at least {target} measured px)",
+        lambda g: g.width_px >= target and g.height_px >= _MIN_USABLE_HEIGHT and g.rows >= _MIN_TERMINAL_ROWS,
+    )
+
+
 def _run_sequence(fd: int, directory: Path, report: dict) -> None:
-    _wait_event(fd, b"F")
+    first = _wait_render(fd, directory, "")
     _take_page(report, directory, "initial_page", 0)
+    report["stages"][-1]["frame_sha256"] = first["sha256"]
 
     _dialog("Click Continue, then focus Kitty and type n followed by Enter.")
-    _wait_event(fd, b"F")
+    next_frame = _wait_render(fd, directory, first["sha256"])
     _take_page(report, directory, "next_page", 1)
+    report["stages"][-1]["frame_sha256"] = next_frame["sha256"]
 
     _dialog("Click Continue, then focus Kitty and type p followed by Enter.")
-    _wait_event(fd, b"F")
+    previous = _wait_render(fd, directory, next_frame["sha256"])
     _take_page(report, directory, "previous_page", 0)
+    report["stages"][-1]["frame_sha256"] = previous["sha256"]
 
-    _dialog("Shrink Kitty to 500-560 px wide and 420-650 px high, then click Continue.")
-    _small_geometry()
-    _wait_event(fd, b"F")
+    _dialog("Make Kitty substantially narrower; you may leave its height unchanged. Click Continue after resizing.")
+    narrow = _small_geometry(_geometry_from_stage(report["stages"][0]))
+    report["narrow_geometry"] = asdict(narrow)
+    report["narrow_page_capacity"] = plan_sheet_pages(report["figure_count"], narrow).page_size
+    report["page_capacity_changed"] = report["narrow_page_capacity"] != report["initial_page_capacity"]
+    resized = _wait_render(fd, directory, previous["sha256"], narrow)
     _take_page(report, directory, "resized_page", 0)
+    report["stages"][-1]["frame_sha256"] = resized["sha256"]
 
     _dialog("Click Continue, focus Kitty and type n followed by Enter at the narrow size.")
-    _wait_event(fd, b"F")
+    small_next = _wait_render(fd, directory, resized["sha256"])
     _take_page(report, directory, "next_page_small", 1)
+    report["stages"][-1]["frame_sha256"] = small_next["sha256"]
 
-    _dialog("Expand Kitty beyond 950 px wide, keep 420-650 px high, then click Continue.")
-    _start_geometry()
-    _wait_event(fd, b"F")
+    _dialog("Expand Kitty approximately to its original width; its height need not change.")
+    large = _expanded_geometry(_geometry_from_stage(report["stages"][0]))
+    expanded = _wait_render(fd, directory, small_next["sha256"], large)
     _take_page(report, directory, "expanded_page", 1)
+    report["stages"][-1]["frame_sha256"] = expanded["sha256"]
 
     _dialog("Click Continue, focus Kitty and press Enter on a BLANK input line to close paging.")
     _wait_event(fd, b"R")
@@ -232,15 +327,18 @@ def _run_sequence(fd: int, directory: Path, report: dict) -> None:
 
 
 def _validate_worker(report: dict, worker: dict) -> None:
-    """Reject incomplete child evidence without indexing missing page frames."""
+    """Reject incomplete child evidence while permitting intermediate drag redraws."""
     report["worker"] = worker
     frames = worker["frames"]
-    if not worker["finished"] or len(frames) != _EXPECTED_FRAMES:
-        report["failures"].append("Expected six contact-sheet frames and a completed blocking session")
+    if not worker["finished"] or len(frames) < _EXPECTED_FRAMES:
+        report["failures"].append("Expected at least six contact-sheet frames and a completed blocking session")
         return
-    if frames[0]["geometry"]["width_px"] <= frames[3]["geometry"]["width_px"]:
+    first = frames[0]
+    smallest_viewport = min(frame["geometry"]["width_px"] for frame in frames)
+    smallest_raster = min(frame["raster"][0] for frame in frames)
+    if first["geometry"]["width_px"] <= smallest_viewport:
         report["failures"].append("Narrowing the terminal did not reduce measured viewport width")
-    if frames[0]["raster"][0] <= frames[3]["raster"][0]:
+    if first["raster"][0] <= smallest_raster:
         report["failures"].append("Narrowing the terminal did not reduce transmitted PNG width")
 
 
@@ -267,7 +365,11 @@ def _main_parent(directory: Path, mode: str) -> int:
         "passed_protocol_checks": False,
     }
     _save(report, directory)
-    _start_geometry()
+    initial = _start_geometry()
+    report["initial_geometry"] = asdict(initial)
+    report["figure_count"] = _figure_count(initial)
+    report["initial_page_capacity"] = plan_sheet_pages(report["figure_count"], initial).page_size
+    _palette(report["figure_count"])
     _clear_scrollback()
     print("WSKR_PAGING_PRIMARY_SENTINEL", flush=True)
     _take_page(report, directory, "primary_before", -1)
@@ -275,7 +377,7 @@ def _main_parent(directory: Path, mode: str) -> int:
     process: subprocess.Popen[bytes] | None = None
     try:
         process = subprocess.Popen(  # ruff: ignore[subprocess-without-shell-equals-true] - direct local module child
-            _worker_argv(write_fd, directory),
+            _worker_argv(write_fd, directory, report["figure_count"]),
             pass_fds=(write_fd,),
         )
         os.close(write_fd)
@@ -320,6 +422,7 @@ def main() -> int:
     parser.add_argument("--mode", choices=("unmanaged", "yabai"), required=True)
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--event-fd", type=int, help=argparse.SUPPRESS)
+    parser.add_argument("--figure-count", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--directory", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if sys.platform != "darwin" or not sys.stdin.isatty() or not sys.stdout.isatty():
@@ -329,10 +432,10 @@ def main() -> int:
     if os.getenv("WSKR_FIT") != "contain":
         parser.error("Use WSKR_FIT=contain")
     if args.worker:
-        if args.directory is None or args.event_fd is None:
-            parser.error("Worker requires --event-fd and --directory")
+        if args.directory is None or args.event_fd is None or args.figure_count is None:
+            parser.error("Worker requires --event-fd, --directory and --figure-count")
         try:
-            _worker(args.directory, args.event_fd)
+            _worker(args.directory, args.event_fd, args.figure_count)
         except BaseException:
             (args.directory / "worker-error.txt").write_text(traceback.format_exc(), encoding="utf-8")
             raise
