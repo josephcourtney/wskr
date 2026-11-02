@@ -24,6 +24,7 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 - Introduced provenance-aware terminal measurements, guarded OSC queries, and a pure resolver for terminal-derived Matplotlib defaults.
 
 ### Fixed
+- Live owned-theme refresh now updates backend-owned tick marks and labels, spines, and gridlines while preserving explicit decoration and data-artist colors.
 - Corrected the native blocking-paging acceptance launch and window-size constraints so genuine foreground `n`/`p`/Enter, resizing, and primary-screen restoration can be tested without requiring an exact character-cell-derived pixel height.
 - Restored the previous terminal screen after explicitly blocking Matplotlib plots close, eliminating the empty row region left by Kitty image deletion; ordinary nonblocking plots remain persistent.
 - Kept ordinary static Kitty/Matplotlib plots visible after Python exits while retaining scoped deletion for explicitly closed figures and interactive cleanup.

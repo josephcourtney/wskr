@@ -90,6 +90,49 @@ class TerminalAxes(Axes):
             self._wskr_explicit_text.add("ylabel")
         return super().set_ylabel(ylabel, fontdict=fontdict, labelpad=labelpad, loc=loc, **kwargs)
 
+    @staticmethod
+    def _can_refresh_color(previous: dict[str, Any], new: dict[str, Any], key: str) -> bool:
+        """Preserve current global rc choices against changed terminal defaults."""
+        return (
+            key in previous
+            and key in new
+            and key in mpl.rcParams
+            and mpl.rcParams[key] == mpl.rcParamsDefault[key]
+            and to_rgba(previous[key]) != to_rgba(new[key])
+        )
+
+    def _refresh_owned_ticks(self, previous: dict[str, Any], new: dict[str, Any]) -> bool:
+        """Refresh unmodified tick labels and marks; leave explicit colors alone."""
+        changed = False
+        for axis, key in ((self.xaxis, "xtick.color"), (self.yaxis, "ytick.color")):
+            if not self._can_refresh_color(previous, new, key):
+                continue
+            before = to_rgba(previous[key])
+            for tick in (*axis.get_major_ticks(), *axis.get_minor_ticks()):
+                for artist in (tick.label1, tick.label2, tick.tick1line, tick.tick2line):
+                    if to_rgba(artist.get_color()) == before:
+                        artist.set_color(new[key])
+                        changed = True
+        return changed
+
+    def _refresh_owned_lines(self, previous: dict[str, Any], new: dict[str, Any]) -> bool:
+        """Preserve user-owned spine and grid colors that diverged from defaults."""
+        changed = False
+        if self._can_refresh_color(previous, new, "axes.edgecolor"):
+            before = to_rgba(previous["axes.edgecolor"])
+            for spine in self.spines.values():
+                if to_rgba(spine.get_edgecolor()) == before:
+                    spine.set_edgecolor(new["axes.edgecolor"])
+                    changed = True
+        if self._can_refresh_color(previous, new, "grid.color"):
+            before = to_rgba(previous["grid.color"])
+            for axis in (self.xaxis, self.yaxis):
+                for line in axis.get_gridlines():
+                    if to_rgba(line.get_color()) == before:
+                        line.set_color(new["grid.color"])
+                        changed = True
+        return changed
+
     def refresh_owned_colors(self, previous: dict[str, Any], new: dict[str, Any]) -> bool:
         """Update only unchanged backend-provenance surfaces and primary labels."""
         changed = False
@@ -126,7 +169,8 @@ class TerminalAxes(Axes):
             if current_color == to_rgba(previous[key]) and current_color != to_rgba(new[key]):
                 artist.set_color(new[key])
                 changed = True
-        return changed
+        changed = self._refresh_owned_ticks(previous, new) or changed
+        return self._refresh_owned_lines(previous, new) or changed
 
     @contextmanager
     def _owner_defaults(self) -> Generator[None]:

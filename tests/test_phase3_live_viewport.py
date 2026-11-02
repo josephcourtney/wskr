@@ -302,3 +302,52 @@ def test_unowned_custom_matplotlib_figure_is_not_theme_modified(monkeypatch: pyt
         assert not view.refresh_theme(_theme("0000", "ffff"))
     assert fig.get_facecolor() == initial
     assert len(transport.frames) == 1
+
+
+def test_owned_theme_refresh_covers_tick_spine_and_grid_decorations() -> None:
+    """Owned decorations follow contrast changes; explicit artist edits survive."""
+    old = {
+        "xtick.color": "#ffffff",
+        "ytick.color": "#ffffff",
+        "axes.edgecolor": "#ffffff",
+        "grid.color": "#404040",
+        "axes.grid": True,
+    }
+    new = {
+        "xtick.color": "#000000",
+        "ytick.color": "#000000",
+        "axes.edgecolor": "#000000",
+        "grid.color": "#bfbfbf",
+    }
+
+    def rgba(color):
+        return mpl.colors.to_rgba(color)
+
+    with mpl.rc_context():
+        mpl.rcdefaults()
+        fig = TerminalFigure(figsize=(3, 2), dpi=100, _wskr_defaults=old)
+        canvas = FigureCanvasAgg(fig)
+        ax = fig.add_subplot(111)
+        ax.plot([0, 1], [1, 0], color="lime")
+        canvas.draw()
+
+        x_ticks = ax.xaxis.get_major_ticks()
+        y_ticks = ax.yaxis.get_major_ticks()
+        assert len(x_ticks) >= 2
+        assert len(y_ticks) >= 2
+        x_ticks[0].label1.set_color("magenta")
+        ax.spines["left"].set_edgecolor("orange")
+        gridlines = ax.xaxis.get_gridlines()
+        assert len(gridlines) >= 2
+        gridlines[0].set_color("cyan")
+
+        assert ax.refresh_owned_colors(old, new)
+        assert rgba(x_ticks[0].label1.get_color()) == rgba("magenta")
+        assert rgba(x_ticks[1].label1.get_color()) == rgba("#000000")
+        assert rgba(y_ticks[0].label1.get_color()) == rgba("#000000")
+        assert rgba(ax.spines["left"].get_edgecolor()) == rgba("orange")
+        assert rgba(ax.spines["right"].get_edgecolor()) == rgba("#000000")
+        assert rgba(gridlines[0].get_color()) == rgba("cyan")
+        assert rgba(gridlines[1].get_color()) == rgba("#bfbfbf")
+        assert ax.lines[0].get_color() == "lime"
+        assert not ax.refresh_owned_colors(new, new)
