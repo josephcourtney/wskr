@@ -114,7 +114,8 @@ class KittyImageManager:
         """
         self._ensure_open()
         if rows < 1:
-            raise ValueError("Unicode anchor must reserve at least one row")
+            msg = "Unicode anchor must reserve at least one row"
+            raise ValueError(msg)
         image_id = self.upload(_ANCHOR_PNG)
         try:
             placement_id = self.place(image_id, columns=1, rows=1, virtual=True)
