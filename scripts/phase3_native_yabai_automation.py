@@ -14,6 +14,7 @@ import re
 import shutil
 import subprocess  # ruff: ignore[suspicious-subprocess-import] - fixed, bounded tool argv
 import sys
+import tempfile
 import time
 import uuid
 from datetime import UTC, datetime
@@ -106,7 +107,7 @@ class NativeController:
         self.space_index: int | None = None
         self.window_id: int | None = None
         self.kitty_process: subprocess.Popen[bytes] | None = None
-        self.socket = self.root / "kitty-{kitty_pid}.sock"
+        self.socket_dir: Path | None = None
         self.socket_path: Path | None = None
         self.rule_installed = False
         self.shrinks = 0
@@ -165,10 +166,14 @@ class NativeController:
             "WSKR_KITTY_ANCHOR": "unicode",
             "MPLBACKEND": "wskr_kitty",
         }
+        # macOS AF_UNIX paths are short; a long artifacts path cannot host a
+        # usable Kitty socket. The private 0700 directory also limits access.
+        self.socket_dir = Path(tempfile.mkdtemp(prefix="wskr-native-", dir="/tmp"))
+        socket = self.socket_dir / "kitty-{kitty_pid}.sock"
         argv = [
             "kitty", "--single-instance=no", "--title", self.title,
             "--override", "allow_remote_control=socket-only",
-            "--listen-on", f"unix:{self.socket}",
+            "--listen-on", f"unix:{socket}",
             sys.executable, "-m", "scripts.phase3_native_auto_entry",
             "--case", self.case, "--height", str(self.height),
             "--mode", "unmanaged" if self.state == "unmanaged" else "yabai",
@@ -177,7 +182,7 @@ class NativeController:
         self.kitty_process = subprocess.Popen(  # ruff: ignore[subprocess-without-shell-equals-true] - dedicated app
             argv, cwd=Path(__file__).resolve().parents[1], env=env
         )
-        self.socket_path = Path(str(self.socket).replace("{kitty_pid}", str(self.kitty_process.pid)))
+        self.socket_path = Path(str(socket).replace("{kitty_pid}", str(self.kitty_process.pid)))
         deadline = time.monotonic() + 25
         while time.monotonic() < deadline:
             if self.kitty_process.poll() is not None:
@@ -433,6 +438,11 @@ class NativeController:
                 self.yabai("space", str(created["index"]), "--destroy")
             except (OSError, RuntimeError, StopIteration, KeyError, subprocess.TimeoutExpired) as exc:
                 self.cleanup_errors.append(f"owned test space destruction: {exc}")
+        if self.socket_dir is not None:
+            try:
+                shutil.rmtree(self.socket_dir)
+            except OSError as exc:
+                self.cleanup_errors.append(f"private Kitty socket cleanup: {exc}")
 
 
 def main() -> int:
