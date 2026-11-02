@@ -208,3 +208,35 @@ def test_real_foreground_pty_navigates_pages_and_restores_screen() -> None:
     assert output.index(b"\x1b[?1049h") < output.index(b"\x1b[?1049l") < output.index(b"PAGING_DONE")
     assert os.WIFEXITED(status)
     assert os.WEXITSTATUS(status) == 0
+
+
+def test_navigation_replans_if_capacity_changes_while_user_types(monkeypatch) -> None:
+    """A pending canonical line must use the new page count, not the old one."""
+    initial = Geometry(21, 80, 1120, 567)
+    narrow = Geometry(21, 40, 560, 567)
+    assert plan_sheet_pages(9, initial).total_pages == 3
+    assert plan_sheet_pages(9, narrow).total_pages == 5
+    seen: list[tuple[int, int]] = []
+
+    class Input:
+        def fileno(self) -> int:
+            return 17
+
+    commands = iter(["p", ""])
+    monkeypatch.setattr(core.sys, "stdin", Input())
+    monkeypatch.setattr("builtins.input", lambda: next(commands))
+    monkeypatch.setattr(core.select, "select", lambda *args: ([17], [], []))
+    monkeypatch.setattr(core, "read_geometry", lambda: narrow)
+    monkeypatch.setattr(
+        core, "_sheet_for_managers",
+        lambda _managers, geometry: ([], [], plan_sheet_pages(9, geometry)),
+    )
+
+    def paint(_managers, *, page_index: int = 0):
+        plan = plan_sheet_pages(9, narrow)
+        seen.append((page_index, plan.total_pages))
+        return plan
+
+    monkeypatch.setattr(core, "_redraw_foreground_figures", paint)
+    core._wait_for_foreground_resize([], initial)
+    assert seen == [(4, 5)]
