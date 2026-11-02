@@ -5,15 +5,16 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- Added experimental `WSKR_KITTY_ANCHOR=unicode` to anchor nonblocking Kitty graphics to a transparent Unicode-placeholder text cell; native macOS history-reflow tests confirm selected 9×2/9×6 cases, but the default physical placement is unchanged.
+- Added native macOS evidence workflows for multi-figure redraw and explicit close, foreground contact-sheet paging, resizing, and screen restoration; the harnesses require opt-in GUI interaction.
 - Added explicitly owned live-viewport theme refresh for backend-owned figure and axes backgrounds and primary labels, preserving explicit artist colors and figures without provenance.
 - Coordinated event-pumped redraw of multiple registered Matplotlib figures through `flush_events()`/`plt.pause()`, retaining opt-in `WSKR_IDLE_REDRAW=coalesce` and no shell-input ownership.
 - Added `WSKR_KITTY_PARENT=off` compatibility fallback for Kitty without P/Q parent-relative placements; the fallback still uses scoped image replacement and cleanup.
 - Added opt-in runtime Kitty terminal appearance queries (font family/size, physical DPI, foreground/background and opacity), guarded OSC/CSI/XTGETTCAP transactions, and scoped `use_profile(profile)` for Matplotlib figures with user-owned style precedence.
 - Added cell-derived line, marker and grid sizing, local monospace fallback, and transparent default figure surfaces when terminal background opacity is measured as translucent.
-- Added optional `WSKR_IDLE_REDRAW=coalesce` for interactive Matplotlib applications that pump `flush_events()` or `plt.pause()`, reducing repeated `draw_idle()` updates to one terminal upload per pump while retaining immediate redraw by default.
 - Added opt-in CSI 14/16 pixel-size response parsing for input-owning terminal profile callers, preserving kernel geometry precedence and measured/inferred provenance.
 - Added experimental `owned_viewport(fig)` for foreground-owned live Kitty applications. It explicitly acquires an alternate screen, permits application-driven refresh and debounced resize polling, restores shell history on exit and leaves nonblocking historical Matplotlib output unchanged. Hosted real-Kitty and six native macOS scenarios (including genuine yabai BSP) qualified resize, visibility and shell restoration.
-- Added debounced event-pumped fitted nonblocking redraw through `flush_events()` and `plt.pause()`, with persistent Kitty-relative image anchoring (Kitty 0.31+). Hosted real-Kitty screenshots verify short/tall figures through window shrink, expansion and interpreter exit without consuming terminal input.
+- Added debounced event-pumped fitted nonblocking redraw through `flush_events()` and `plt.pause()` with scoped Kitty-relative image anchoring (Kitty 0.31+). Selected hosted real-Kitty cases verify resize and process-exit persistence; physical anchors are not generally safe against native history reflow.
 - Added bounded small-terminal figure paging for fitted blocking contact sheets, using measured viewport capacity, canonical n/p+Enter navigation, stable resize recomposition and scoped Kitty image cleanup.
 - Added measured-viewport contact-sheet composition for multiple figures during explicitly fitted blocking Matplotlib sessions, with nonoverlapping tiles, one scoped Kitty display, prompt space and resize-time recomposition.
 - Added passive, debounced terminal resize repainting for explicitly fitted foreground `show(block=True)` sessions, without installing signal handlers or modifying TTY input modes; the alternate screen and image ownership remain scoped.
@@ -23,6 +24,7 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 - Introduced provenance-aware terminal measurements, guarded OSC queries, and a pure resolver for terminal-derived Matplotlib defaults.
 
 ### Fixed
+- Corrected the native blocking-paging acceptance launch and window-size constraints so genuine foreground `n`/`p`/Enter, resizing, and primary-screen restoration can be tested without requiring an exact character-cell-derived pixel height.
 - Restored the previous terminal screen after explicitly blocking Matplotlib plots close, eliminating the empty row region left by Kitty image deletion; ordinary nonblocking plots remain persistent.
 - Kept ordinary static Kitty/Matplotlib plots visible after Python exits while retaining scoped deletion for explicitly closed figures and interactive cleanup.
 - Preserved Matplotlib figure size, DPI, styling and normal exports during terminal display, even when an external window manager changes the terminal's geometry. Explicit `WSKR_SCALE` adjusts only the terminal PNG, not the figure.
@@ -36,6 +38,7 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 - Prevented legacy PTY color queries from hanging while waiting for terminal output to drain.
 
 ### Changed
+- Native screenshot checks now interpret embedded display ICC profiles and normalize captured colors to sRGB before testing figure visibility and page identity. Untagged captures retain an explicitly labelled fallback; the image bytes transmitted to Kitty are unchanged.
 - `show(block=None)` follows Matplotlib's blocking expectation for noninteractive scripts owning a foreground terminal; use `show(block=False)` for intentionally persistent nonblocking history output. Interactive or input-unowned sessions remain nonblocking.
 - Qualified both installed-wheel Matplotlib Kitty backend-selection forms and ordinary PNG/SVG exports in clean subprocesses outside the checkout.
 - Switched the primary `wskr_kitty`/`kitty` transport from external `icat` to direct Kitty graphics; retained the previous implementation as `kitty_legacy` for comparison.
