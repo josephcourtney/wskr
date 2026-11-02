@@ -11,10 +11,10 @@ Handoff: [DESIGN](DESIGN.md), [PLAN](PLAN.md), [TODO](TODO.md).
 
 ## Open boundaries
 
-- [Issue #31](https://github.com/josephcourtney/wskr/issues/31): Kitty 0.49.2 native 0/96-line history A/B shows scrollback/reflow-sensitive *visibility* in nonblocking fitted displays; the correctly transmitted image may leave the viewport. Historical output is not viewport-pinned. Native history/yabai acceptance remains open.
+- [Issue #31](https://github.com/josephcourtney/wskr/issues/31): Kitty 0.49.2 native history reflow can hide plots or overlay seeded history text despite correctly fitted PNGs. Nonblocking output is not viewport-pinned; native history/yabai acceptance remains open.
 - P3 updates are in [PR #46](https://github.com/josephcourtney/wskr/pull/46): typed theme refresh, coordinated flush and explicitly downgradable P/Q (`WSKR_KITTY_PARENT=off`). No unsolicited input or background loop.
 - P1 has owned Kitty font/size/DPI/opacity probes, OSC-preferred runtime colors and cell-based font/stroke defaults; `use_profile` styles new figures only. Unowned REPLs cannot query safely. No native appearance-query signoff.
-- Native history visibility, REPL/IPython scheduling and paging acceptance remain P3 gaps; Rich tables/panels remain P4. Rich inline panel/table graphics and reusable virtual placements remain P4; dependency/stub cleanup remains P5.
+- Native history positioning, REPL/IPython scheduling and paging remain P3 gaps; Rich inline and virtual placements remain P4; packaging cleanup remains P5.
 - Legacy `RichPlot` sizing can mutate figures; P3 guarantees do not extend to P4.
 
 **Next:** [TODO.md](TODO.md); [P3 follow-up evidence](docs/phase3-lifecycle-acceptance-20261101.md).
