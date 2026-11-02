@@ -306,7 +306,7 @@ def test_fitted_kitty_anchor_survives_replacement_and_static_exit(monkeypatch) -
     assert first is not None
     assert any(f"a=T,f=100,t=d,i={anchor[0]}".encode() in x and b"c=32,r=5" in x for x in frames)
     assert any(f"P={anchor[0]},Q={anchor[1]}".encode() in x for x in frames)
-    assert not any(b"\\x1b[H" in x or b"\\x1b[?1049" in x for x in frames)
+    assert not any(b"\x1b[H" in x or b"\x1b[?1049" in x for x in frames)
 
     transport.send_anchored_image(source.getvalue())
     second = transport._display_image_id
@@ -371,3 +371,49 @@ def test_older_kitty_compatibility_uses_scoped_physical_placements(monkeypatch, 
     transport.close()
     assert transport.manager._images == {}
     assert sum(b"a=d,d=I" in packet for packet in packets) == 12
+
+
+def test_opt_in_unicode_parent_follows_history_cell_and_preserves_child_lifecycle(monkeypatch, dummy_png) -> None:
+    """Virtual parent follows a printed glyph rather than a physical grid row."""
+    monkeypatch.setenv("WSKR_KITTY_ANCHOR", "unicode")
+    monkeypatch.delenv("WSKR_KITTY_PARENT", raising=False)
+    monkeypatch.setattr("wskr.protocol.kitty_native._placement_cells", lambda _png: (20, 5))
+    packets: list[bytes] = []
+    transport = NativeKittyTransport(writer=packets.extend)
+    transport.send_anchored_image(dummy_png)
+    anchor = transport._anchor
+    assert anchor is not None
+    assert any(b"a=p," in x and b"U=1" in x and b"c=1,r=1" in x for x in packets)
+    glyph = chr(0x10EEEE).encode("utf-8")
+    assert sum(glyph in x for x in packets) == 1
+    assert any(glyph in x and x.endswith(b"\r\n" * 5) for x in packets)
+    assert any(f"P={anchor[0]},Q={anchor[1]}".encode() in x for x in packets)
+    assert not any(b"\x1b[H" in x or b"\x1b[?1049" in x for x in packets)
+
+    transport.send_anchored_image(dummy_png)
+    assert transport._anchor == anchor
+    assert sum(glyph in x for x in packets) == 1  # Do not move the shell cursor again.
+    assert len(transport.manager._images) == 2
+    transport.retain_display()
+    transport.close()
+    assert not any(f"a=d,d=I,i={anchor[0]}".encode() in x for x in packets)
+
+
+def test_unicode_parent_opt_out_and_explicit_cleanup(monkeypatch, dummy_png) -> None:
+    monkeypatch.setenv("WSKR_KITTY_ANCHOR", "unicode")
+    monkeypatch.setattr("wskr.protocol.kitty_native._placement_cells", lambda _png: (7, 2))
+    packets: list[bytes] = []
+    transport = NativeKittyTransport(writer=packets.extend)
+    transport.send_anchored_image(dummy_png)
+    parent = transport._anchor
+    assert parent is not None
+    transport.close()
+    assert any(f"a=d,d=I,i={parent[0]}".encode() in x for x in packets)
+
+    packets.clear()
+    monkeypatch.setenv("WSKR_KITTY_PARENT", "off")
+    fallback = NativeKittyTransport(writer=packets.extend)
+    fallback.send_anchored_image(dummy_png)
+    assert fallback._anchor is None
+    assert not any(chr(0x10EEEE).encode("utf-8") in x or b"U=1" in x for x in packets)
+    fallback.close()
