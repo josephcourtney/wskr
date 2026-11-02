@@ -119,7 +119,7 @@ class KittyImageManager:
         try:
             placement_id = self.place(image_id, columns=1, rows=1, virtual=True)
             text = placeholder_rows(image_id, placement_id, columns=1, rows=1)[0]
-            self._writer(((text.encode("utf-8") + b"\r\n" * rows),))
+            self._writer((text.encode("utf-8") + b"\r\n" * rows,))
         except BaseException:
             self.remove_image(image_id)
             raise
