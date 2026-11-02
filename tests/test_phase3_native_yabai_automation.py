@@ -103,6 +103,7 @@ def test_bridge_uses_atomic_events_and_bounded_ack(tmp_path: Path, monkeypatch) 
             (tmp_path / "acks" / f"{event['id']}.json").write_text(
                 json.dumps({"ok": True, "ack": event["action"]}), encoding="utf-8"
             )
+
     monkeypatch.setattr(bridge.time, "sleep", controller_tick)
     reply = bridge.request("ready", case="resize")
     assert reply["ack"] == "ready"
@@ -271,6 +272,7 @@ def test_spawn_waits_for_two_accessibility_ready_snapshots(
     }
     observed: list[bool] = []
     snapshots = iter([False, True, True])
+
     def fake_windows(*args: str) -> list[dict]:
         assert args == ("--windows",)
         raw["has-ax-reference"] = next(snapshots, True)
@@ -288,7 +290,9 @@ def test_spawn_waits_for_two_accessibility_ready_snapshots(
     monkeypatch.setattr(controller, "query", lambda *_args: {"type": "bsp", "index": 3})
     monkeypatch.setattr(controller, "yabai", lambda *args: commands.append(args) or "")
     monkeypatch.setattr(controller, "_identify_kitty_window", lambda: None)
-    monkeypatch.setattr("scripts.phase3_native_yabai_automation.subprocess.Popen", lambda *_a, **_kw: FakeProcess())
+    monkeypatch.setattr(
+        "scripts.phase3_native_yabai_automation.subprocess.Popen", lambda *_a, **_kw: FakeProcess()
+    )
     try:
         controller._spawn()
     finally:
