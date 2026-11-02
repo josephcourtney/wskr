@@ -381,6 +381,7 @@ def test_focus_race_is_accepted_only_when_target_space_becomes_active(
     controller.space_uuid = "owned"
     states = iter([{"uuid": "previous", "has-focus": True}, {"uuid": "owned", "has-focus": True}])
     monkeypatch.setattr(controller, "query", lambda *_args: next(states))
+
     def already_focused(*_args: str) -> str:
         msg = "cannot focus an already focused space"
         raise RuntimeError(msg)
@@ -394,6 +395,7 @@ def test_focus_race_never_mistakes_unrelated_space_for_success(tmp_path: Path, m
     controller = NativeController(root=tmp_path, state="unmanaged", case="resize", height=2)
     controller.space_uuid = "owned"
     monkeypatch.setattr(controller, "query", lambda *_args: {"uuid": "other", "has-focus": True})
+
     def already_focused(*_args: str) -> str:
         msg = "cannot focus an already focused space"
         raise RuntimeError(msg)
