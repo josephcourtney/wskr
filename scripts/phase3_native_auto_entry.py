@@ -58,7 +58,9 @@ def main() -> int:
     tmp.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     tmp.replace(directory / "completed.json")
     print(f"WSKR_NATIVE_AUTO_EXIT:{completed.returncode}", flush=True)
-    # Preserve the actual prompt in the test window for post-harness evidence.
+    # A deterministic real zsh prompt is independently checkable through
+    # Kitty's window-scoped get-text API; no synthetic keyboard input needed.
+    os.environ["PROMPT"] = "WSKR_NATIVE_AUTO_PROMPT> "
     os.execv("/bin/zsh", ["/bin/zsh", "-f", "-i"])  # ruff: ignore[start-process-with-no-shell] - test-only owned terminal
     return 1
 
