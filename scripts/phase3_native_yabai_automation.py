@@ -204,9 +204,9 @@ class NativeController:
         msg = "Timed out locating the unique native Kitty test window"
         raise TimeoutError(msg)
 
-    def _identify_kitty_window(self) -> None:
+    def _identify_kitty_window(self, *, timeout: float = 10.0) -> None:
         """Bind the Kitty-internal window ID, distinct from the macOS/yabai ID."""
-        deadline = time.monotonic() + 10
+        deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             try:
                 tree = json.loads(self.kitty("ls"))
