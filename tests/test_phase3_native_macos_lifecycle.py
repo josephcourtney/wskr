@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import subprocess  # ruff: ignore[suspicious-subprocess-import] - fixed local Python argv
+import subprocess
 import sys
 from pathlib import Path
 
@@ -89,7 +89,7 @@ def test_native_lifecycle_worker_uses_module_import_context(tmp_path: Path) -> N
 def test_native_lifecycle_entrypoint_imports_as_module() -> None:
     """Smoke-test the actual command before checking native GUI requirements."""
     root = Path(__file__).resolve().parents[1]
-    completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - local fixed module command
+    completed = subprocess.run(
         [sys.executable, "-m", "scripts.phase3_native_macos_lifecycle", "--help"],
         cwd=root,
         capture_output=True,
