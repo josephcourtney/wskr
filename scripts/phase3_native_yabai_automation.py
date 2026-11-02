@@ -193,6 +193,20 @@ class NativeController:
             return
         self._await_owned_space_focus()
 
+    def _await_focused_space_uuid(self, target_uuid: str) -> None:
+        """Wait for real macOS Space activation before the next focus action."""
+        deadline = time.monotonic() + _WINDOW_FOCUS_SECONDS
+        while time.monotonic() < deadline:
+            space = self.query("--spaces", "--space")
+            self.focus_observations.append(
+                {"stage": "ax_refresh_wait", "uuid": space.get("uuid"), "has_focus": space.get("has-focus")}
+            )
+            if space.get("uuid") == target_uuid and space.get("has-focus") is not False:
+                return
+            time.sleep(_POLL_SECONDS)
+        msg = f"Space activation never completed for {target_uuid}"
+        raise RuntimeError(msg)
+
     def _refresh_owned_space_accessibility(self) -> None:
         """Generate a real space activation without focusing Kitty's app.
 
@@ -211,13 +225,10 @@ class NativeController:
                 msg = "Original space disappeared before AX recovery"
                 raise RuntimeError(msg)
             self.yabai("space", "--focus", str(previous["index"]))
-            self.focus_observations.append(
-                {"stage": "ax_refresh_away", "space_uuid": self.previous_uuid}
-            )
+            self._await_focused_space_uuid(self.previous_uuid)
+            self.focus_observations.append({"stage": "ax_refresh_away", "space_uuid": self.previous_uuid})
         self._focus_owned_space()
-        self.focus_observations.append(
-            {"stage": "ax_refresh_return", "space_uuid": self.space_uuid}
-        )
+        self.focus_observations.append({"stage": "ax_refresh_return", "space_uuid": self.space_uuid})
 
     def _spawn(self) -> None:
         rule = [
