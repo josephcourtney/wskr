@@ -58,7 +58,6 @@ _HISTORY_NEUTRAL_CHANNEL_SPREAD = 45
 _HISTORY_MAX_GLYPH_RUN_FRACTION = 0.22
 
 
-
 def _read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
