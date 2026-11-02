@@ -21,7 +21,7 @@ from wskr.core.errors import TransportRuntimeError, TransportUnavailableError
 from wskr.protocol.base import ImageProtocol
 from wskr.protocol.kitty_codec import MAX_ID, delete, placement, probe_request, transmit
 from wskr.protocol.kitty_io import query_support, send_frames
-from wskr.protocol.kitty_placeholders import MAX_VIRTUAL_PLACEMENT_ID
+from wskr.protocol.kitty_placeholders import MAX_VIRTUAL_PLACEMENT_ID, placeholder_rows
 from wskr.terminal.profile import read_geometry
 
 if TYPE_CHECKING:
@@ -102,6 +102,27 @@ class KittyImageManager:
             )
         )
         self._images[image_id] = {placement_id}
+        return image_id, placement_id
+
+    def reserve_unicode_anchor(self, *, rows: int) -> tuple[int, int]:
+        """Reserve a history-reflow-aware transparent placeholder as a parent.
+
+        The invisible 1-cell virtual image follows its Unicode text cell when
+        preceding terminal history wraps. Newlines reserve vertical room for
+        the relative child image without moving or querying a foreign cursor
+        on subsequent redraws. Experimental, opt-in only.
+        """
+        self._ensure_open()
+        if rows < 1:
+            raise ValueError("Unicode anchor must reserve at least one row")
+        image_id = self.upload(_ANCHOR_PNG)
+        try:
+            placement_id = self.place(image_id, columns=1, rows=1, virtual=True)
+            text = placeholder_rows(image_id, placement_id, columns=1, rows=1)[0]
+            self._writer(((text.encode("utf-8") + b"\r\n" * rows),))
+        except BaseException:
+            self.remove_image(image_id)
+            raise
         return image_id, placement_id
 
     def place(
@@ -256,7 +277,10 @@ class NativeKittyTransport(ImageProtocol):
             return
         new_anchor = self._anchor is None
         if new_anchor:
-            self._anchor = self.manager.reserve_anchor(columns=cells[0], rows=cells[1])
+            if os.getenv("WSKR_KITTY_ANCHOR", "physical").lower() == "unicode":
+                self._anchor = self.manager.reserve_unicode_anchor(rows=cells[1])
+            else:
+                self._anchor = self.manager.reserve_anchor(columns=cells[0], rows=cells[1])
         image_id: int | None = None
         try:
             image_id = self.manager.upload(png_bytes)
