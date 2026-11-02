@@ -141,3 +141,29 @@ terminal text. It is only a diagnostic, not a claim that ordinary
 scrollback-rich REPL use is fixed. Do not close issue #31 based on a clean-only
 pass; separately qualify normal-history usage or explicitly document its
 scrollback semantics.
+
+## Native yabai seeded-history result — November 1, 2026
+
+A user-run **yabai-managed** Kitty 0.49.2 test on macOS 27.0.1, with 96 seeded
+112-column lines and a 9×2 figure, reported `passed_protocol_checks: true`
+and `visual_failures: []`. The five actual screenshots were reviewed.
+Those automated flags are **not sufficient for visual acceptance**.
+
+| Stage | Measured terminal (pixels, cells) | PNG (pixels) | Observation |
+| --- | --- | --- | --- |
+| Initial | 2282×1890, 163×70 | 900×200 | Bars visible below line 0095 |
+| Before redraw | 616×1890, 44×70 | Original PNG | Horizontally clipped; bars partly visible |
+| Resized | 616×1890, 44×70 | 616×137 | **Both bars visible, but plot overlays wrapped history around line 0094; line 0095 appears below the image** |
+| Expanded | 2394×1890, 171×70 | 900×200 | Figure visible again below seeded history |
+| After child exit | 2394×1890, 171×70 | Retained final PNG | Figure remains visible |
+
+The viewport narrowed horizontally without losing rows. This distinguishes the
+new **history overlap** failure from the earlier narrow-and-short offscreen
+visibility failure. In particular, the resized screenshot contains 19,537 red
+and 26,208 blue chart pixels, so checking only colored-pixel presence produces
+a false acceptance. The figure overlay should not be called prompt-safe.
+
+The follow-up harness adds a conservative text-after-plot detector to fail
+this known seeded-history case; negative detection still requires manual
+screenshot review. Do not infer a specific Kitty internal implementation
+fault from these screenshots alone. See [issue #31](https://github.com/josephcourtney/wskr/issues/31).

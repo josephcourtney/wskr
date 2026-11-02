@@ -6,14 +6,16 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 from scripts.phase3_native_macos_resize import (
     _clear_scrollback,
     _colors,
     _dialog,
     _history_fixture,
+    _history_text_below_plot,
     _mostly_black,
+    _record_history_order,
     _record_visibility,
     _screenshot,
     _seed_history,
@@ -215,3 +217,52 @@ def test_seeded_history_prints_only_before_plotting(monkeypatch: pytest.MonkeyPa
     assert len(writes) == 1
     assert writes[0] == _history_fixture(2)
     assert flushed[0]
+
+
+def _history_behind_plot(path: Path, *, include_trailing_text: bool) -> None:
+    """Synthetic screenshot with bars and optional reflowed glyphs below."""
+    image = Image.new("RGB", (640, 380), (40, 45, 48))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((25, 150, 600, 252), fill="white")
+    draw.rectangle((55, 172, 260, 233), fill="red")
+    draw.rectangle((300, 166, 555, 233), fill="blue")
+    if include_trailing_text:
+        # The actual Kitty fixture prints all of its history *before* plotting.
+        # Seeing glyphs after the figure therefore diagnoses misplaced history.
+        glyph_font = ImageFont.load_default(size=20)
+        draw.text((10, 278), "WSKR_HISTORY_0095 " + "=" * 48, fill="white", font=glyph_font)
+        draw.text((10, 313), "=" * 60, fill="white", font=glyph_font)
+    image.save(path)
+
+
+def test_native_history_order_rejects_plot_overlapping_prior_history(tmp_path: Path) -> None:
+    image = tmp_path / "overlap.png"
+    _history_behind_plot(image, include_trailing_text=True)
+    assert _history_text_below_plot(image, cell_height_px=27, raster_width=616)
+
+    stage: dict = {"stage": "resized", "screenshot": str(image)}
+    report = {
+        "history_lines": 96,
+        "visual_failures": [],
+        "frames": [{"raster": [616, 137], "geometry": {"height_px": 1890, "rows": 70}}],
+    }
+    _record_history_order(report, stage)
+    assert stage["history_after_plot"]
+    assert len(report["visual_failures"]) == 1
+    assert "reflowed history" in report["visual_failures"][0]
+
+
+def test_history_order_keeps_clean_and_nonoverlapping_cases(tmp_path: Path) -> None:
+    image = tmp_path / "clean.png"
+    _history_behind_plot(image, include_trailing_text=False)
+    assert not _history_text_below_plot(image, cell_height_px=27, raster_width=616)
+    report = {
+        "history_lines": 96,
+        "visual_failures": [],
+        "frames": [{"raster": [616, 137], "geometry": {"height_px": 1890, "rows": 70}}],
+    }
+    _record_history_order(report, {"stage": "resized", "screenshot": str(image)})
+    assert report["visual_failures"] == []
+    report["history_lines"] = 0
+    _record_history_order(report, {"stage": "resized", "screenshot": str(image)})
+    assert report["visual_failures"] == []

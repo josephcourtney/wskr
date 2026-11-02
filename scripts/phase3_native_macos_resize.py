@@ -51,6 +51,11 @@ _MAX_BLANK_FRACTION = 0.95
 _SCREENSHOT_ATTEMPTS = 3
 _MAX_HISTORY_LINES = 200
 _HISTORY_PAYLOAD_WIDTH = 112
+_HISTORY_GLYPH_ROWS = 8
+_HISTORY_GLYPH_PIXELS = 70
+_HISTORY_GLYPH_CONTRAST = 70
+_HISTORY_NEUTRAL_CHANNEL_SPREAD = 45
+_HISTORY_MAX_GLYPH_RUN_FRACTION = 0.22
 
 
 def _read_json(path: Path) -> dict:
@@ -69,6 +74,63 @@ def _colors(path: Path) -> dict[str, int]:
         "red": int(np.count_nonzero((r > _RED_THRESHOLD) & (g < _OTHER_THRESHOLD) & (b < _OTHER_THRESHOLD))),
         "blue": int(np.count_nonzero((b > _RED_THRESHOLD) & (r < _OTHER_THRESHOLD) & (g < _OTHER_THRESHOLD))),
     }
+
+
+def _history_text_below_plot(path: Path, *, cell_height_px: float, raster_width: int) -> bool:
+    """Flag probable seeded-history overlap that simple bar-pixel counts miss.
+
+    The fixture emits all history *before* the plot and emits no later text.
+    Rows resembling text beneath the lowest bars therefore indicate that
+    history has reflowed into the figure's location. This conservative check
+    only detects a subset of overlaps; manual screenshot review remains
+    mandatory.
+    """
+    with Image.open(path) as source:
+        pixels = np.asarray(source.convert("RGB")).astype(np.int16)
+    red, green, blue = pixels[:, :, 0], pixels[:, :, 1], pixels[:, :, 2]
+    bars = ((red > _RED_THRESHOLD) & (green < _OTHER_THRESHOLD) & (blue < _OTHER_THRESHOLD)) | (
+        (blue > _RED_THRESHOLD) & (red < _OTHER_THRESHOLD) & (green < _OTHER_THRESHOLD)
+    )
+    colored_rows = np.flatnonzero(np.any(bars, axis=1))
+    if not colored_rows.size:
+        return False  # Existing visibility check already rejects absent bars.
+    bottom = int(colored_rows[-1]) + max(8, int(cell_height_px / 2))
+    background = np.median(pixels[: min(40, pixels.shape[0]), pixels.shape[1] // 2 :, :], axis=(0, 1))
+    neutral = np.max(pixels, axis=2) - np.min(pixels, axis=2) < _HISTORY_NEUTRAL_CHANNEL_SPREAD
+    high_contrast = np.max(np.abs(pixels - background), axis=2) > _HISTORY_GLYPH_CONTRAST
+    likely_text_rows = 0
+    for row in (neutral & high_contrast)[bottom:]:
+        if np.count_nonzero(row) < _HISTORY_GLYPH_PIXELS:
+            continue
+        edges = np.diff(np.r_[False, row, False].astype(np.int8))
+        runs = np.flatnonzero(edges == -1) - np.flatnonzero(edges == 1)
+        if runs.size and np.max(runs) < raster_width * _HISTORY_MAX_GLYPH_RUN_FRACTION:
+            likely_text_rows += 1
+            if likely_text_rows >= _HISTORY_GLYPH_ROWS:
+                return True
+    return False
+
+
+def _record_history_order(report: dict, stage: dict) -> None:
+    """Fail seeded-history acceptance if text is visible below the plot.
+
+    This catches the native macOS Kitty 0.49.2 yabai 9x2 / 96-line case,
+    where both plot colors remain visible but a reflowed history line appears
+    below the image. Non-detection does not prove prompt-safe placement.
+    """
+    if report.get("history_lines", 0) == 0 or stage["stage"] != "resized":
+        return
+    frame = report["frames"][-1]
+    metrics = frame["geometry"]
+    if _history_text_below_plot(
+        Path(stage["screenshot"]),
+        cell_height_px=metrics["height_px"] / metrics["rows"],
+        raster_width=frame["raster"][0],
+    ):
+        stage["history_after_plot"] = True
+        report.setdefault("visual_failures", []).append(
+            "resized: probable reflowed history text below/behind the plot; inspect the screenshot for overlap"
+        )
 
 
 def _mostly_black(path: Path) -> bool:
@@ -268,7 +330,9 @@ def _worker(directory: Path, height: int, mode: str, *, clean_scrollback: bool, 
         )
         _capture(report, directory, "before_redraw")
         _pump(fig, report["frames"], 2)
-        _record_visibility(report, _capture(report, directory, "resized"))
+        resized = _capture(report, directory, "resized")
+        _record_visibility(report, resized)
+        _record_history_order(report, resized)
 
         _dialog("Expand Kitty above 950 physical px wide; click Continue")
         _until_valid(
