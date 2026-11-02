@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 from scripts.phase3_native_macos_resize import (
     _clear_scrollback,
@@ -229,8 +229,9 @@ def _history_behind_plot(path: Path, *, include_trailing_text: bool) -> None:
     if include_trailing_text:
         # The actual Kitty fixture prints all of its history *before* plotting.
         # Seeing glyphs after the figure therefore diagnoses misplaced history.
-        draw.text((10, 278), "WSKR_HISTORY_0095 " + "=" * 48, fill="white")
-        draw.text((10, 313), "=" * 60, fill="white")
+        glyph_font = ImageFont.load_default(size=20)
+        draw.text((10, 278), "WSKR_HISTORY_0095 " + "=" * 48, fill="white", font=glyph_font)
+        draw.text((10, 313), "=" * 60, fill="white", font=glyph_font)
     image.save(path)
 
 
