@@ -306,24 +306,58 @@ def test_spawn_waits_for_two_accessibility_ready_snapshots(tmp_path: Path, monke
     assert ("rule", "--remove", controller.rule_label) in commands
 
 
-def test_reactivate_owned_window_uses_private_kitty_socket_and_own_space(
+def test_ax_refresh_switches_away_and_back_without_kitty_focus(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     controller = NativeController(root=tmp_path, state="unmanaged", case="resize", height=2)
+    controller.previous_uuid = "previous"
     controller.space_uuid = "owned"
-    controller.kitty_window_id = 7
+    focus = "owned"
     commands: list[tuple[str, ...]] = []
-    monkeypatch.setattr(controller, "yabai", lambda *args: commands.append(args) or "")
-    monkeypatch.setattr(controller, "kitty", lambda *args: commands.append(args) or "")
+
+    def fake_yabai(*args: str) -> str:
+        nonlocal focus
+        commands.append(args)
+        if args == ("space", "--focus", "4"):
+            focus = "previous"
+        elif args == ("space", "--focus", controller.space_label):
+            focus = "owned"
+        return ""
+
+    monkeypatch.setattr(controller, "_spaces", lambda: [{"uuid": "previous", "index": 4}])
+    monkeypatch.setattr(controller, "_is_owned_space_focused", lambda: focus == "owned")
+    monkeypatch.setattr(controller, "_await_owned_space_focus", lambda: None)
+    monkeypatch.setattr(controller, "yabai", fake_yabai)
+    controller._refresh_owned_space_accessibility()
+    assert commands == [("space", "--focus", "4"), ("space", "--focus", controller.space_label)]
+    assert focus == "owned"
+    assert controller.focus_observations[-1]["stage"] == "ax_refresh_return"
+
+
+def test_ax_refresh_when_previous_space_is_focused_only_activates_own_space(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller = NativeController(root=tmp_path, state="unmanaged", case="resize", height=2)
+    controller.previous_uuid = "previous"
+    controller.space_uuid = "owned"
+    commands: list[tuple[str, ...]] = []
     monkeypatch.setattr(controller, "_is_owned_space_focused", lambda: False)
     monkeypatch.setattr(controller, "_await_owned_space_focus", lambda: None)
-    monkeypatch.setattr(controller, "_identify_kitty_window", lambda **_kw: None)
-    controller._reactivate_owned_window()
-    assert commands == [
-        ("space", "--focus", controller.space_label),
-        ("focus-window", "--match", "id:7"),
-    ]
-    assert controller.focus_observations[-1]["kitty_window_id"] == 7
+    monkeypatch.setattr(controller, "yabai", lambda *args: commands.append(args) or "")
+    controller._refresh_owned_space_accessibility()
+    assert commands == [("space", "--focus", controller.space_label)]
+
+
+def test_ax_refresh_rejects_missing_original_space(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller = NativeController(root=tmp_path, state="unmanaged", case="resize", height=2)
+    controller.previous_uuid = "previous"
+    controller.space_uuid = "owned"
+    monkeypatch.setattr(controller, "_is_owned_space_focused", lambda: True)
+    monkeypatch.setattr(controller, "_spaces", lambda: [{"uuid": "other", "index": 4}])
+    with pytest.raises(RuntimeError, match="Original space disappeared"):
+        controller._refresh_owned_space_accessibility()
 
 
 def test_space_focus_must_be_verified_not_inferred_from_command_success(
