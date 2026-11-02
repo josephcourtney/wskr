@@ -131,6 +131,7 @@ def test_paging_worker_checks_raster_and_viewport_shrink() -> None:
     assert report["failures"] == []
 
     frames[3]["raster"][0] = 1000
+    frames[4]["raster"][0] = 1000
     report = {"failures": []}
     _validate_worker(report, {"finished": True, "frames": frames})
     assert report["failures"] == ["Narrowing the terminal did not reduce transmitted PNG width"]
@@ -172,3 +173,18 @@ def test_figure_count_also_preserves_navigation_in_one_column_tall_window() -> N
     assert plan.columns == 1
     assert plan.total_pages >= 2
     assert _figures_on_page(window, 1, count)
+
+
+def test_intermediate_drag_frames_do_not_fail_paging_validation() -> None:
+    frames = [
+        {"raster": [900, 400], "geometry": {"width_px": 1000}},
+        {"raster": [900, 400], "geometry": {"width_px": 1000}},
+        {"raster": [900, 400], "geometry": {"width_px": 1000}},
+        {"raster": [800, 400], "geometry": {"width_px": 800}},
+        {"raster": [600, 400], "geometry": {"width_px": 600}},
+        {"raster": [600, 400], "geometry": {"width_px": 600}},
+        {"raster": [900, 400], "geometry": {"width_px": 1000}},
+    ]
+    report: dict = {"failures": []}
+    _validate_worker(report, {"finished": True, "frames": frames})
+    assert report["failures"] == []
