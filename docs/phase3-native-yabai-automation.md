@@ -163,3 +163,41 @@ just native-auto unmanaged resize 2
 Attach the new `artifacts/phase3-native-yabai/...zip` when a native failure
 persists; it now contains the controller report, startup log and any
 completed nested harness evidence.
+
+## First complete unattended Kitty run — November 2, 2026
+
+User-supplied controller ZIP: `20261102T145739Z-unmanaged-resize-2.zip`,
+run in a detached verification worktree at `39fcfb0` on macOS 27.0.1.
+Both the controller and nested harness reports, all five window screenshots
+and the returned-prompt screenshot were inspected.
+
+- **Automated setup and cleanup pass:** uniquely titled Kitty OS window
+  ID 7419, PID 12014, internal Kitty ID 1, with working AX reference.
+  Verified requested `unmanaged` state as floating window in a BSP space,
+  with the explicit `manage=off` launch rule. Original window frame
+  1200×760, narrowed to 620×410 and restored to 1200×760. The controller
+  restored the previous space (index 4), destroyed its owned space (index 5),
+  and recorded no cleanup failures.
+- **Rendering/transport pass under existing thresholds:** nested harness
+  `passed_protocol_checks=true`, `visual_failures=[]`. Source rasters
+  900×200 → 609×135 → 900×200; red and blue bars remained visible after
+  redraw, expansion and child exit.
+- **Returned prompt pass:** Kitty `get-text` captured both
+  `WSKR_NATIVE_AUTO_EXIT:0` and the actual `WSKR_NATIVE_AUTO_PROMPT>`.
+  The controller also captured a full window-only screenshot of that prompt.
+- **Visual limitation:** The screenshots show the title/upper figure content
+  partly out of the visible top edge. This is **not detected** by the bar
+  pixel-count checks. Whether the transmitted Matplotlib PNG is already
+  clipped or Kitty places an intact PNG outside the visible window remains
+  unproven. The native resize harness now writes exact
+  `transmitted-frame-N.png` files to subsequent evidence ZIPs so that a
+  source/capture comparison can distinguish those mechanisms.
+
+Thus this run qualifies the tested **window automation, redraw persistence
+and post-harness shell restoration**, but not complete illustration/title
+visibility. The initial version of `just check` stopped at a single Ruff
+`magic-value-comparison` diagnostic in the controller after `just fix`;
+a named stable-window sample threshold addresses that check. Formatting and
+the full suite require a fresh run on the latest branch head. The floating,
+BSP, float-space, tall-figure, paging and appearance scenarios remain
+pending native verification.
