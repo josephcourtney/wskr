@@ -328,6 +328,10 @@ def _worker(directory: Path, height: int, mode: str, *, clean_scrollback: bool, 
         if not 0 < size[0] <= geometry.width_px or not 0 < size[1] <= geometry.height_px:
             msg = f"Raster {size} exceeds viewport {geometry}"
             raise AssertionError(msg)
+        frame_number = len(report["frames"]) + 1
+        # Retain exact source PNG bytes to distinguish plotting/layout defects
+        # from Kitty placement or macOS capture clipping.
+        (directory / f"transmitted-frame-{frame_number}.png").write_bytes(png)
         send(transport, png)
         report["frames"].append({"raster": list(size), "geometry": asdict(geometry)})
         _save(report, directory)
