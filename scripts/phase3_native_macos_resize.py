@@ -360,9 +360,7 @@ def _validate_history_args(parser: argparse.ArgumentParser, *, lines: int, clean
         parser.error("--history-lines requires --clean-scrollback in a disposable Kitty window")
 
 
-def _worker_argv(
-    directory: Path, *, mode: str, height: int, clean_scrollback: bool, history_lines: int
-) -> list[str]:
+def _worker_argv(directory: Path, *, mode: str, height: int, clean_scrollback: bool, history_lines: int) -> list[str]:
     """Launch the worker as a module so sibling scripts remain importable."""
     return [
         sys.executable,
