@@ -42,7 +42,8 @@ def test_ipython_extension_drains_all_registered_figures_once_per_cell(monkeypat
     monkeypatch.setattr(first, "_flush_one", lambda: drained.append("first"))
     monkeypatch.setattr(second, "_flush_one", lambda: drained.append("second"))
     monkeypatch.setattr(
-        ipython.Gcf, "get_all_fig_managers",
+        ipython.Gcf,
+        "get_all_fig_managers",
         lambda: [SimpleNamespace(canvas=first), SimpleNamespace(canvas=second)],
     )
     monkeypatch.setattr("builtins.input", lambda *_: pytest.fail("IPython owns stdin"))
