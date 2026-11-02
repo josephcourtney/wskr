@@ -167,3 +167,56 @@ The follow-up harness adds a conservative text-after-plot detector to fail
 this known seeded-history case; negative detection still requires manual
 screenshot review. Do not infer a specific Kitty internal implementation
 fault from these screenshots alone. See [issue #31](https://github.com/josephcourtney/wskr/issues/31).
+
+## Controlled native yabai A/B — November 1, 2026 (second comparison)
+
+The user repeated both cases after [PR #47](https://github.com/josephcourtney/wskr/pull/47)
+merged. Both ran with Kitty 0.49.2 and macOS 27.0.1 in yabai-managed
+windows, with 70 terminal rows at every stage. Each run began with cleared
+screen and scrollback and used a 9×2-inch figure.
+
+| Stage | 0 seeded history lines | 96 seeded history lines |
+| --- | --- | --- |
+| Initial | 171 columns, 2394×1890 px; 900×200 plot visible | 149 columns, 2086×1890 px; 900×200 plot visible |
+| Before redraw | 39 columns, 546×1890 px; old image clipped | 40 columns, 560×1890 px; old image clipped |
+| Resized | 546×121 plot visible with no overlapping text | **560×124 plot visible but overlaps reflowed history; line 0095 appears below** |
+| Expanded | 149 columns; 900×200 plot visible | 161 columns; 900×200 plot visible |
+| After Python exit | 900×200 plot persists | 900×200 plot persists |
+
+The 0-history run reports zero visual failures and passes. The 96-history
+run records `history_after_plot: true` with one visual failure and exits 1.
+**This nonzero exit is the intended acceptance result**, not a Python crash.
+The evidence proves a difference involving preceding history even when
+the number of terminal rows is constant. The initial and expanded widths
+were not exactly equal between conditions; do not represent this as
+pixel-identical A/B geometry. This is evidence about ordering and placement,
+not a demonstration that Kitty violated its protocol.
+
+The first test had two invalid nearly black screenshot-picker attempts for
+`before_redraw`, retried automatically. The five selected valid screenshots
+show the expected clean behavior.
+
+## Experimental Unicode parent — native signoff not yet obtained
+
+Kitty's protocol allows a one-cell transparent **virtual placement** with an
+encoded Unicode placeholder. The glyph follows terminal text when it reflows;
+a real child image can then use `P/Q` to follow that placeholder instead of
+an original physical parent.
+
+The opt-in `WSKR_KITTY_ANCHOR=unicode` experiment changes **only the first
+anchor**. It prints one transparent placeholder plus enough newlines to
+reserve the initial plot's vertical footprint. Later redraws still replace
+the child at the original parent and do not read input or reposition the
+shell cursor. The default remains `physical` and `WSKR_KITTY_PARENT=off`
+still bypasses relative positioning entirely.
+
+Test this in a **new disposable Kitty window** and compare against the
+known failing 96-history physical case:
+
+```sh
+WSKR_KITTY_ANCHOR=unicode just native-resize-history yabai 2 96
+```
+
+If successful, repeat with no history and with 9×6, verifying redraw,
+scrollback ordering, shell prompt safety, after-process persistence and
+explicit-close cleanup. This is an experiment, **not a certified fix**.
