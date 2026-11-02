@@ -76,7 +76,9 @@ def _action(prompt: str) -> str:
         return "n"
     if "type p" in value:
         return "p"
-    if any(word in value for word in ("shrink", "narrower", "shorter", "resize the kitty window", "page capacity changes")):
+    if any(
+        word in value for word in ("shrink", "narrower", "shorter", "resize the kitty window", "page capacity changes")
+    ):
         return "shrink"
     if "expand" in value:
         return "expand"
@@ -171,7 +173,9 @@ class NativeController:
             "--mode", "unmanaged" if self.state == "unmanaged" else "yabai",
         ]
         self.commands.append({"argv": argv})
-        self.kitty_process = subprocess.Popen(argv, cwd=Path(__file__).resolve().parents[1], env=env)  # ruff: ignore[subprocess-without-shell-equals-true] - dedicated application
+        self.kitty_process = subprocess.Popen(  # ruff: ignore[subprocess-without-shell-equals-true] - dedicated app
+            argv, cwd=Path(__file__).resolve().parents[1], env=env
+        )
         self.socket_path = Path(str(self.socket).replace("{kitty_pid}", str(self.kitty_process.pid)))
         deadline = time.monotonic() + 25
         while time.monotonic() < deadline:
@@ -209,7 +213,10 @@ class NativeController:
         window = self._window()
         space = self.query("--spaces", "--space", str(self.space_index))
         # Do not accidentally change a preexisting user's tiling tree.
-        others = [w for w in self.query("--windows") if w.get("space") == self.space_index and w["id"] != self.window_id]
+        others = [
+            window for window in self.query("--windows")
+            if window.get("space") == self.space_index and window["id"] != self.window_id
+        ]
         if others:
             msg = "An unrelated window entered the dedicated test space; aborting"
             raise RuntimeError(msg)
@@ -218,7 +225,10 @@ class NativeController:
                 self.yabai("window", str(self.window_id), "--toggle", "float")
                 window = self._window()
             if not _state_matches(window, space, self.state):
-                msg = f"Requested {self.state} but observed floating={window.get('is-floating')}, space={space.get('type')}"
+                msg = (
+                    f"Requested {self.state} but observed floating={window.get('is-floating')}, "
+                    f"space={space.get('type')}"
+                )
                 raise RuntimeError(msg)
         return {"window": window, "space": space, "requested_state": self.state, "verified": True}
 
@@ -351,7 +361,10 @@ class NativeController:
                     (self.root / "returned_text.txt").write_text(prompt, encoding="utf-8")
                     self._verify()
                     _invoke(
-                        ["/usr/sbin/screencapture", "-x", "-l", str(self.window_id), "-o", str(self.root / "returned_prompt.png")],
+                        [
+                            "/usr/sbin/screencapture", "-x", "-l", str(self.window_id),
+                            "-o", str(self.root / "returned_prompt.png"),
+                        ],
                         timeout=30,
                     )
                     if result["worker"]["returncode"]:
@@ -385,7 +398,9 @@ class NativeController:
             result["commands"] = self.commands
             result["space_uuid"] = self.space_uuid
             result["window_id"] = self.window_id
-            (self.root / "controller.json").write_text(json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8")
+            (self.root / "controller.json").write_text(
+                json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8"
+            )
         return result
 
     def cleanup(self) -> None:
