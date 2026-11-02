@@ -120,7 +120,7 @@ native-auto state="unmanaged" case="resize" height="2":
 # Representative automated matrix across unmanaged, floating and BSP tiling.
 # A failed run stops the matrix; no case is silently skipped.
 native-auto-matrix:
-  for mode in unmanaged floating bsp float-space; do \
+  set -e; for mode in unmanaged floating bsp float-space; do \
     for scenario in resize paging lifecycle appearance; do \
       WSKR_FIT=contain uv run python -m scripts.phase3_native_yabai_automation --state "$mode" --case "$scenario" --height 2; \
     done; \
