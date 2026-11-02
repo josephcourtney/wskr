@@ -12,6 +12,7 @@ from PIL import Image
 
 from scripts.phase3_native_macos_paging import (
     _COLORS,
+    _argument_parser,
     _check_page,
     _color_pixels,
     _expanded_geometry,
@@ -85,6 +86,8 @@ def test_worker_uses_same_importable_module_and_dedicated_pipe(tmp_path: Path) -
         sys.executable,
         "-m",
         "scripts.phase3_native_macos_paging",
+        "--mode",
+        "unmanaged",
         "--worker",
         "--event-fd",
         "17",
@@ -93,6 +96,18 @@ def test_worker_uses_same_importable_module_and_dedicated_pipe(tmp_path: Path) -
         "--figure-count",
         "9",
     ]
+
+
+@pytest.mark.parametrize("mode", ["unmanaged", "yabai"])
+def test_native_paging_worker_argv_satisfies_real_argument_parser(tmp_path: Path, mode: str) -> None:
+    """Catch omissions of parser-required flags before native GUI testing."""
+    argv = _worker_argv(17, tmp_path, 13, mode=mode)
+    args = _argument_parser().parse_args(argv[3:])
+    assert args.mode == mode
+    assert args.worker is True
+    assert args.event_fd == 17
+    assert args.directory == tmp_path.resolve()
+    assert args.figure_count == 13
 
 
 def test_native_paging_module_cli_starts_without_gui(tmp_path: Path) -> None:
