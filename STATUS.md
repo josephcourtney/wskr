@@ -11,7 +11,7 @@ Handoff: [DESIGN](DESIGN.md), [PLAN](PLAN.md), [TODO](TODO.md).
 
 ## Open boundaries
 
-- [Issue #31](https://github.com/josephcourtney/wskr/issues/31): Native Kitty 0.49.2 can hide or overlap physical history-anchored plots during reflow. Opt-in `WSKR_KITTY_ANCHOR=unicode` **passed native yabai 9×2 and 9×6/96-history** resize and persistence (PR #48); wider native/prompt acceptance remains open. Nonblocking output is not viewport-pinned.
+- [Issue #31](https://github.com/josephcourtney/wskr/issues/31): Native Kitty 0.49.2 can hide or overlap physical history-anchored plots during reflow. Opt-in `WSKR_KITTY_ANCHOR=unicode` passed native 9×2/9×6 yabai and one unmanaged-labelled 9×6 test (96-history). Zero-history, unmanaged 9×2 and final shell prompt safety remain open. Nonblocking output is not viewport-pinned.
 - P3 updates are in [PR #46](https://github.com/josephcourtney/wskr/pull/46): typed theme refresh, coordinated flush and explicitly downgradable P/Q (`WSKR_KITTY_PARENT=off`). No unsolicited input or background loop.
 - P1 has owned Kitty font/size/DPI/opacity probes, OSC-preferred runtime colors and cell-based font/stroke defaults; `use_profile` styles new figures only. Unowned REPLs cannot query safely. No native appearance-query signoff.
 - Native history positioning, REPL/IPython scheduling and paging remain P3 gaps; Rich inline and virtual placements remain P4; packaging cleanup remains P5.
