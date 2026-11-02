@@ -146,3 +146,40 @@ def test_ambiguous_kitty_internal_windows_cannot_receive_input(tmp_path: Path, m
         controller._identify_kitty_window(timeout=0.01)
     with pytest.raises(RuntimeError, match="not established"):
         controller._target()
+
+
+def test_own_space_uses_action_then_selector_for_focus(tmp_path: Path, monkeypatch) -> None:
+    controller = NativeController(root=tmp_path, state="bsp", case="resize", height=2)
+    original = {"uuid": "previous", "index": 2}
+    created = {"uuid": "new", "index": 3}
+    calls: list[tuple[str, ...]] = []
+    space_lists = iter(([original], [original, created]))
+    monkeypatch.setattr(controller, "query", lambda *_args: original)
+    monkeypatch.setattr(controller, "_spaces", lambda: next(space_lists))
+    monkeypatch.setattr(controller, "yabai", lambda *args: calls.append(args) or "")
+    controller._own_space()
+    assert controller.space_uuid == "new"
+    assert calls == [
+        ("space", "--create"),
+        ("space", "3", "--label", controller.space_label),
+        ("space", controller.space_label, "--layout", "bsp"),
+        ("space", "--focus", controller.space_label),
+    ]
+
+
+def test_cleanup_uses_action_then_selector_for_exact_owned_space(tmp_path: Path, monkeypatch) -> None:
+    controller = NativeController(root=tmp_path, state="floating", case="lifecycle", height=2)
+    controller.previous_uuid = "original"
+    controller.space_uuid = "owned"
+    spaces = [
+        {"uuid": "original", "index": 2},
+        {"uuid": "owned", "index": 5},
+        {"uuid": "unrelated", "index": 6},
+    ]
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(controller, "_spaces", lambda: spaces)
+    monkeypatch.setattr(controller, "yabai", lambda *args: calls.append(args) or "")
+    controller._restore_previous_space()
+    controller._destroy_owned_space()
+    assert calls == [("space", "--focus", "2"), ("space", "--destroy", "5")]
+    assert controller.cleanup_errors == []
