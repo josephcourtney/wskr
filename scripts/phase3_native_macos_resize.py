@@ -30,6 +30,7 @@ from unittest.mock import patch
 import numpy as np
 from PIL import Image
 
+from scripts import phase3_native_control_bridge as native_control
 from scripts.phase3_screenshot_color import read_screenshot_srgb
 
 if TYPE_CHECKING:
@@ -166,12 +167,17 @@ def _seed_history(lines: int) -> None:
 def _screenshot(directory: Path, stage: str) -> dict:
     path = directory / f"{stage}.png"
     for attempt in range(_SCREENSHOT_ATTEMPTS):
-        completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed argv
-            ["/usr/sbin/screencapture", "-x", "-i", "-w", "-o", str(path)],
-            check=False,
-            timeout=180,
-        )
-        if completed.returncode or not path.is_file():
+        if native_control.enabled():
+            native_control.request("capture", stage=stage, path=str(path.resolve()))
+            succeeded = path.is_file()
+        else:
+            completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed argv
+                ["/usr/sbin/screencapture", "-x", "-i", "-w", "-o", str(path)],
+                check=False,
+                timeout=180,
+            )
+            succeeded = completed.returncode == 0 and path.is_file()
+        if not succeeded:
             msg = f"Kitty-window screenshot failed or was cancelled ({stage}). Check Screen Recording permission."
             raise RuntimeError(msg)
         if not _mostly_black(path):
@@ -213,7 +219,10 @@ def _geometry() -> Geometry:
 
 
 def _dialog(prompt: str) -> None:
-    """Use a separate native GUI prompt so plot anchors do not scroll."""
+    """Use GUI prompts manually, or explicit controller checkpoints in automation."""
+    if native_control.enabled():
+        native_control.request("dialog", prompt=prompt)
+        return
     script = f'display dialog "{prompt}" buttons {{"Cancel", "Continue"}} default button "Continue"'
     completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed argv
         ["/usr/bin/osascript", "-e", script],
@@ -420,6 +429,8 @@ def main() -> int:
             raise
         return 0
 
+    if native_control.enabled():
+        native_control.request("ready", case="resize", mode=args.mode)
     directory = Path("artifacts/phase3-native-resize") / (
         datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         + f"-{args.mode}-h{args.height}"
