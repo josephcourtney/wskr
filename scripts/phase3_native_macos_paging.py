@@ -65,7 +65,8 @@ def _palette(count: int) -> tuple[tuple[str, tuple[int, int, int]], ...]:
     colors = list(_COLORS)
     if count <= len(colors):
         return tuple(colors[:count])
-    for rgb in product((40, 80, 120, 160, 200, 240), repeat=3):
+    for red, green, blue in product((40, 80, 120, 160, 200, 240), repeat=3):
+        rgb = (red, green, blue)
         if max(rgb) - min(rgb) < _MIN_TILE_CHANNEL_SPREAD:
             continue  # Avoid gray tiles matching terminal chrome or prompt.
         if any(all(abs(a - b) <= 2 * _COLOR_TOLERANCE for a, b in zip(rgb, prior, strict=True)) for _, prior in colors):
