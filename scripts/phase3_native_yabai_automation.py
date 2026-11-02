@@ -106,6 +106,7 @@ class NativeController:
         self.space_uuid: str | None = None
         self.space_index: int | None = None
         self.window_id: int | None = None
+        self.kitty_window_id: int | None = None
         self.kitty_process: subprocess.Popen[bytes] | None = None
         self.socket_dir: Path | None = None
         self.socket_path: Path | None = None
@@ -194,6 +195,7 @@ class NativeController:
                 self.yabai("rule", "--remove", self.rule_label)
                 self.rule_installed = False
                 self._verify()
+                self._identify_kitty_window()
                 return
             if len(matches) > 1:
                 msg = "Ambiguous Kitty test-window identity"
@@ -201,6 +203,33 @@ class NativeController:
             time.sleep(_POLL_SECONDS)
         msg = "Timed out locating the unique native Kitty test window"
         raise TimeoutError(msg)
+
+    def _identify_kitty_window(self) -> None:
+        """Bind the Kitty-internal window ID, distinct from the macOS/yabai ID."""
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            try:
+                tree = json.loads(self.kitty("ls"))
+                windows = [
+                    window for os_window in tree
+                    for tab in os_window.get("tabs", [])
+                    for window in tab.get("windows", [])
+                ]
+                if len(windows) == _EXACTLY_ONE:
+                    self.kitty_window_id = int(windows[0]["id"])
+                    return
+            except (ValueError, RuntimeError, OSError, subprocess.TimeoutExpired):
+                time.sleep(_POLL_SECONDS)
+                continue
+            time.sleep(_POLL_SECONDS)
+        msg = "Unable to identify exactly one Kitty-internal window on private socket"
+        raise RuntimeError(msg)
+
+    def _target(self) -> str:
+        if self.kitty_window_id is None:
+            msg = "Kitty-internal window ID was not established"
+            raise RuntimeError(msg)
+        return f"id:{self.kitty_window_id}"
 
     def _window(self) -> dict:
         if self.window_id is None:
@@ -275,7 +304,7 @@ class NativeController:
 
     def _theme(self, *, light: bool) -> None:
         fg, bg = ("#20252b", "#f7f8fa") if light else ("#ebf0f4", "#252b30")
-        self.kitty("set-colors", "--match", f"title:^{self.title}$", f"foreground={fg}", f"background={bg}")
+        self.kitty("set-colors", "--match", self._target(), f"foreground={fg}", f"background={bg}")
 
     def _capture(self, *, stage: str, path: str) -> None:
         self._verify()
@@ -313,7 +342,7 @@ class NativeController:
             else:
                 self._verify()
                 # send-text uses Python-style escapes; only the worker reads stdin.
-                self.kitty("send-text", "--match", f"title:^{self.title}$", f"{step}\\n" if step != "enter" else "\\n")
+                self.kitty("send-text", "--match", self._target(), f"{step}\\n" if step != "enter" else "\\n")
         else:
             msg = f"Unknown controller event action: {action}"
             raise ValueError(msg)
@@ -356,7 +385,7 @@ class NativeController:
                     # not merely a worker exit receipt, before taking its screenshot.
                     prompt = ""
                     for _ in range(35):
-                        prompt = self.kitty("get-text", "--match", f"title:^{self.title}$", "--extent", "screen")
+                        prompt = self.kitty("get-text", "--match", self._target(), "--extent", "screen")
                         if "WSKR_NATIVE_AUTO_PROMPT>" in prompt and "WSKR_NATIVE_AUTO_EXIT:" in prompt:
                             break
                         time.sleep(_POLL_SECONDS)
@@ -408,6 +437,7 @@ class NativeController:
             result["commands"] = self.commands
             result["space_uuid"] = self.space_uuid
             result["window_id"] = self.window_id
+            result["kitty_window_id"] = self.kitty_window_id
             (self.root / "controller.json").write_text(
                 json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8"
             )
