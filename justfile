@@ -54,7 +54,7 @@ phase2:
 # Phase 3: explicit Matplotlib ownership, non-destructive multi-figure show,
 # and scoped native display replacement.
 phase3:
-  uv run pytest -q tests/test_phase3_figure_ownership.py tests/test_phase3_viewport_fit.py tests/test_phase3_interactive_lifecycle.py tests/test_phase3_pty_blocking.py tests/test_phase3_blocking_resize.py tests/test_phase3_nonblocking_resize.py tests/test_phase3_live_viewport.py tests/test_phase3_owned_live_automation.py tests/test_phase3_native_macos_harness.py tests/test_phase3_native_macos_lifecycle.py tests/test_phase3_native_macos_paging.py tests/test_phase3_ipython_pump.py tests/test_phase3_screenshot_color.py tests/test_phase3_contact_sheet.py tests/test_phase3_paging.py tests/test_phase0_baseline.py tests/test_mpl_base.py tests/test_mpl_kitty.py tests/test_canvas.py tests/test_backend_profile_defaults.py tests/test_terminal_figure.py
+  uv run pytest -q tests/test_phase3_figure_ownership.py tests/test_phase3_viewport_fit.py tests/test_phase3_interactive_lifecycle.py tests/test_phase3_pty_blocking.py tests/test_phase3_blocking_resize.py tests/test_phase3_nonblocking_resize.py tests/test_phase3_live_viewport.py tests/test_phase3_owned_live_automation.py tests/test_phase3_native_macos_harness.py tests/test_phase3_native_macos_lifecycle.py tests/test_phase3_native_macos_paging.py tests/test_phase3_native_macos_appearance.py tests/test_phase3_ipython_pump.py tests/test_phase3_screenshot_color.py tests/test_phase3_contact_sheet.py tests/test_phase3_paging.py tests/test_phase0_baseline.py tests/test_mpl_base.py tests/test_mpl_kitty.py tests/test_canvas.py tests/test_backend_profile_defaults.py tests/test_terminal_figure.py
 
 # Manually verify the experimental exclusive live viewport inside Kitty.
 # It restores the primary screen at completion or keyboard interrupt.
@@ -105,6 +105,11 @@ native-paging mode="unmanaged":
 # The terminal can be made shorter OR narrower; no exact pixel size is needed.
 native-paging-capacity mode="unmanaged":
   WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python -m scripts.phase3_native_macos_paging --mode '{{mode}}' --require-capacity-change
+
+# Opt-in actual Kitty dark-to-light appearance query and owned-theme screenshots.
+# This erases screen/scrollback in a disposable test window; actual theme change is manual.
+native-appearance mode="unmanaged":
+  WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python -m scripts.phase3_native_macos_appearance --mode '{{mode}}'
 
 # Complete validation plus isolated Kitty screenshots and one run-specific ZIP.
 evidence *args:
