@@ -13,7 +13,7 @@
 ## Acceptance still open
 
 - [Issue #31](https://github.com/josephcourtney/wskr/issues/31): physical history anchors can leave the viewport on reflow. Unicode anchoring remains **opt-in**, not viewport-pinned; independent unmanaged-mode attestation and full returned-shell-prompt controls remain open.
-- **P3 native signoff:** Experimental `just native-auto` orchestrates isolated yabai unmanaged/floating/BSP tests, but requires real macOS qualification. Page-capacity transition and actual IPython/pandas/REPL remain unqualified; broader theme behavior is not claimed.
+- **P3 native signoff:** The first `just native-auto unmanaged resize 2` passed exact window/space control, fitted raster color checks and real returned-prompt capture on macOS 27.0.1; top-of-figure/title visibility remains visually incomplete and its origin unproven. Other automated window states, page-capacity transition and interactive IPython/pandas/REPL remain unqualified.
 - **P4/P5:** Rich inline Kitty rendering, release/dependency/stub hardening. iTerm2/Sixel graphics remain unsupported.
 
 **Next:** [acceptance tasks](TODO.md), [native evidence](docs/phase3-native-macos-acceptance.md).
