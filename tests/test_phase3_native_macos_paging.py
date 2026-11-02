@@ -16,6 +16,7 @@ from scripts.phase3_native_macos_paging import (
     _color_pixels,
     _figures_on_page,
     _worker_argv,
+    _validate_worker,
 )
 from wskr.render.matplotlib.sheet import plan_sheet_pages
 from wskr.terminal.profile import Geometry
@@ -100,3 +101,29 @@ def test_native_paging_module_cli_starts_without_gui(tmp_path: Path) -> None:
     assert done.returncode == 0, done.stderr
     assert "--mode" in done.stdout
     assert "--worker" not in done.stdout
+
+
+def test_incomplete_paging_evidence_is_reported_without_indexing_missing_frames() -> None:
+    report: dict = {"failures": []}
+    _validate_worker(report, {"finished": False, "frames": [{"raster": [1000, 400]}]})
+    assert len(report["failures"]) == 1
+    assert "six contact-sheet frames" in report["failures"][0]
+
+
+def test_paging_worker_checks_raster_and_viewport_shrink() -> None:
+    frames = [
+        {"raster": [1000, 400], "geometry": {"width_px": 1120}},
+        {"raster": [1000, 400], "geometry": {"width_px": 1120}},
+        {"raster": [1000, 400], "geometry": {"width_px": 1120}},
+        {"raster": [560, 400], "geometry": {"width_px": 560}},
+        {"raster": [560, 400], "geometry": {"width_px": 560}},
+        {"raster": [1000, 400], "geometry": {"width_px": 1120}},
+    ]
+    report: dict = {"failures": []}
+    _validate_worker(report, {"finished": True, "frames": frames})
+    assert report["failures"] == []
+
+    frames[3]["raster"][0] = 1000
+    report = {"failures": []}
+    _validate_worker(report, {"finished": True, "frames": frames})
+    assert report["failures"] == ["Narrowing the terminal did not reduce transmitted PNG width"]
