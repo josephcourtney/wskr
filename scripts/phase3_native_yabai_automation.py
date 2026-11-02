@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import platform
 import re
 import shutil
 import subprocess  # ruff: ignore[suspicious-subprocess-import] - fixed, bounded tool argv
@@ -333,6 +332,16 @@ class NativeController:
                     if result["worker"]["returncode"]:
                         msg = f"Native P3 harness returned {result['worker']['returncode']}"
                         raise RuntimeError(msg)
+                    evidence = result["worker"].get("evidence_archive")
+                    if result["worker"].get("archive_count") != 1 or not evidence:
+                        msg = "Unable to identify one unambiguous harness ZIP"
+                        raise RuntimeError(msg)
+                    source = Path(evidence).resolve()
+                    artifacts = (Path(__file__).resolve().parents[1] / "artifacts").resolve()
+                    if not source.is_relative_to(artifacts) or not source.is_file():
+                        msg = "Native worker evidence archive was not found under wskr artifacts"
+                        raise RuntimeError(msg)
+                    shutil.copy2(source, self.root / "harness.zip")
                     result["passed_protocol_checks"] = True
                     break
                 if self.kitty_process is not None and self.kitty_process.poll() is not None:
