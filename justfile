@@ -54,7 +54,7 @@ phase2:
 # Phase 3: explicit Matplotlib ownership, non-destructive multi-figure show,
 # and scoped native display replacement.
 phase3:
-  uv run pytest -q tests/test_phase3_figure_ownership.py tests/test_phase3_viewport_fit.py tests/test_phase3_interactive_lifecycle.py tests/test_phase3_pty_blocking.py tests/test_phase3_blocking_resize.py tests/test_phase3_nonblocking_resize.py tests/test_phase3_live_viewport.py tests/test_phase3_owned_live_automation.py tests/test_phase3_native_macos_harness.py tests/test_phase3_contact_sheet.py tests/test_phase3_paging.py tests/test_phase0_baseline.py tests/test_mpl_base.py tests/test_mpl_kitty.py tests/test_canvas.py tests/test_backend_profile_defaults.py tests/test_terminal_figure.py
+  uv run pytest -q tests/test_phase3_figure_ownership.py tests/test_phase3_viewport_fit.py tests/test_phase3_interactive_lifecycle.py tests/test_phase3_pty_blocking.py tests/test_phase3_blocking_resize.py tests/test_phase3_nonblocking_resize.py tests/test_phase3_live_viewport.py tests/test_phase3_owned_live_automation.py tests/test_phase3_native_macos_harness.py tests/test_phase3_native_macos_lifecycle.py tests/test_phase3_contact_sheet.py tests/test_phase3_paging.py tests/test_phase0_baseline.py tests/test_mpl_base.py tests/test_mpl_kitty.py tests/test_canvas.py tests/test_backend_profile_defaults.py tests/test_terminal_figure.py
 
 # Manually verify the experimental exclusive live viewport inside Kitty.
 # It restores the primary screen at completion or keyboard interrupt.
@@ -90,6 +90,11 @@ native-resize-clean mode="unmanaged" height="2":
 # Run in a separate disposable Kitty window for each line-count condition.
 native-resize-history mode="unmanaged" height="2" lines="96":
   WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python scripts/phase3_native_macos_resize.py --mode '{{mode}}' --height {{height}} --clean-scrollback --history-lines {{lines}}
+
+# Opt-in native Kitty two-figure lifetime acceptance. Erases this disposable
+# test window's screen and scrollback; saves selected-window screenshot ZIP.
+native-lifecycle mode="unmanaged":
+  WSKR_FIT=contain WSKR_IDLE_REDRAW=coalesce WSKR_KITTY_ANCHOR=unicode MPLBACKEND=wskr_kitty uv run python scripts/phase3_native_macos_lifecycle.py --mode '{{mode}}'
 
 # Complete validation plus isolated Kitty screenshots and one run-specific ZIP.
 evidence *args:
