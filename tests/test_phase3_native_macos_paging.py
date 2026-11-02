@@ -15,6 +15,11 @@ from scripts.phase3_native_macos_paging import (
     _check_page,
     _color_pixels,
     _figures_on_page,
+    _figure_count,
+    _palette,
+    _start_geometry,
+    _small_geometry,
+    _expanded_geometry,
     _validate_worker,
     _worker_argv,
 )
@@ -85,6 +90,8 @@ def test_worker_uses_same_importable_module_and_dedicated_pipe(tmp_path: Path) -
         "17",
         "--directory",
         str(tmp_path.resolve()),
+        "--figure-count",
+        "9",
     ]
 
 
@@ -127,3 +134,41 @@ def test_paging_worker_checks_raster_and_viewport_shrink() -> None:
     report = {"failures": []}
     _validate_worker(report, {"finished": True, "frames": frames})
     assert report["failures"] == ["Narrowing the terminal did not reduce transmitted PNG width"]
+
+
+def test_tall_native_window_creates_multiple_pages_without_forcing_small_height() -> None:
+    """70-row native Kitty windows were impossible under the old height limit."""
+    for geometry in (Geometry(70, 168, 2352, 1890), Geometry(34, 118, 1652, 918)):
+        count = _figure_count(geometry)
+        plan = plan_sheet_pages(count, geometry)
+        assert count > plan.page_size
+        assert plan.total_pages >= 2
+        palette = _palette(count)
+        assert len(palette) == count
+        assert len({rgb for _, rgb in palette}) == count
+
+
+def test_geometry_checks_accept_real_cell_sizes_without_exact_pixel_intervals(monkeypatch) -> None:
+    wide = Geometry(70, 168, 2352, 1890)
+    narrow = Geometry(70, 62, 868, 1890)
+    expanded = Geometry(70, 153, 2142, 1890)
+    scenarios = iter((wide, narrow, expanded))
+
+    def emulate_dialog(_message, predicate):
+        geometry = next(scenarios)
+        assert predicate(geometry)
+        return geometry
+
+    monkeypatch.setattr("scripts.phase3_native_macos_paging._until_valid", emulate_dialog)
+    assert _start_geometry() == wide
+    assert _small_geometry(wide) == narrow
+    assert _expanded_geometry(wide) == expanded
+
+
+def test_figure_count_also_preserves_navigation_in_one_column_tall_window() -> None:
+    window = Geometry(70, 68, 952, 1890)
+    count = _figure_count(window)
+    plan = plan_sheet_pages(count, window)
+    assert plan.columns == 1
+    assert plan.total_pages >= 2
+    assert _figures_on_page(window, 1, count)
