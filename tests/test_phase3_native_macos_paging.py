@@ -194,12 +194,12 @@ def test_figure_count_also_preserves_navigation_in_one_column_tall_window() -> N
 def test_intermediate_drag_frames_do_not_fail_paging_validation() -> None:
     frames = [
         {"raster": [900, 400], "geometry": {"width_px": 1000, "height_px": 567}},
-        {"raster": [900, 400], "geometry": {"width_px": 1000}},
-        {"raster": [900, 400], "geometry": {"width_px": 1000}},
+        {"raster": [900, 400], "geometry": {"width_px": 1000, "height_px": 567}},
+        {"raster": [900, 400], "geometry": {"width_px": 1000, "height_px": 567}},
         {"raster": [800, 400], "geometry": {"width_px": 800, "height_px": 567}},
         {"raster": [600, 400], "geometry": {"width_px": 600, "height_px": 567}},
-        {"raster": [600, 400], "geometry": {"width_px": 600}},
-        {"raster": [900, 400], "geometry": {"width_px": 1000}},
+        {"raster": [600, 400], "geometry": {"width_px": 600, "height_px": 567}},
+        {"raster": [900, 400], "geometry": {"width_px": 1000, "height_px": 567}},
     ]
     report: dict = {"failures": []}
     _validate_worker(report, {"finished": True, "frames": frames})
