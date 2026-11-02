@@ -447,3 +447,69 @@ background, a separate style issue. This experiment did not capture the
 actual shell prompt *after the outer harness returns*, independently verify
 unmanaged yabai mode, test blocking multi-page navigation, or establish
 unattended REPL/IPython event scheduling. Those acceptance gates remain open.
+
+## Native blocking multi-figure paging — opt-in acceptance, pending real GUI
+
+The native macOS paging harness checks what the existing foreground PTY tests
+cannot see: actual Kitty contact-sheet content, navigated page identity,
+changes in page capacity on window resize, and primary-screen restoration
+after the terminal's **alternate screen** exits.
+
+In a fresh **disposable** Kitty window, run:
+
+```sh
+git pull --ff-only
+uv sync
+just native-paging unmanaged
+```
+
+**This erases the test window's visible screen and scrollback.** The mode
+argument labels the intended yabai configuration but does not configure or
+independently verify it. A new native window and deliberate window sizing are
+required. macOS Screen Recording permission may be needed to capture the
+selected Kitty window.
+
+The outer process uses native `osascript` instructions and screenshots; the
+plotting child alone reads actual `n`, `p` and blank-Enter lines from the
+foreground Kitty terminal. The parent receives only one-byte render/restore
+signals through a separate pipe. No input is injected and the shell's TTY
+is not read by the coordinator.
+
+The test first asks for a measured Kitty window at least **950 physical px
+wide and 520–650 px tall**. With nine distinctly colored, numbered figures,
+this forces multiple pages. After each screenshot and native instruction,
+focus the Kitty window and type the requested command, ending with Enter:
+
+1. Capture `primary_before` with a text sentinel on the normal screen.
+2. Capture `initial_page` (first contact-sheet page).
+3. Type `n` and Enter, capturing `next_page`.
+4. Type `p` and Enter, capturing `previous_page`.
+5. Narrow to **500–560 physical px wide** while keeping 520–650 px high,
+   capturing `resized_page` after the backend's debounced fit. This changes
+   the layout from two columns to one.
+6. Type `n` and Enter again, capturing `next_page_small`.
+7. Expand above 950 physical px wide, preserving height, and capture
+   `expanded_page`.
+8. On a **blank input line**, press Enter to quit paging and capture
+   `restored_primary`.
+
+Nine unique color tiles identify pages; their expected indices are computed
+from actual `Geometry` and `plan_sheet_pages`. Each contact-sheet PNG is
+recorded with its measured dimensions and SHA-256 digest. The report checks
+color presence and absence in captured screenshots; it also rejects any
+contact-sheet tile remaining on the primary screen and checks that the
+source figures' explicit size/DPI were preserved. Screenshots and reports
+are bundled into one ZIP in `artifacts/phase3-native-paging/`, even on a
+recoverable failure.
+
+**Inspect the eight actual screenshots** for page order, clipping, prompt
+placement, restore behavior, and unwanted blank text rows. A passing PNG
+upload or color counter does not itself establish native visual acceptance.
+The final screenshot occurs after the plotting worker restored the primary
+screen but before the outer command returns to the shell; capture the actual
+returned prompt separately if that behavior must be qualified.
+
+This test is distinct from nonblocking Unicode history placement, and
+it does not modify its default. The existing portable PTY test already checks
+real canonical paging commands and balanced alternate-screen escape sequences;
+native visual signoff remains pending until the evidence is reviewed.
