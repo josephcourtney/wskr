@@ -92,7 +92,7 @@ class TerminalAxes(Axes):
 
     @staticmethod
     def _can_refresh_color(previous: dict[str, Any], new: dict[str, Any], key: str) -> bool:
-        """A changed terminal default must not override current global rc choices."""
+        """Preserve current global rc choices against changed terminal defaults."""
         return (
             key in previous
             and key in new
@@ -170,8 +170,7 @@ class TerminalAxes(Axes):
                 artist.set_color(new[key])
                 changed = True
         changed = self._refresh_owned_ticks(previous, new) or changed
-        changed = self._refresh_owned_lines(previous, new) or changed
-        return changed
+        return self._refresh_owned_lines(previous, new) or changed
 
     @contextmanager
     def _owner_defaults(self) -> Generator[None]:
