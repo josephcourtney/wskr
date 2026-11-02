@@ -310,3 +310,41 @@ intermediate switch to the recorded original Space, then focuses owned
 once. **No native test ran in this attempt:** `just check && ...`
 short-circuited at pytest. Verify the new code and full suite before
 drawing any conclusion about the native AX issue.
+
+## Sixth native attempt — November 2, 2026, 16:05 UTC
+
+Local verification at `42d599e` after `just fix`:
+syntax, Ruff format/lint, and `ty` passed, and pytest reported
+**470 passed, 3 skipped** (nonfatal test category and `forkpty`
+warnings). The duplicate-focus regression is fixed by that result.
+
+The chained `just native-auto unmanaged resize 2` failed with
+`['yabai', '-m', 'query', '--spaces', '--space']: exit 1:
+yabai-msg: failed to connect to socket..`. An evidence ZIP was written at
+`artifacts/phase3-native-yabai/20261102T160516Z-unmanaged-resize-2.zip`,
+but has not been reviewed here. **The controller did not establish
+any new rendering qualification.** The terminal log alone cannot
+distinguish unavailable yabai daemon, wrong client/socket, daemon crash,
+or transient loss of socket connectivity during the test.
+
+Before another run, verify the already-running service without restarting
+it, changing yabai configuration, or killing processes:
+
+```sh
+type -a yabai
+yabai --version
+ps -axo pid,ppid,stat,command | grep '[y]abai' || true
+ls -la /tmp | grep -i yabai || true
+yabai -m query --spaces --space
+yabai -m query --spaces
+```
+
+If both queries fail, repair the normal yabai daemon/client connection
+through its existing launch mechanism **before** re-running native
+tests. Do not assume the user's custom yabai fork is managed by
+Homebrew services, or restart another daemon merely to make the
+test pass. If these probes succeed while automation fails, inspect the
+existing ZIP's `controller.json` commands/cleanup fields and capture
+the daemon logs; distinguish a socket drop during the test from
+an unavailable daemon at entry. **A green portable suite is not a
+native GUI acceptance.**
