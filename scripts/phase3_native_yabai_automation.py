@@ -211,7 +211,7 @@ class NativeController:
                 # Bind only after two consistent ready snapshots.
                 identity = (int(match["id"]), int(match["pid"]))
                 ready = match.get("has-ax-reference") is not False
-                stable_samples = stable_samples + 1 if ready and identity == last_identity else 1 if ready else 0
+                stable_samples = stable_samples + 1 if ready and identity == last_identity else int(ready)
                 last_identity = identity
                 if stable_samples >= 2:
                     self.window_id, self.window_owner_pid = identity
@@ -222,6 +222,9 @@ class NativeController:
                     self._verify()
                     self._identify_kitty_window()
                     return
+            else:
+                last_identity = None
+                stable_samples = 0
             time.sleep(_POLL_SECONDS)
         msg = f"Kitty window did not stabilize in yabai; observations={self.window_observations[-5:]}"
         raise TimeoutError(msg)
