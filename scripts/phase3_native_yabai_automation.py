@@ -118,15 +118,24 @@ class NativeController:
         self.commands.append({"argv": argv, "output": output[:1000]})
         return output
 
-    def query(self, *args: str) -> dict | list[dict]:
-        return json.loads(self.yabai("query", *args))
-
-    def _spaces(self) -> list[dict]:
-        result = self.query("--spaces")
-        if not isinstance(result, list):
-            msg = "yabai --spaces returned an unexpected schema"
+    def query(self, *args: str) -> dict:
+        """Read a single yabai object, rejecting unexpected JSON containers."""
+        result = json.loads(self.yabai("query", *args))
+        if not isinstance(result, dict):
+            msg = f"Expected yabai object for {args!r}"
             raise TypeError(msg)
         return result
+
+    def query_list(self, *args: str) -> list[dict]:
+        """Read yabai collections, keeping list/object query shapes distinct."""
+        result = json.loads(self.yabai("query", *args))
+        if not isinstance(result, list):
+            msg = f"Expected yabai array for {args!r}"
+            raise TypeError(msg)
+        return result
+
+    def _spaces(self) -> list[dict]:
+        return self.query_list("--spaces")
 
     def _own_space(self) -> None:
         current = self.query("--spaces", "--space")
@@ -184,7 +193,7 @@ class NativeController:
             if self.kitty_process.poll() is not None:
                 msg = "Dedicated Kitty process terminated before window identification"
                 raise RuntimeError(msg)
-            matches = [w for w in self.query("--windows") if _window_matches(w, self.title)]
+            matches = [w for w in self.query_list("--windows") if _window_matches(w, self.title)]
             if len(matches) == _EXACTLY_ONE:
                 self.window_id = int(matches[0]["id"])
                 self.yabai("rule", "--remove", self.rule_label)
@@ -246,7 +255,7 @@ class NativeController:
         space = self.query("--spaces", "--space", str(self.space_index))
         # Do not accidentally change a preexisting user's tiling tree.
         others = [
-            window for window in self.query("--windows")
+            window for window in self.query_list("--windows")
             if window.get("space") == self.space_index and window["id"] != self.window_id
         ]
         if others:
