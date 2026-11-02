@@ -27,6 +27,8 @@ _COMMAND_SECONDS = 15
 _POLL_SECONDS = 0.1
 _EXACTLY_ONE = 1
 _STABLE_WINDOW_SAMPLES = 2
+_WINDOW_FOCUS_SECONDS = 8.0
+_WINDOW_AX_REFOCUS_SECONDS = 1.0
 _MIN_SCREENSHOT_BYTES = 100
 _START_WIDTH = 1200
 _START_HEIGHT = 760
@@ -109,6 +111,7 @@ class NativeController:
         self.base_frame: dict | None = None
         self.events: list[dict] = []
         self.window_observations: list[dict] = []
+        self.focus_observations: list[dict] = []
         self.commands: list[dict] = []
         self.cleanup_errors: list[str] = []
 
@@ -152,6 +155,37 @@ class NativeController:
         self.yabai("space", str(self.space_index), "--label", self.space_label)
         self.yabai("space", self.space_label, "--layout", "float" if self.state == "float-space" else "bsp")
         self.yabai("space", "--focus", self.space_label)
+        self._await_owned_space_focus()
+
+    def _await_owned_space_focus(self) -> None:
+        """Ensure macOS actually selected our space, not just accepted the command."""
+        deadline = time.monotonic() + _WINDOW_FOCUS_SECONDS
+        while time.monotonic() < deadline:
+            focused = self.query("--spaces", "--space")
+            self.focus_observations.append({
+                "stage": "space_focus",
+                "uuid": focused.get("uuid"),
+                "index": focused.get("index"),
+                "has_focus": focused.get("has-focus"),
+                "is_visible": focused.get("is-visible"),
+            })
+            if focused.get("uuid") == self.space_uuid and focused.get("has-focus") is not False:
+                return
+            time.sleep(_POLL_SECONDS)
+        msg = f"Created yabai space did not become active: {self.focus_observations[-5:]}"
+        raise RuntimeError(msg)
+
+    def _reactivate_owned_window(self) -> None:
+        """Focus only the disposable space and the exact private-socket Kitty window."""
+        self.yabai("space", "--focus", self.space_label)
+        self._await_owned_space_focus()
+        self._identify_kitty_window(timeout=3.0)
+        self.kitty("focus-window", "--match", self._target())
+        self.focus_observations.append({
+            "stage": "kitty_focus",
+            "kitty_window_id": self.kitty_window_id,
+            "space_uuid": self.space_uuid,
+        })
 
     def _spawn(self) -> None:
         rule = [
@@ -222,6 +256,8 @@ class NativeController:
         deadline = time.monotonic() + 25
         last_identity: tuple[int, int] | None = None
         stable_samples = 0
+        refocused = False
+        last_unready = time.monotonic()
         while time.monotonic() < deadline:
             if self.kitty_process is not None and self.kitty_process.poll() is not None:
                 msg = "Dedicated Kitty process terminated before window identification; see kitty-launch.log"
@@ -243,7 +279,13 @@ class NativeController:
                 )
                 identity = (int(match["id"]), int(match["pid"]))
                 ready = match.get("has-ax-reference") is not False
-                stable_samples = stable_samples + 1 if ready and identity == last_identity else int(ready)
+                if ready:
+                    stable_samples = stable_samples + 1 if identity == last_identity else 1
+                else:
+                    stable_samples = 0
+                    if not refocused and time.monotonic() - last_unready >= _WINDOW_AX_REFOCUS_SECONDS:
+                        self._reactivate_owned_window()
+                        refocused = True
                 last_identity = identity
                 if stable_samples >= _STABLE_WINDOW_SAMPLES:
                     self._bind_window_identity(identity)
@@ -252,7 +294,10 @@ class NativeController:
                 last_identity = None
                 stable_samples = 0
             time.sleep(_POLL_SECONDS)
-        msg = f"Kitty window did not stabilize in yabai; observations={self.window_observations[-5:]}"
+        msg = (
+            "Kitty window did not establish a usable yabai Accessibility reference; "
+            f"observations={self.window_observations[-5:]}; focus={self.focus_observations[-5:]}"
+        )
         raise TimeoutError(msg)
 
     def _identify_kitty_window(self, *, timeout: float = 10.0) -> None:
@@ -518,6 +563,7 @@ class NativeController:
         result["window_id"] = self.window_id
         result["window_owner_pid"] = self.window_owner_pid
         result["window_observations"] = self.window_observations
+        result["focus_observations"] = self.focus_observations
         result["kitty_window_id"] = self.kitty_window_id
         (self.root / "controller.json").write_text(
             json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8"
