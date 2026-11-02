@@ -22,6 +22,7 @@ import traceback
 from dataclasses import asdict
 from datetime import UTC, datetime
 from io import BytesIO
+from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
@@ -46,11 +47,10 @@ _COLORS = (
     ("#cb598c", (203, 89, 140)),
     ("#879de8", (135, 157, 232)),
 )
-_MIN_START_WIDTH = 950
-_MIN_START_HEIGHT = 520
-_MAX_START_HEIGHT = 650
-_MIN_SMALL_WIDTH = 500
-_MAX_SMALL_WIDTH = 560
+_MIN_USABLE_WIDTH = 400
+_MIN_USABLE_HEIGHT = 240
+_SHRINK_FRACTION = 0.85
+_RESTORE_FRACTION = 0.85
 _MIN_COLOR_PIXELS = 1300
 _MAX_UNEXPECTED_PIXELS = 600
 _MAX_SIGNAL_SECONDS = 100
@@ -58,7 +58,29 @@ _COLOR_TOLERANCE = 12
 _EXPECTED_FRAMES = 6
 
 
-def _worker_argv(event_fd: int, directory: Path) -> list[str]:
+def _palette(count: int) -> tuple[tuple[str, tuple[int, int, int]], ...]:
+    """Generate distinguishable solid tiles for any measured page capacity."""
+    colors = list(_COLORS)
+    if count <= len(colors):
+        return tuple(colors[:count])
+    for rgb in product((40, 80, 120, 160, 200, 240), repeat=3):
+        if max(rgb) - min(rgb) < 30:
+            continue  # Avoid gray tiles matching terminal chrome or prompt.
+        if any(all(abs(a - b) <= 2 * _COLOR_TOLERANCE for a, b in zip(rgb, prior, strict=True)) for _, prior in colors):
+            continue
+        colors.append((f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}", rgb))
+        if len(colors) == count:
+            return tuple(colors)
+    msg = f"Not enough unique test colors for {count} figures"
+    raise ValueError(msg)
+
+
+def _figure_count(geometry: Geometry) -> int:
+    """Always put more figures in the test than fit on its first page."""
+    return max(len(_COLORS), plan_sheet_pages(len(_COLORS), geometry).page_size + 2)
+
+
+def _worker_argv(event_fd: int, directory: Path, figure_count: int = len(_COLORS)) -> list[str]:
     return [
         sys.executable,
         "-m",
@@ -68,29 +90,32 @@ def _worker_argv(event_fd: int, directory: Path) -> list[str]:
         str(event_fd),
         "--directory",
         str(directory.resolve()),
+        "--figure-count",
+        str(figure_count),
     ]
 
 
-def _figures_on_page(geometry: Geometry, page_index: int) -> list[int]:
-    plan = plan_sheet_pages(len(_COLORS), geometry)
-    selection = plan.page_slice(min(page_index, plan.total_pages - 1))
-    return list(range(selection.start, min(selection.stop, len(_COLORS))))
+def _figures_on_page(geometry: Geometry, page_index: int, count: int = len(_COLORS)) -> list[int]:
+    plan = plan_sheet_pages(count, geometry)
+    selection = plan.page_slice(page_index)
+    return list(range(selection.start, min(selection.stop, count)))
 
 
-def _color_pixels(path: Path) -> list[int]:
-    """Count solid tile colors in a screenshot; content ordering still needs review."""
+def _color_pixels(path: Path, count: int = len(_COLORS)) -> list[int]:
+    """Count selected test tile colors; visual ordering still needs review."""
     with Image.open(path) as source:
         pixels = np.asarray(source.convert("RGB"), dtype=np.int16)
     return [
         int(np.count_nonzero(np.all(np.abs(pixels - np.asarray(rgb)) <= _COLOR_TOLERANCE, axis=2)))
-        for _, rgb in _COLORS
+        for _, rgb in _palette(count)
     ]
 
 
 def _check_page(report: dict, stage: dict, index: int) -> None:
-    visible = _figures_on_page(_geometry_from_stage(stage), index)
+    count = report.get("figure_count", len(_COLORS))
+    visible = _figures_on_page(_geometry_from_stage(stage), index, count)
     stage["expected_figures"] = visible
-    stage["color_pixels"] = _color_pixels(Path(stage["screenshot"]))
+    stage["color_pixels"] = _color_pixels(Path(stage["screenshot"]), count)
     for number, count in enumerate(stage["color_pixels"]):
         if number in visible and count < _MIN_COLOR_PIXELS:
             report["failures"].append(f"{stage['stage']}: expected figure {number + 1}, got {count} pixels")
@@ -109,7 +134,7 @@ def _take_page(report: dict, directory: Path, stage: str, page_index: int) -> No
     if page_index >= 0:
         _check_page(report, evidence, page_index)
     else:
-        evidence["color_pixels"] = _color_pixels(Path(evidence["screenshot"]))
+        evidence["color_pixels"] = _color_pixels(Path(evidence["screenshot"]), report.get("figure_count", len(_COLORS)))
         if any(count > _MAX_UNEXPECTED_PIXELS for count in evidence["color_pixels"]):
             report["failures"].append(f"{stage}: contact-sheet tile remained on the primary screen")
     _save(report, directory)
@@ -130,7 +155,7 @@ def _wait_event(fd: int, expected: bytes, *, timeout: float = _MAX_SIGNAL_SECOND
     raise TimeoutError(msg)
 
 
-def _worker(directory: Path, event_fd: int) -> None:
+def _worker(directory: Path, event_fd: int, figure_count: int) -> None:
     import matplotlib as mpl  # ruff: ignore[import-outside-top-level]
 
     mpl.use("module://wskr.render.matplotlib.kitty")
@@ -141,7 +166,7 @@ def _worker(directory: Path, event_fd: int) -> None:
     plt.ioff()
     figures = []
     original = []
-    for number, (color, _) in enumerate(_COLORS, start=1):
+    for number, (color, _) in enumerate(_palette(figure_count), start=1):
         fig = plt.figure(figsize=(3, 2), dpi=80, facecolor=color)
         fig.text(0.5, 0.5, f"Figure {number}", fontsize=32, ha="center", va="center", color="white")
         figures.append(fig)
@@ -185,18 +210,28 @@ def _worker(directory: Path, event_fd: int) -> None:
 
 
 def _start_geometry() -> Geometry:
+    """Require only an ordinary usable Kitty window, not an exact height."""
     return _until_valid(
-        "Set Kitty at least 950 physical pixels wide and 520-650 pixels high; click Continue",
-        lambda g: g.width_px >= _MIN_START_WIDTH and _MIN_START_HEIGHT <= g.height_px <= _MAX_START_HEIGHT,
+        "Use any normally sized Kitty window (at least 400x240 terminal pixels); click Continue",
+        lambda g: g.width_px >= _MIN_USABLE_WIDTH and g.height_px >= _MIN_USABLE_HEIGHT and g.rows >= 4,
     )
 
 
-def _small_geometry() -> Geometry:
+def _small_geometry(initial: Geometry) -> Geometry:
+    """Accept any substantial width reduction; ignore cell-step rounding."""
+    target = round(initial.width_px * _SHRINK_FRACTION)
     return _until_valid(
-        "Shrink Kitty to 500-560 physical pixels wide, keeping height at 520-650 px; click Continue",
-        lambda g: (
-            _MIN_SMALL_WIDTH <= g.width_px <= _MAX_SMALL_WIDTH and _MIN_START_HEIGHT <= g.height_px <= _MAX_START_HEIGHT
-        ),
+        f"Make Kitty noticeably narrower (measured width below {target} px); height may stay unchanged",
+        lambda g: g.width_px <= target and g.height_px >= _MIN_USABLE_HEIGHT and g.rows >= 4,
+    )
+
+
+def _expanded_geometry(initial: Geometry) -> Geometry:
+    """Accept approximate restoration without requiring exact pixel dimensions."""
+    target = round(initial.width_px * _RESTORE_FRACTION)
+    return _until_valid(
+        f"Expand Kitty toward its original width (at least {target} measured px)",
+        lambda g: g.width_px >= target and g.height_px >= _MIN_USABLE_HEIGHT and g.rows >= 4,
     )
 
 
@@ -212,8 +247,11 @@ def _run_sequence(fd: int, directory: Path, report: dict) -> None:
     _wait_event(fd, b"F")
     _take_page(report, directory, "previous_page", 0)
 
-    _dialog("Shrink Kitty to 500-560 px wide and 420-650 px high, then click Continue.")
-    _small_geometry()
+    _dialog("Make Kitty substantially narrower; you may leave its height unchanged. Click Continue after resizing.")
+    narrow = _small_geometry(_geometry_from_stage(report["stages"][0]))
+    report["narrow_geometry"] = asdict(narrow)
+    report["narrow_page_capacity"] = plan_sheet_pages(report["figure_count"], narrow).page_size
+    report["page_capacity_changed"] = report["narrow_page_capacity"] != report["initial_page_capacity"]
     _wait_event(fd, b"F")
     _take_page(report, directory, "resized_page", 0)
 
@@ -221,8 +259,8 @@ def _run_sequence(fd: int, directory: Path, report: dict) -> None:
     _wait_event(fd, b"F")
     _take_page(report, directory, "next_page_small", 1)
 
-    _dialog("Expand Kitty beyond 950 px wide, keep 420-650 px high, then click Continue.")
-    _start_geometry()
+    _dialog("Expand Kitty approximately to its original width; its height need not change.")
+    _expanded_geometry(_geometry_from_stage(report["stages"][0]))
     _wait_event(fd, b"F")
     _take_page(report, directory, "expanded_page", 1)
 
@@ -267,7 +305,11 @@ def _main_parent(directory: Path, mode: str) -> int:
         "passed_protocol_checks": False,
     }
     _save(report, directory)
-    _start_geometry()
+    initial = _start_geometry()
+    report["initial_geometry"] = asdict(initial)
+    report["figure_count"] = _figure_count(initial)
+    report["initial_page_capacity"] = plan_sheet_pages(report["figure_count"], initial).page_size
+    _palette(report["figure_count"])
     _clear_scrollback()
     print("WSKR_PAGING_PRIMARY_SENTINEL", flush=True)
     _take_page(report, directory, "primary_before", -1)
@@ -275,7 +317,7 @@ def _main_parent(directory: Path, mode: str) -> int:
     process: subprocess.Popen[bytes] | None = None
     try:
         process = subprocess.Popen(  # ruff: ignore[subprocess-without-shell-equals-true] - direct local module child
-            _worker_argv(write_fd, directory),
+            _worker_argv(write_fd, directory, report["figure_count"]),
             pass_fds=(write_fd,),
         )
         os.close(write_fd)
@@ -320,6 +362,7 @@ def main() -> int:
     parser.add_argument("--mode", choices=("unmanaged", "yabai"), required=True)
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--event-fd", type=int, help=argparse.SUPPRESS)
+    parser.add_argument("--figure-count", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--directory", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if sys.platform != "darwin" or not sys.stdin.isatty() or not sys.stdout.isatty():
@@ -329,10 +372,10 @@ def main() -> int:
     if os.getenv("WSKR_FIT") != "contain":
         parser.error("Use WSKR_FIT=contain")
     if args.worker:
-        if args.directory is None or args.event_fd is None:
-            parser.error("Worker requires --event-fd and --directory")
+        if args.directory is None or args.event_fd is None or args.figure_count is None:
+            parser.error("Worker requires --event-fd, --directory and --figure-count")
         try:
-            _worker(args.directory, args.event_fd)
+            _worker(args.directory, args.event_fd, args.figure_count)
         except BaseException:
             (args.directory / "worker-error.txt").write_text(traceback.format_exc(), encoding="utf-8")
             raise
