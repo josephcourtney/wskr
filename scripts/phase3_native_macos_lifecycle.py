@@ -25,6 +25,7 @@ from unittest.mock import patch
 
 from PIL import Image
 
+from scripts import phase3_native_control_bridge as native_control
 from scripts.phase3_native_macos_resize import _capture, _clear_scrollback, _geometry, _save
 
 if TYPE_CHECKING:
@@ -205,6 +206,8 @@ def main() -> int:
             raise
         return 0
 
+    if native_control.enabled():
+        native_control.request("ready", case="lifecycle", mode=args.mode)
     directory = Path("artifacts/phase3-native-lifecycle") / (
         datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + f"-{args.mode}-{os.getenv('WSKR_KITTY_ANCHOR', 'physical')}"
     )
