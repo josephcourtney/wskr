@@ -14,6 +14,7 @@ from scripts.phase3_native_macos_paging import (
     _COLORS,
     _argument_parser,
     _check_page,
+    _capacity_changed,
     _color_pixels,
     _expanded_geometry,
     _figure_count,
@@ -134,12 +135,12 @@ def test_incomplete_paging_evidence_is_reported_without_indexing_missing_frames(
 
 def test_paging_worker_checks_raster_and_viewport_shrink() -> None:
     frames = [
-        {"raster": [1000, 400], "geometry": {"width_px": 1120}},
-        {"raster": [1000, 400], "geometry": {"width_px": 1120}},
-        {"raster": [1000, 400], "geometry": {"width_px": 1120}},
-        {"raster": [560, 400], "geometry": {"width_px": 560}},
-        {"raster": [560, 400], "geometry": {"width_px": 560}},
-        {"raster": [1000, 400], "geometry": {"width_px": 1120}},
+        {"raster": [1000, 400], "geometry": {"width_px": 1120, "height_px": 567}},
+        {"raster": [1000, 400], "geometry": {"width_px": 1120, "height_px": 567}},
+        {"raster": [1000, 400], "geometry": {"width_px": 1120, "height_px": 567}},
+        {"raster": [560, 400], "geometry": {"width_px": 560, "height_px": 567}},
+        {"raster": [560, 400], "geometry": {"width_px": 560, "height_px": 567}},
+        {"raster": [1000, 400], "geometry": {"width_px": 1120, "height_px": 567}},
     ]
     report: dict = {"failures": []}
     _validate_worker(report, {"finished": True, "frames": frames})
@@ -149,7 +150,7 @@ def test_paging_worker_checks_raster_and_viewport_shrink() -> None:
     frames[4]["raster"][0] = 1000
     report = {"failures": []}
     _validate_worker(report, {"finished": True, "frames": frames})
-    assert report["failures"] == ["Narrowing the terminal did not reduce transmitted PNG width"]
+    assert report["failures"] == ["Transmitted PNG did not shrink in either dimension"]
 
 
 def test_tall_native_window_creates_multiple_pages_without_forcing_small_height() -> None:
@@ -192,11 +193,11 @@ def test_figure_count_also_preserves_navigation_in_one_column_tall_window() -> N
 
 def test_intermediate_drag_frames_do_not_fail_paging_validation() -> None:
     frames = [
+        {"raster": [900, 400], "geometry": {"width_px": 1000, "height_px": 567}},
         {"raster": [900, 400], "geometry": {"width_px": 1000}},
         {"raster": [900, 400], "geometry": {"width_px": 1000}},
-        {"raster": [900, 400], "geometry": {"width_px": 1000}},
-        {"raster": [800, 400], "geometry": {"width_px": 800}},
-        {"raster": [600, 400], "geometry": {"width_px": 600}},
+        {"raster": [800, 400], "geometry": {"width_px": 800, "height_px": 567}},
+        {"raster": [600, 400], "geometry": {"width_px": 600, "height_px": 567}},
         {"raster": [600, 400], "geometry": {"width_px": 600}},
         {"raster": [900, 400], "geometry": {"width_px": 1000}},
     ]
@@ -264,3 +265,32 @@ def test_generated_extra_colors_are_bright_and_separated_from_terminal_backgroun
         channels = np.asarray(rgb, dtype=np.int32)
         assert int(np.sum((channels - background) ** 2)) > 80**2
         assert max(rgb) >= 192
+
+
+def test_native_capacity_gate_requires_actual_page_size_change(monkeypatch) -> None:
+    wide = Geometry(21, 80, 1120, 567)
+    same_capacity = Geometry(21, 70, 980, 567)
+    narrower = Geometry(21, 40, 560, 567)
+    shorter = Geometry(12, 80, 1120, 324)
+    count = 9
+    assert not _capacity_changed(wide, same_capacity, count)
+    assert _capacity_changed(wide, narrower, count)
+    assert _capacity_changed(wide, shorter, count)
+
+    def valid(_message, predicate):
+        assert not predicate(same_capacity)
+        assert predicate(narrower)
+        assert predicate(shorter)
+        return narrower
+
+    monkeypatch.setattr("scripts.phase3_native_macos_paging._until_valid", valid)
+    assert _small_geometry(wide, count=count, require_capacity_change=True) == narrower
+
+
+def test_native_capacity_gate_accepts_height_only_shrink() -> None:
+    first = {"raster": [1120, 520], "geometry": {"width_px": 1120, "height_px": 567}}
+    short = {"raster": [1120, 284], "geometry": {"width_px": 1120, "height_px": 324}}
+    frames = [first, first, first, short, short, first]
+    report: dict = {"failures": []}
+    _validate_worker(report, {"finished": True, "frames": frames})
+    assert report["failures"] == []
