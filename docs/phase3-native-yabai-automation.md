@@ -201,3 +201,32 @@ a named stable-window sample threshold addresses that check. Formatting and
 the full suite require a fresh run on the latest branch head. The floating,
 BSP, float-space, tall-figure, paging and appearance scenarios remain
 pending native verification.
+
+## Native AX-registration regression — November 2, 2026, 15:16 UTC
+
+A clean detached worktree at `5513b17` failed `just check` at two
+Ruff-format differences, then `just fix` found only the
+`magic-value-comparison` warning for the two-sample threshold
+(subsequently replaced with a named constant). The unattended unmanaged
+9×2 run then failed to establish a yabai AX reference after its full
+window-registration deadline: test window 7598, Kitty PID 32467, located
+on space index 2, remained `has-ax-reference=false` in all reported
+observations. **No plotting acceptance occurred on this run.**
+
+Yabai documents that no-AX windows can appear in `--windows` results
+but cannot be safely manipulated via ID-based commands, particularly
+when their space is inactive. Therefore the harness must **not** simply
+ignore this flag for unmanaged windows.
+
+The next controller revision verifies that the newly created space's
+focused UUID is the owned space, before Kitty is spawned. If AX remains
+unavailable after a bounded registration interval, it re-focuses the
+owned space and invokes Kitty `focus-window` over the private remote
+socket with the exact internal Kitty ID. It retains the AX prerequisite
+for yabai window resizing, and records the focus history separately
+from the window-identity snapshots. If those actions cannot establish
+AX access, the run fails without touching unrelated windows.
+
+This recovery strategy still requires a native run. An `unmanaged`
+window's floating state is **not itself evidence** that a missing AX
+reference is harmless or that geometric window actions can succeed.
