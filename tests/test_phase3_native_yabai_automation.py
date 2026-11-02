@@ -488,8 +488,4 @@ def test_ax_recovery_qualifies_only_after_two_new_ready_samples(
     controller._await_window_identity(timeout=1.0)
     assert recoveries == ["space_activation"]
     assert bindings == [(7885, 56541)]
-    assert [obs["has_ax_reference"] for obs in controller.window_observations[:3]] == [
-        False,
-        True,
-        True,
-    ]
+    assert [obs["has_ax_reference"] for obs in controller.window_observations[:3]] == [False, True, True]
