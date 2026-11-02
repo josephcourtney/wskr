@@ -62,29 +62,25 @@ def _state_matches(window: dict, space: dict, state: str) -> bool:
 def _action(prompt: str) -> str:
     """Translate known harness instructions, rejecting unknown GUI steps."""
     value = prompt.lower()
-    if "dark color theme" in value:
-        return "dark"
-    if "light color theme" in value:
-        return "light"
-    if "blank input line" in value:
-        return "enter"
-    if "type n" in value:
-        return "n"
-    if "type p" in value:
-        return "p"
-    if any(
-        word in value for word in ("shrink", "narrower", "shorter", "resize the kitty window", "page capacity changes")
-    ):
-        return "shrink"
-    if "expand" in value:
-        return "expand"
-    if "enlarge" in value or "normally sized kitty" in value:
-        return "initial"
-    if "blank screenshot captured" in value:
-        return "retry"
+    checkpoints = (
+        ("dark", ("dark color theme",)),
+        ("light", ("light color theme",)),
+        ("enter", ("blank input line",)),
+        ("n", ("type n",)),
+        ("p", ("type p",)),
+        (
+            "shrink",
+            ("shrink", "narrower", "shorter", "resize the kitty window", "page capacity changes"),
+        ),
+        ("expand", ("expand",)),
+        ("initial", ("enlarge", "normally sized kitty")),
+        ("retry", ("blank screenshot captured",)),
+    )
+    for action, markers in checkpoints:
+        if any(marker in value for marker in markers):
+            return action
     msg = f"Unrecognized native GUI checkpoint: {prompt}"
     raise ValueError(msg)
-
 
 class NativeController:
     """Own only a uniquely titled Kitty window and a newly created yabai space."""
