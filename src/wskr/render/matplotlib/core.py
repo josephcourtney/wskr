@@ -262,10 +262,23 @@ def _wait_for_foreground_resize(managers: list[FigureManagerBase], start: Geomet
             command = line.strip().lower() if isinstance(line, str) else ""
             if command in {"", "q"}:
                 return
-            if plan is not None and plan.total_pages > 1 and command in {"n", "p"}:
-                offset = 1 if command == "n" else -1
-                index = (index + offset) % plan.total_pages
-                _redraw_foreground_figures(managers, page_index=index)
+            if command in {"n", "p"}:
+                # A user can resize while typing. Replan against the current
+                # terminal before interpreting the navigation command rather
+                # than advancing through a stale pre-resize page count.
+                observed = read_geometry()
+                if observed is not None and observed != current:
+                    current = observed
+                    selection = _sheet_for_managers(managers, current)
+                    plan = selection[2] if selection is not None else None
+                    index = min(index, plan.total_pages - 1) if plan is not None else 0
+                    pending = None
+                if plan is not None and plan.total_pages > 1:
+                    offset = 1 if command == "n" else -1
+                    index = (index + offset) % plan.total_pages
+                    plan = _redraw_foreground_figures(managers, page_index=index)
+                else:
+                    print(_page_prompt(plan, index, current), end="", flush=True)
             else:
                 print(_page_prompt(plan, index, current), end="", flush=True)
             continue
