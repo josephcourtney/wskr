@@ -274,6 +274,17 @@ def _verify_source(figure: Figure, frames: list[dict], original: tuple[tuple[flo
         raise AssertionError(msg)
 
 
+def _inspect_and_save_frame(directory: Path, index: int, png: bytes, geometry: Geometry) -> tuple[int, int]:
+    """Retain the exact transmitted PNG and ensure it fits the measured viewport."""
+    with Image.open(BytesIO(png)) as image:
+        size = image.size
+    if not 0 < size[0] <= geometry.width_px or not 0 < size[1] <= geometry.height_px:
+        msg = f"Raster {size} exceeds viewport {geometry}"
+        raise AssertionError(msg)
+    (directory / f"transmitted-frame-{index}.png").write_bytes(png)
+    return size
+
+
 def _worker(directory: Path, height: int, mode: str, *, clean_scrollback: bool, history_lines: int) -> None:
     import matplotlib as mpl  # ruff: ignore[import-outside-top-level]
 
@@ -322,16 +333,8 @@ def _worker(directory: Path, height: int, mode: str, *, clean_scrollback: bool, 
     send = NativeKittyTransport.send_anchored_image
 
     def record(transport: NativeKittyTransport, png: bytes) -> None:
-        with Image.open(BytesIO(png)) as image:
-            size = image.size
         geometry = _geometry()
-        if not 0 < size[0] <= geometry.width_px or not 0 < size[1] <= geometry.height_px:
-            msg = f"Raster {size} exceeds viewport {geometry}"
-            raise AssertionError(msg)
-        frame_number = len(report["frames"]) + 1
-        # Retain exact source PNG bytes to distinguish plotting/layout defects
-        # from Kitty placement or macOS capture clipping.
-        (directory / f"transmitted-frame-{frame_number}.png").write_bytes(png)
+        size = _inspect_and_save_frame(directory, len(report["frames"]) + 1, png, geometry)
         send(transport, png)
         report["frames"].append({"raster": list(size), "geometry": asdict(geometry)})
         _save(report, directory)
