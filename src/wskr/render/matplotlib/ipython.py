@@ -42,9 +42,10 @@ def load_ipython_extension(ipython: object) -> None:
     _callbacks[ipython] = _pump_after_cell
 
 
-def unload_ipython_extension(ipython: Any) -> None:
+def unload_ipython_extension(ipython: object) -> None:
     """Remove only the callback that wskr registered on this shell."""
     callback = _callbacks.pop(ipython, None)
     if callback is not None:
-        events = getattr(ipython, "events")
-        events.unregister("post_run_cell", callback)
+        events = getattr(ipython, "events", None)
+        if events is not None:
+            events.unregister("post_run_cell", callback)
