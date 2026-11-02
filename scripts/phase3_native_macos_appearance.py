@@ -100,7 +100,7 @@ def _run(directory: Path, report: dict) -> None:
         ax.set_title("Owned terminal title")
         ax.set_xlabel("Owned X label")
         ax.set_ylabel("Owned Y label")
-        ax.grid(True)
+        ax.grid(visible=True)
     source = (tuple(fig.get_size_inches()), fig.dpi)
     try:
         with owned_viewport(fig) as view:
