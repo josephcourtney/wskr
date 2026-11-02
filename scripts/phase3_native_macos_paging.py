@@ -79,10 +79,7 @@ def _color_pixels(path: Path) -> list[int]:
     """Count solid tile colors in a screenshot; content ordering still needs review."""
     with Image.open(path) as source:
         pixels = np.asarray(source.convert("RGB"), dtype=np.int16)
-    return [
-        int(np.count_nonzero(np.all(np.abs(pixels - np.asarray(rgb)) <= 12, axis=2)))
-        for _, rgb in _COLORS
-    ]
+    return [int(np.count_nonzero(np.all(np.abs(pixels - np.asarray(rgb)) <= 12, axis=2))) for _, rgb in _COLORS]
 
 
 def _check_page(report: dict, stage: dict, index: int) -> None:
@@ -191,9 +188,10 @@ def _start_geometry() -> Geometry:
 
 def _small_geometry() -> Geometry:
     return _until_valid(
-        "Shrink Kitty to 500-560 physical pixels wide, keeping height at 420-650 px; click Continue",
-        lambda g: _MIN_SMALL_WIDTH <= g.width_px <= _MAX_SMALL_WIDTH
-        and _MIN_START_HEIGHT <= g.height_px <= _MAX_START_HEIGHT,
+        "Shrink Kitty to 500-560 physical pixels wide, keeping height at 520-650 px; click Continue",
+        lambda g: (
+            _MIN_SMALL_WIDTH <= g.width_px <= _MAX_SMALL_WIDTH and _MIN_START_HEIGHT <= g.height_px <= _MAX_START_HEIGHT
+        ),
     )
 
 
