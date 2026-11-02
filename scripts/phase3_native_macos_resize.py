@@ -30,6 +30,8 @@ from unittest.mock import patch
 import numpy as np
 from PIL import Image
 
+from scripts.phase3_screenshot_color import read_screenshot_srgb
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -67,8 +69,7 @@ def _save(report: dict, directory: Path) -> None:
 
 
 def _colors(path: Path) -> dict[str, int]:
-    with Image.open(path) as source:
-        pixels = np.asarray(source.convert("RGB"))
+    pixels, _ = read_screenshot_srgb(path)
     r, g, b = pixels[:, :, 0], pixels[:, :, 1], pixels[:, :, 2]
     return {
         "red": int(np.count_nonzero((r > _RED_THRESHOLD) & (g < _OTHER_THRESHOLD) & (b < _OTHER_THRESHOLD))),
@@ -85,8 +86,8 @@ def _history_text_below_plot(path: Path, *, cell_height_px: float, raster_width:
     only detects a subset of overlaps; manual screenshot review remains
     mandatory.
     """
-    with Image.open(path) as source:
-        pixels = np.asarray(source.convert("RGB")).astype(np.int16)
+    pixels, _ = read_screenshot_srgb(path)
+    pixels = pixels.astype(np.int16)
     red, green, blue = pixels[:, :, 0], pixels[:, :, 1], pixels[:, :, 2]
     bars = ((red > _RED_THRESHOLD) & (green < _OTHER_THRESHOLD) & (blue < _OTHER_THRESHOLD)) | (
         (blue > _RED_THRESHOLD) & (red < _OTHER_THRESHOLD) & (green < _OTHER_THRESHOLD)
@@ -174,7 +175,12 @@ def _screenshot(directory: Path, stage: str) -> dict:
             msg = f"Kitty-window screenshot failed or was cancelled ({stage}). Check Screen Recording permission."
             raise RuntimeError(msg)
         if not _mostly_black(path):
-            return {"stage": stage, "screenshot": str(path), "colors": _colors(path)}
+            return {
+                "stage": stage,
+                "screenshot": str(path),
+                "colors": _colors(path),
+                "color_capture": read_screenshot_srgb(path)[1],
+            }
         path.rename(directory / f"{stage}.invalid-{attempt + 1}.png")
         if attempt + 1 < _SCREENSHOT_ATTEMPTS:
             _dialog("Blank screenshot captured; select the visible Kitty window and click Continue")
