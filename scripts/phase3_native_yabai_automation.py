@@ -295,10 +295,18 @@ class NativeController:
         self._verify()
 
     def kitty(self, *args: str) -> str:
-        if self.socket_path is None:
+        # Kitty may daemonize on macOS, so the GUI's {kitty_pid} need not
+        # equal the PID returned by Popen. Only scan our private socket dir.
+        if self.socket_dir is not None:
+            sockets = list(self.socket_dir.glob("kitty-*.sock"))
+            if len(sockets) > _EXACTLY_ONE:
+                msg = "Ambiguous Kitty control sockets in private test directory"
+                raise RuntimeError(msg)
+            if sockets:
+                self.socket_path = sockets[0]
+        if self.socket_path is None or not self.socket_path.exists():
             msg = "Kitty control socket not available"
             raise RuntimeError(msg)
-        # A separate dedicated socket is safer than terminal-escape remote control.
         return _invoke(["kitty", "@", "--to", f"unix:{self.socket_path}", *args])
 
     def _theme(self, *, light: bool) -> None:
