@@ -220,3 +220,38 @@ WSKR_KITTY_ANCHOR=unicode just native-resize-history yabai 2 96
 If successful, repeat with no history and with 9×6, verifying redraw,
 scrollback ordering, shell prompt safety, after-process persistence and
 explicit-close cleanup. This is an experiment, **not a certified fix**.
+
+## Unicode-placeholder parent native result — November 1, 2026
+
+The opt-in `WSKR_KITTY_ANCHOR=unicode` experiment from
+[PR #48](https://github.com/josephcourtney/wskr/pull/48) passed its **first**
+native history-reflow visual test. Full user-supplied evidence:
+`20261102T002247Z-yabai-h2-clean-history96.zip` (not committed because
+window screenshots may contain private terminal content).
+
+Environment: macOS 27.0.1, Kitty 0.49.2 (verified separately; the report's
+`kitty_version` field was `unknown`), yabai-managed window, a 9×2-inch
+Matplotlib figure, 96 seeded history lines of 112 characters, 70 terminal
+rows at every stage.
+
+| Stage | Measured terminal geometry | Transmitted PNG | Native visual observation |
+| --- | --- | --- | --- |
+| Initial | 161×70 cells; 2254×1890 px | 900×200 | Visible below seeded history |
+| Before redraw | 49×70 cells; 686×1890 px | Previous 900×200 | Horizontally clipped, as expected |
+| Resized | 49×70 cells; 686×1890 px | 686×152 | **Pass:** history line 0095 is entirely above the chart; no overlap |
+| Expanded | 168×70 cells; 2352×1890 px | 900×200 | Visible below history |
+| After Python exit | 168×70 cells; 2352×1890 px | Retained 900×200 | Visible and correctly ordered |
+
+The resized PNG has 24,056 red and 31,993 blue pixels in the screenshot.
+The harness reported `visual_failures: []` and
+`passed_protocol_checks: true`. All five valid screenshots were reviewed
+individually; the single `before_redraw.invalid-1.png` picker capture was
+correctly excluded. The Unicode anchor avoids the text overlap reproduced
+with the physical parent in the preceding 96-line yabai run. Its result is
+**not** evidence of independent viewport pinning, nor confirmation that all
+shell prompt behaviors are safe.
+
+**Qualification scope:** Native 9×2 / yabai / 96-history case only.
+The Unicode mode remains **explicitly opt-in** pending native 9×6,
+unmanaged, clean-history control, interactive shell/prompt, and
+multi-figure/explicit-close signoff. Keep issue #31 open.
