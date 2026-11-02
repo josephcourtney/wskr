@@ -407,3 +407,43 @@ shell prompt **after the outer command returns** separately qualifies
 shell prompt behavior; the harness's `after_child_exit` stage cannot do so.
 Do not claim full native multi-figure or close acceptance from the portable
 tests or the availability of this script alone.
+
+## Native two-figure lifecycle result — November 1, 2026
+
+A user-run `just native-lifecycle unmanaged` test passed on macOS 27.0.1
+with `WSKR_KITTY_ANCHOR=unicode` and `WSKR_IDLE_REDRAW=coalesce`.
+Evidence: `20261102T020928Z-unmanaged-unicode.zip`, containing the five
+screen captures and JSON report; private window captures are not committed.
+The harness-reported mode is `unmanaged` but does not itself attest the
+window manager's configuration. Previously checked Kitty version 0.49.2;
+`kitty_version` in this report is `unknown`.
+
+All screenshots show the same terminal geometry: 118×34 cells,
+1652×918 measured terminal pixels. Each figure transmitted 500×200 PNGs.
+
+| Stage | Native screenshot observation | Managed images (red / blue) |
+| --- | --- | --- |
+| `initial` | Two distinct vertically stacked figures: red bar height 3, blue height 4 | 2 / 2 |
+| `pumped` | Both figures updated after one event pump: red height 4, blue height 2 | 2 / 2 |
+| `after_red_close` | Only red removed; blue stays at its original location | 0 / 2 |
+| `after_blue_close` | Neither figure visible | 0 / 0 |
+| `after_child_exit` | Neither figure reappears | 0 / 0 |
+
+The single pump caused exactly one additional upload per figure: final
+`uploads = {"red": 2, "blue": 2}`. The resized geometry is unchanged;
+this is a **lifecycle test, not a terminal-resize test**. There is no
+figure/figure overlap in the native captures. The report records
+`visual_failures: []` and `passed_protocol_checks: true`, which
+agrees with visual inspection.
+
+**Native acceptance granted for this specific multi-figure update and
+explicit-close sequence.** Graphics-resource deletion leaves the
+historical terminal rows in place; `plt.close` does not retract those
+rows, even though no image pixels persist. This behavior is consistent
+with nonblocking scrollback rather than a missing image cleanup.
+
+The plot titles and some labels are low contrast against the dark terminal
+background, a separate style issue. This experiment did not capture the
+actual shell prompt *after the outer harness returns*, independently verify
+unmanaged yabai mode, test blocking multi-page navigation, or establish
+unattended REPL/IPython event scheduling. Those acceptance gates remain open.
