@@ -43,6 +43,35 @@ WSKR_FIT=contain MPLBACKEND=wskr_kitty uv run python example.py
 
 When the application pumps `canvas.flush_events()` or `plt.pause()`, a fitted nonblocking figure can be redrawn following a stable resize. Interactive applications may opt into `WSKR_IDLE_REDRAW=coalesce` to queue repeated `draw_idle()` calls until the next event pump. A pump on one pyplot figure also drains pending backend-managed figures. The default remains immediate; this does not add an unattended REPL/IPython event loop. Nonblocking placement is **history-relative, not viewport-pinned**. The default physical parent can become obscured or overlap wrapped history under Kitty 0.49.2 despite correct PNG transmission. In a compatible Kitty, opt into `WSKR_KITTY_ANCHOR=unicode` to bind the image to a transparent Unicode-placeholder text cell; native macOS evidence supports selected 9×2/9×6 scrollback/reflow cases, but not a universal placement guarantee. For older Kitty without P/Q parent-relative placement, `WSKR_KITTY_PARENT=off` instead uses ordinary scoped physical placement. Neither mode provides unattended viewport pinning. See [placement semantics](docs/phase3-placement-semantics.md) and [native acceptance](docs/phase3-native-macos-acceptance.md).
 
+## Cooperative IPython and REPL plots
+
+A standard Python REPL can call `plt.pause()` or
+`fig.canvas.flush_events()` after changing a figure. For IPython, an
+**explicit, optional** host event hook drains queued updates after each
+completed cell:
+
+```sh
+WSKR_FIT=contain WSKR_IDLE_REDRAW=coalesce MPLBACKEND=wskr_kitty ipython
+```
+
+```python
+%load_ext wskr.render.matplotlib.ipython
+import matplotlib.pyplot as plt
+plt.ion()
+fig, ax = plt.subplots()
+line, = ax.plot([0, 1], [1, 0])
+line.set_ydata([0, 1])
+fig.canvas.draw_idle()
+# After this cell: one cooperative redraw, no input polling or thread.
+```
+
+An installed pandas Matplotlib plot can participate in the same event pump.
+Use `%unload_ext wskr.render.matplotlib.ipython` to remove the callback.
+The extension does not install IPython or claim its input loop; it does not
+repaint while the user is idle. Other interactive shells should call
+`flush_events()` themselves. A truly *unowned* terminal cannot be queried
+or asynchronously refreshed without host cooperation.
+
 ## Foreground-owned live viewport
 
 ```python
