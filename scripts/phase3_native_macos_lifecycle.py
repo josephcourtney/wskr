@@ -108,9 +108,10 @@ def _worker(directory: Path, mode: str) -> None:
         _save(report, directory)
 
     def resources(stage: str) -> None:
-        report["resources"].append(
-            {"stage": stage, "active_images": {label: len(transport.manager._images) for label, transport in transports.items()}}
-        )
+        report["resources"].append({
+            "stage": stage,
+            "active_images": {label: len(transport.manager._images) for label, transport in transports.items()},
+        })
         _save(report, directory)
 
     try:
@@ -187,7 +188,15 @@ def main() -> int:
     )
     directory.mkdir(parents=True, exist_ok=False)
     completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - fixed local argv
-        [sys.executable, str(Path(__file__).resolve()), "--worker", "--mode", args.mode, "--directory", str(directory.resolve())],
+        [
+            sys.executable,
+            str(Path(__file__).resolve()),
+            "--worker",
+            "--mode",
+            args.mode,
+            "--directory",
+            str(directory.resolve()),
+        ],
         check=False,
     )
     if completed.returncode:
