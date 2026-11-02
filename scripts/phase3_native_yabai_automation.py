@@ -463,36 +463,60 @@ class NativeController:
             self._finish_report(result)
         return result
 
+    def _cleanup_rule(self) -> None:
+        if not self.rule_installed:
+            return
+        try:
+            self.yabai("rule", "--remove", self.rule_label)
+        except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+            self.cleanup_errors.append(f"rule removal: {exc}")
+
+    def _cleanup_kitty(self) -> None:
+        process = self.kitty_process
+        if process is None or process.poll() is not None:
+            return
+        try:
+            process.terminate()
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
+        except OSError as exc:
+            self.cleanup_errors.append(f"Kitty process termination: {exc}")
+
+    def _restore_previous_space(self) -> None:
+        if not self.previous_uuid:
+            return
+        try:
+            prior = next(s for s in self._spaces() if s["uuid"] == self.previous_uuid)
+            self.yabai("space", "--focus", str(prior["index"]))
+        except (OSError, RuntimeError, StopIteration, KeyError, subprocess.TimeoutExpired) as exc:
+            self.cleanup_errors.append(f"prior space restoration: {exc}")
+
+    def _destroy_owned_space(self) -> None:
+        if not self.space_uuid:
+            return
+        try:
+            created = next(s for s in self._spaces() if s["uuid"] == self.space_uuid)
+            self.yabai("space", "--destroy", str(created["index"]))
+        except (OSError, RuntimeError, StopIteration, KeyError, subprocess.TimeoutExpired) as exc:
+            self.cleanup_errors.append(f"owned test space destruction: {exc}")
+
+    def _remove_socket(self) -> None:
+        if self.socket_dir is None:
+            return
+        try:
+            shutil.rmtree(self.socket_dir)
+        except OSError as exc:
+            self.cleanup_errors.append(f"private Kitty socket cleanup: {exc}")
+
     def cleanup(self) -> None:
-        if self.rule_installed:
-            try:
-                self.yabai("rule", "--remove", self.rule_label)
-            except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
-                self.cleanup_errors.append(f"rule removal: {exc}")
-        if self.kitty_process is not None and self.kitty_process.poll() is None:
-            self.kitty_process.terminate()
-            try:
-                self.kitty_process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self.kitty_process.kill()
-                self.kitty_process.wait(timeout=5)
-        if self.previous_uuid:
-            try:
-                prior = next(s for s in self._spaces() if s["uuid"] == self.previous_uuid)
-                self.yabai("space", "--focus", str(prior["index"]))
-            except (OSError, RuntimeError, StopIteration, KeyError, subprocess.TimeoutExpired) as exc:
-                self.cleanup_errors.append(f"prior space restoration: {exc}")
-        if self.space_uuid:
-            try:
-                created = next(s for s in self._spaces() if s["uuid"] == self.space_uuid)
-                self.yabai("space", "--destroy", str(created["index"]))
-            except (OSError, RuntimeError, StopIteration, KeyError, subprocess.TimeoutExpired) as exc:
-                self.cleanup_errors.append(f"owned test space destruction: {exc}")
-        if self.socket_dir is not None:
-            try:
-                shutil.rmtree(self.socket_dir)
-            except OSError as exc:
-                self.cleanup_errors.append(f"private Kitty socket cleanup: {exc}")
+        """Undo only owned resources, collecting all cleanup failures."""
+        self._cleanup_rule()
+        self._cleanup_kitty()
+        self._restore_previous_space()
+        self._destroy_owned_space()
+        self._remove_socket()
 
 
 def main() -> int:
