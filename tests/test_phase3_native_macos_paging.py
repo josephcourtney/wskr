@@ -15,8 +15,8 @@ from scripts.phase3_native_macos_paging import (
     _check_page,
     _color_pixels,
     _figures_on_page,
-    _worker_argv,
     _validate_worker,
+    _worker_argv,
 )
 from wskr.render.matplotlib.sheet import plan_sheet_pages
 from wskr.terminal.profile import Geometry
