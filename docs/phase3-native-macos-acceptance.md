@@ -626,3 +626,31 @@ The existing private original screenshots are sufficient to reproduce
 these checks; they are not committed. A future native run will additionally
 embed profile provenance in its JSON report. Keep manual screenshot review
 and the separate page-capacity/prompt acceptance limits.
+
+## P3 strict native page-capacity transition procedure — November 2, 2026
+
+The previous eight-stage macOS run validated `n`/`p` navigation, fitted
+PNG redraw and alternate-screen restoration, but `page_capacity_changed`
+was `false`. It therefore did not validate navigation *across a change*
+in the number of figures per page.
+
+Run `just native-paging-capacity unmanaged` in a **disposable** native Kitty
+window. This is distinct from `just native-paging unmanaged` and has an
+explicit `--require-capacity-change` gate. The script measures
+`plan_sheet_pages(figure_count, geometry).page_size` before and after
+the resize. Adjust the window **height or width** until the page capacity
+changes; reducing its height often works when substantial width reduction
+does not. The GUI dialog retries and describes the original page capacity.
+There is no exact pixel-width or height target. Screenshot and worker
+receipts retain the measured capacities and fit geometry.
+
+A real foreground `p` or `n` command now refreshes the current plan
+*before* using page-count wraparound, including when resizing occurred while
+the canonical input line was being typed. A deterministic regression covers
+a 3-page to 5-page transition with `p` wrapping to the new final page.
+The native screenshots remain mandatory for visual signoff.
+
+The strict gate still records the intermediate raster and restores the
+primary screen; it does **not** independently verify the final shell
+prompt after the outer harness returns. Capture that prompt in a separate
+post-command screenshot. Do not infer acceptance from a passing JSON alone.
