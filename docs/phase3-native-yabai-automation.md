@@ -78,3 +78,42 @@ Full test commands must pass on the feature branch before merge.
 Current manual evidence and remaining acceptance limits:
 [Phase 3 macOS acceptance](phase3-native-macos-acceptance.md),
 [STATUS](../STATUS.md) and [TODO](../TODO.md).
+
+## Recovery after the November 2 initial automated runs
+
+The first four native runs (and the matrix's first attempt) created new
+spaces but used the invalid `yabai -m space <label> --focus` form.
+Those runs failed **before Kitty launched**, and their cleanup also used
+incorrect action/selector ordering. They may have left empty spaces labelled
+`wskr-p3-*` on the user's desktop.
+
+To inspect without modifying the desktop:
+
+```sh
+yabai -m query --spaces |
+  jq '.[] | select((.label // "") | startswith("wskr-p3-")) |
+      {index, label, uuid, windows}'
+```
+
+Only after confirming each named space is a disposable, unoccupied test space,
+remove it by its **unique label** using the supported command form:
+
+```sh
+yabai -m space --destroy '<exact-wskr-p3-label>'
+```
+
+The fixed controller also uses `space --focus <label>`,
+`space --focus <index>`, and `space --destroy <index>`.
+It resolves UUIDs again at cleanup and refuses to destroy a space that
+contains any windows. This guards against affecting unrelated desktop work.
+
+The November 2 user validation on the earlier controller commit stopped at
+formatting/lint (18 remaining lint diagnostics), then hit the invalid space
+focus form for each native case. None of those ZIPs demonstrates rendering
+or acceptance. The subsequent commits refactor the controller to satisfy
+those static checks, add command-order regression tests, and require a fresh
+`just check` followed by real native execution before signoff.
+
+If `just fix` changed the local working tree, inspect and preserve those
+modifications before fetching/resetting/switching branches. Do not blindly
+discard uncommitted work.
