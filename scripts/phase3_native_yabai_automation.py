@@ -370,6 +370,83 @@ class NativeController:
                 raise RuntimeError(msg)
         return handled
 
+    def _check_returned_prompt(self) -> None:
+        """Require a real foreground shell prompt and the worker exit marker."""
+        for _ in range(35):
+            prompt = self.kitty("get-text", "--match", self._target(), "--extent", "screen")
+            if "WSKR_NATIVE_AUTO_PROMPT>" in prompt and "WSKR_NATIVE_AUTO_EXIT:" in prompt:
+                (self.root / "returned_text.txt").write_text(prompt, encoding="utf-8")
+                return
+            time.sleep(_POLL_SECONDS)
+        (self.root / "returned_text.txt").write_text(prompt, encoding="utf-8")
+        msg = "Returned real zsh prompt/exit marker missing from Kitty screen"
+        raise RuntimeError(msg)
+
+    def _collect_worker_evidence(self, worker: dict) -> None:
+        """Copy the one completed harness ZIP, preserving source evidence."""
+        if worker.get("returncode"):
+            msg = f"Native P3 harness returned {worker['returncode']}"
+            raise RuntimeError(msg)
+        evidence = worker.get("evidence_archive")
+        if worker.get("archive_count") != _EXACTLY_ONE or not evidence:
+            msg = "Unable to identify one unambiguous harness ZIP"
+            raise RuntimeError(msg)
+        source = Path(evidence).resolve()
+        artifacts = (Path(__file__).resolve().parents[1] / "artifacts").resolve()
+        if not source.is_relative_to(artifacts) or not source.is_file():
+            msg = "Native worker evidence archive was not found under wskr artifacts"
+            raise RuntimeError(msg)
+        shutil.copy2(source, self.root / "harness.zip")
+
+    def _complete_worker(self, path: Path) -> dict:
+        worker = json.loads(path.read_text(encoding="utf-8"))
+        self._check_returned_prompt()
+        self._verify()
+        _invoke(
+            [
+                "/usr/sbin/screencapture",
+                "-x",
+                "-l",
+                str(self.window_id),
+                "-o",
+                str(self.root / "returned_prompt.png"),
+            ],
+            timeout=30,
+        )
+        self._collect_worker_evidence(worker)
+        return worker
+
+    def _await_worker(self) -> dict:
+        """Pump only controller event files; do not read the plotting PTY."""
+        deadline = time.monotonic() + _RUN_SECONDS
+        while time.monotonic() < deadline:
+            self._poll_events()
+            completed = self.root / "completed.json"
+            if completed.exists():
+                return self._complete_worker(completed)
+            if self.kitty_process is not None and self.kitty_process.poll() is not None:
+                msg = "Kitty exited before the P3 harness completed"
+                raise RuntimeError(msg)
+            time.sleep(_POLL_SECONDS)
+        msg = "Native GUI harness exceeded its bounded deadline"
+        raise TimeoutError(msg)
+
+    def _finish_report(self, result: dict) -> None:
+        """Record desktop cleanup failures as qualification failures."""
+        self.cleanup()
+        if self.cleanup_errors:
+            result["cleanup_errors"] = self.cleanup_errors
+            result["passed_protocol_checks"] = False
+            result.setdefault("error", "Native test window or space cleanup failed")
+        result["events"] = self.events
+        result["commands"] = self.commands
+        result["space_uuid"] = self.space_uuid
+        result["window_id"] = self.window_id
+        result["kitty_window_id"] = self.kitty_window_id
+        (self.root / "controller.json").write_text(
+            json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8"
+        )
+
     def run(self) -> dict:
         (self.root / "events").mkdir(parents=True)
         (self.root / "acks").mkdir()
@@ -377,72 +454,13 @@ class NativeController:
         try:
             self._own_space()
             self._spawn()
-            deadline = time.monotonic() + _RUN_SECONDS
-            while time.monotonic() < deadline:
-                self._poll_events()
-                completed = self.root / "completed.json"
-                if completed.exists():
-                    result["worker"] = json.loads(completed.read_text(encoding="utf-8"))
-                    # Require the actual post-harness interactive zsh prompt,
-                    # not merely a worker exit receipt, before taking its screenshot.
-                    prompt = ""
-                    for _ in range(35):
-                        prompt = self.kitty("get-text", "--match", self._target(), "--extent", "screen")
-                        if "WSKR_NATIVE_AUTO_PROMPT>" in prompt and "WSKR_NATIVE_AUTO_EXIT:" in prompt:
-                            break
-                        time.sleep(_POLL_SECONDS)
-                    else:
-                        (self.root / "returned_text.txt").write_text(prompt, encoding="utf-8")
-                        msg = "Returned real zsh prompt/exit marker missing from Kitty screen"
-                        raise RuntimeError(msg)
-                    (self.root / "returned_text.txt").write_text(prompt, encoding="utf-8")
-                    self._verify()
-                    _invoke(
-                        [
-                            "/usr/sbin/screencapture", "-x", "-l", str(self.window_id),
-                            "-o", str(self.root / "returned_prompt.png"),
-                        ],
-                        timeout=30,
-                    )
-                    if result["worker"]["returncode"]:
-                        msg = f"Native P3 harness returned {result['worker']['returncode']}"
-                        raise RuntimeError(msg)
-                    evidence = result["worker"].get("evidence_archive")
-                    if result["worker"].get("archive_count") != _EXACTLY_ONE or not evidence:
-                        msg = "Unable to identify one unambiguous harness ZIP"
-                        raise RuntimeError(msg)
-                    source = Path(evidence).resolve()
-                    artifacts = (Path(__file__).resolve().parents[1] / "artifacts").resolve()
-                    if not source.is_relative_to(artifacts) or not source.is_file():
-                        msg = "Native worker evidence archive was not found under wskr artifacts"
-                        raise RuntimeError(msg)
-                    shutil.copy2(source, self.root / "harness.zip")
-                    result["passed_protocol_checks"] = True
-                    break
-                if self.kitty_process is not None and self.kitty_process.poll() is not None:
-                    msg = "Kitty exited before the P3 harness completed"
-                    raise RuntimeError(msg)
-                time.sleep(_POLL_SECONDS)
-            else:
-                msg = "Native GUI harness exceeded its bounded deadline"
-                raise TimeoutError(msg)
+            result["worker"] = self._await_worker()
+            result["passed_protocol_checks"] = True
         except (OSError, ValueError, RuntimeError, TimeoutError, subprocess.TimeoutExpired) as exc:
             result["error"] = str(exc)
             result["passed_protocol_checks"] = False
         finally:
-            self.cleanup()
-            if self.cleanup_errors:
-                result["cleanup_errors"] = self.cleanup_errors
-                result["passed_protocol_checks"] = False
-                result.setdefault("error", "Native test window or space cleanup failed")
-            result["events"] = self.events
-            result["commands"] = self.commands
-            result["space_uuid"] = self.space_uuid
-            result["window_id"] = self.window_id
-            result["kitty_window_id"] = self.kitty_window_id
-            (self.root / "controller.json").write_text(
-                json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8"
-            )
+            self._finish_report(result)
         return result
 
     def cleanup(self) -> None:
