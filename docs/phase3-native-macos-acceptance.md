@@ -518,3 +518,23 @@ This test is distinct from nonblocking Unicode history placement, and
 it does not modify its default. The existing portable PTY test already checks
 real canonical paging commands and balanced alternate-screen escape sequences;
 native visual signoff remains pending until the evidence is reviewed.
+
+## Native blocking paging startup failure — November 1, 2026
+
+User-provided run `20261102T025857Z-unmanaged.zip` exited before the
+first contact-sheet render. The parent successfully measured the native Kitty
+window at **160 columns × 18 rows, 2240 × 486 terminal pixels** and captured
+`primary_before.png`. That confirms the relaxed window-geometry gate worked.
+
+The child was launched with `--worker`, `--event-fd`, `--directory`
+and `--figure-count`, but omitted the parser-required `--mode` option.
+Its argument parser terminated with exit code 2, and the parent recorded
+`Plotting child closed before expected new page PNG` in `error.txt`.
+No paging frames were generated, so the archive is **not** evidence of
+native paging, resize, or restoration success or failure.
+
+The fix passes the parent's mode through to the child and tests that
+the constructed subprocess arguments actually satisfy the production
+argument parser for both `unmanaged` and `yabai`. Repeat
+`just native-paging unmanaged` in a fresh disposable Kitty window;
+full native screenshot acceptance remains pending.
