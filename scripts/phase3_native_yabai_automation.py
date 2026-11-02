@@ -217,9 +217,7 @@ class NativeController:
         if self.previous_uuid is None or self.space_uuid is None:
             msg = "Cannot refresh AX registration without both space UUIDs"
             raise RuntimeError(msg)
-        if not self._is_owned_space_focused():
-            self._focus_owned_space()
-        else:
+        if self._is_owned_space_focused():
             previous = next((s for s in self._spaces() if s["uuid"] == self.previous_uuid), None)
             if previous is None:
                 msg = "Original space disappeared before AX recovery"
@@ -227,6 +225,8 @@ class NativeController:
             self.yabai("space", "--focus", str(previous["index"]))
             self._await_focused_space_uuid(self.previous_uuid)
             self.focus_observations.append({"stage": "ax_refresh_away", "space_uuid": self.previous_uuid})
+        # Inactive owned Space: focus it once. Active owned Space: switch
+        # away first, then return exactly once.
         self._focus_owned_space()
         self.focus_observations.append({"stage": "ax_refresh_return", "space_uuid": self.space_uuid})
 
