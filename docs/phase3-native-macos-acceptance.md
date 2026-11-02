@@ -255,3 +255,39 @@ shell prompt behaviors are safe.
 The Unicode mode remains **explicitly opt-in** pending native 9×6,
 unmanaged, clean-history control, interactive shell/prompt, and
 multi-figure/explicit-close signoff. Keep issue #31 open.
+
+## Unicode-placeholder parent native 9x6 result — November 1, 2026
+
+A second user-run opt-in `WSKR_KITTY_ANCHOR=unicode` native test passed
+**9x6-inch fitting with 96 seeded 112-character history lines** using a
+yabai-managed Kitty 0.49.2 window on macOS 27.0.1. Source evidence:
+`20261102T003900Z-yabai-h6-clean-history96.zip`; window screenshots were
+reviewed, but are not committed.
+
+| Stage | Measured viewport | PNG raster | Review |
+| --- | --- | --- | --- |
+| Initial | 79x69 cells; 1106x1863 px | 900x600 | Plot below history |
+| Before redraw | 40x69 cells; 560x1863 px | Previous PNG | Old image horizontally clipped |
+| Resized | 40x69 cells; 560x1863 px | 560x373 | **Pass:** complete line 0095 above chart, no overlap |
+| Expanded | 85x69 cells; 1190x1863 px | 900x600 | Correct plot order restored |
+| After plotting Python exit | 85x69 cells; 1190x1863 px | Retained 900x600 | Plot remains visible |
+
+At the narrow size the screenshot contained 48,280 red and 64,757 blue
+pixels; `visual_failures: []` and `passed_protocol_checks: true`. The
+two almost-black `before_redraw.invalid-*.png` picker captures were
+excluded from the valid five-stage evidence. The 112-character fixture already
+wraps at the initial width of 79 columns; shrinking to 40 columns introduces
+further reflow. This is a **native visual pass for one 9x6/yabai/history case**,
+in addition to the preceding 9x2 native pass, not general shell or viewport
+acceptance.
+
+The title and some axis text are visibly low-contrast against the dark Kitty
+background. That is a separate appearance issue and not a graphics-placement
+acceptance failure. The fifth screenshot is taken after the plotting child
+exits but before the outer harness has returned to the user's shell; it
+does **not** establish that the restored shell prompt is positioned safely.
+
+Still pending for issue #31: native Unicode zero-history controls, unmanaged
+window tests, actual shell prompt position after the harness returns, explicit
+figure close and multi-figure behavior. The physical-parent default and
+nonblocking history-versus-viewport contract remain unchanged.
