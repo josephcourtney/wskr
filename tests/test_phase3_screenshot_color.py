@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
@@ -11,6 +11,9 @@ from PIL import Image, ImageCms
 
 from scripts.phase3_native_macos_paging import _COLORS, _color_pixels_with_metadata
 from scripts.phase3_screenshot_color import read_screenshot_srgb
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 pytestmark = pytest.mark.medium
 
