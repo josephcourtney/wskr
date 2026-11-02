@@ -498,17 +498,20 @@ class NativeController:
         except (OSError, RuntimeError, StopIteration, KeyError, subprocess.TimeoutExpired) as exc:
             self.cleanup_errors.append(f"prior space restoration: {exc}")
 
+    def _require_empty_owned_space(self, space_index: int) -> None:
+        """Never relocate an unrelated desktop window by destroying its space."""
+        occupied = [w for w in self.query_list("--windows") if w.get("space") == space_index]
+        if occupied:
+            ids = [w.get("id") for w in occupied]
+            msg = f"Owned test space still contains windows: {ids}"
+            raise RuntimeError(msg)
+
     def _destroy_owned_space(self) -> None:
         if not self.space_uuid:
             return
         try:
             created = next(s for s in self._spaces() if s["uuid"] == self.space_uuid)
-            # Never destroy a space that an unrelated window has entered;
-            # yabai would otherwise relocate the owner's window on destruction.
-            occupied = [w for w in self.query_list("--windows") if w.get("space") == created["index"]]
-            if occupied:
-                msg = f"Owned test space still contains windows: {[w.get('id') for w in occupied]}"
-                raise RuntimeError(msg)
+            self._require_empty_owned_space(int(created["index"]))
             self.yabai("space", "--destroy", str(created["index"]))
         except (OSError, RuntimeError, StopIteration, KeyError, subprocess.TimeoutExpired) as exc:
             self.cleanup_errors.append(f"owned test space destruction: {exc}")
