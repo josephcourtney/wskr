@@ -19,6 +19,7 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
+from typing import cast
 from unittest.mock import patch
 
 from PIL import Image
@@ -50,13 +51,14 @@ def _require_uploads(report: dict, expected: dict[str, int], stage: str) -> None
         raise AssertionError(msg)
 
 
-def _worker(directory: Path, mode: str) -> None:
+def _worker(directory: Path, mode: str) -> None:  # ruff: ignore[too-many-statements] - linear GUI test transcript
     import matplotlib as mpl  # ruff: ignore[import-outside-top-level]
 
     mpl.use("module://wskr.render.matplotlib.kitty")
     import matplotlib.pyplot as plt  # ruff: ignore[import-outside-top-level]
 
     from wskr.protocol.kitty_native import NativeKittyTransport  # ruff: ignore[import-outside-top-level]
+    from wskr.render.matplotlib.kitty import KittyFigureManager  # ruff: ignore[import-outside-top-level]
 
     report: dict = {
         "mode": mode,
@@ -89,7 +91,7 @@ def _worker(directory: Path, mode: str) -> None:
     figures = {"red": red_fig, "blue": blue_fig}
     # The backend-specific manager transport is intentionally inspected only
     # within this acceptance harness, never presented as a public API.
-    transports = {label: getattr(fig.canvas.manager, "transport") for label, fig in figures.items()}
+    transports = {label: cast("KittyFigureManager", fig.canvas.manager).transport for label, fig in figures.items()}
     labels = {id(transport): label for label, transport in transports.items()}
     original = {label: (tuple(fig.get_size_inches()), fig.dpi) for label, fig in figures.items()}
     original_send = NativeKittyTransport.send_anchored_image
@@ -110,7 +112,7 @@ def _worker(directory: Path, mode: str) -> None:
     def resources(stage: str) -> None:
         report["resources"].append({
             "stage": stage,
-            "active_images": {label: len(transport.manager._images) for label, transport in transports.items()},
+            "active_images": {label: len(transport.manager._images) for label, transport in transports.items()},  # ruff: ignore[private-member-access] - test-only owned resource inspection
         })
         _save(report, directory)
 
