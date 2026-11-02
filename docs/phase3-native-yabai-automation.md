@@ -218,14 +218,13 @@ but cannot be safely manipulated via ID-based commands, particularly
 when their space is inactive. Therefore the harness must **not** simply
 ignore this flag for unmanaged windows.
 
-The next controller revision verifies that the newly created space's
-focused UUID is the owned space, before Kitty is spawned. If AX remains
-unavailable after a bounded registration interval, it re-focuses the
-owned space and invokes Kitty `focus-window` over the private remote
-socket with the exact internal Kitty ID. It retains the AX prerequisite
-for yabai window resizing, and records the focus history separately
-from the window-identity snapshots. If those actions cannot establish
-AX access, the run fails without touching unrelated windows.
+An intermediate controller revision verified the newly created space's
+focused UUID and attempted Kitty `focus-window` through the private
+socket. This strategy is now **superseded**: subsequent native evidence
+showed that the Kitty focus command can switch macOS back to the
+original space without repairing yabai's AX reference. The final section
+below describes the replacement. The AX prerequisite for yabai window
+resizing remains unchanged.
 
 This recovery strategy still requires a native run. An `unmanaged`
 window's floating state is **not itself evidence** that a missing AX
@@ -259,3 +258,36 @@ retaining the checks while reducing worker complexity.
 
 A full subsequent `just check` and real native run are required to
 verify both changes. Do not mark this failed ZIP as a native acceptance pass.
+
+## Fourth native attempt — November 2, 2026, 15:41 UTC
+
+User log from detached worktree at `22f78fd`:
+
+- `just fix`: two Ruff format changes; Ruff lint then **passed**.
+- `just check`: syntax, formatter, Ruff lint, `ty`, and
+  **466 tests passed; 3 skipped**. Test category and `forkpty`
+  deprecation warnings remained nonfatal. These results apply to the
+  **locally formatted** tree, not automatically to later remote commits.
+- `just native-auto unmanaged resize 2`: **failed before plotting**.
+  Test Kitty OS window 7885, PID 56541, space index 5 stayed
+  `has-ax-reference=false` despite a bounded focus-recovery attempt.
+  Focus observations show an active original space index 4, then active
+  owned space index 5, followed by **focus back to original space 4**
+  after the Kitty remote `focus-window` recovery. The controller
+  continued refusing yabai window actions, correctly preventing a
+  false-positive qualification.
+
+The replacement recovery deliberately **never calls**
+`kitty @ focus-window` to repair AX. It switches through the two
+recorded yabai Space UUIDs (original and owned), waits for actual
+macOS focus transitions, and then retries the two-consecutive
+AX-ready window observations. When the original space is currently
+active, it switches directly to the owned space. Only this one
+bounded recovery is attempted, with no unrelated window resizing,
+global yabai configuration changes, or success assertion when AX
+remains unavailable. Unit regressions cover these transitions.
+
+Native validation is still needed to determine whether the deliberate
+Space activation repairs AX registration. The first 9×2 automation
+pass and its unresolved apparent figure-title clipping remain separate
+evidence; a successful AX recovery is **not yet established**.
