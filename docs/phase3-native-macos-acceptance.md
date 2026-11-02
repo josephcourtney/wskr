@@ -291,3 +291,38 @@ Still pending for issue #31: native Unicode zero-history controls, unmanaged
 window tests, actual shell prompt position after the harness returns, explicit
 figure close and multi-figure behavior. The physical-parent default and
 nonblocking history-versus-viewport contract remain unchanged.
+
+## Unicode-placeholder parent, unmanaged-labelled native 9x6 — November 1, 2026
+
+The opt-in Unicode anchor also passed a **9x6 / 96-history native Kitty run
+labelled `unmanaged`** on macOS 27.0.1. Evidence:
+`20261102T010556Z-unmanaged-h6-clean-history96.zip`.
+The harness labels the requested mode, but does not independently verify
+whether yabai has actually relinquished management of this window. All five
+valid screenshots were inspected, excluding two invalid nearly black
+`before_redraw.invalid-*.png` picker captures.
+
+| Stage | Measured viewport | PNG raster | Visual observation |
+| --- | --- | --- | --- |
+| Initial | 168x70 cells; 2352x1890 px | 900x600 | Chart below history |
+| Before redraw | 40x70 cells; 560x1890 px | Previous image | Expected horizontal clipping |
+| Resized | 40x70 cells; 560x1890 px | 560x373 | **Pass:** line 0095 and wrapped text remain entirely above the image |
+| Expanded | 111x70 cells; 1554x1890 px | 900x600 | Chart correctly positioned below history |
+| After plotting child exits | 111x70 cells; 1554x1890 px | Retained 900x600 | Chart persists; cursor below image |
+
+The resized screenshot shows 48,280 red and 64,757 blue bar pixels, and the
+harness reports `visual_failures: []` and
+`passed_protocol_checks: true`. This is additional evidence that
+the Unicode-placeholder parent tolerates history wrapping at the same narrow
+40-column size as the previous yabai 9x6 pass.
+
+**Do not infer post-harness shell-prompt safety from `after_python_exit`.**
+The harness takes its fifth screenshot after its plotting child exits but
+before the outer harness prints its own results and returns to the user's
+shell. A separate screenshot of the actual prompt remains necessary.
+The title and axis labels also remain low-contrast on the dark background;
+that appearance issue is independent of this placement result.
+
+Unicode anchoring remains opt-in, and issue #31 remains open for zero-history
+controls, independent management-mode verification as needed, complete
+shell-prompt acceptance, explicit-close cleanup, and multi-figure behavior.
