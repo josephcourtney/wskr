@@ -82,6 +82,8 @@ def _action(prompt: str) -> str:
         return "expand"
     if "enlarge" in value or "normally sized kitty" in value:
         return "initial"
+    if "blank screenshot captured" in value:
+        return "retry"
     msg = f"Unrecognized native GUI checkpoint: {prompt}"
     raise ValueError(msg)
 
@@ -288,6 +290,8 @@ class NativeController:
                 self._size(small=True)
             elif step == "expand":
                 self._size(small=False)
+            elif step == "retry":
+                self._verify()
             elif step in ("dark", "light"):
                 self._theme(light=step == "light")
             else:
@@ -332,8 +336,19 @@ class NativeController:
                 completed = self.root / "completed.json"
                 if completed.exists():
                     result["worker"] = json.loads(completed.read_text(encoding="utf-8"))
-                    # Allow zsh to become interactive before recording the returned prompt.
-                    time.sleep(0.75)
+                    # Require the actual post-harness interactive zsh prompt,
+                    # not merely a worker exit receipt, before taking its screenshot.
+                    prompt = ""
+                    for _ in range(35):
+                        prompt = self.kitty("get-text", "--match", f"title:^{self.title}$", "--extent", "screen")
+                        if "WSKR_NATIVE_AUTO_PROMPT>" in prompt and "WSKR_NATIVE_AUTO_EXIT:" in prompt:
+                            break
+                        time.sleep(_POLL_SECONDS)
+                    else:
+                        (self.root / "returned_text.txt").write_text(prompt, encoding="utf-8")
+                        msg = "Returned real zsh prompt/exit marker missing from Kitty screen"
+                        raise RuntimeError(msg)
+                    (self.root / "returned_text.txt").write_text(prompt, encoding="utf-8")
                     self._verify()
                     _invoke(
                         ["/usr/sbin/screencapture", "-x", "-l", str(self.window_id), "-o", str(self.root / "returned_prompt.png")],
