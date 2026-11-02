@@ -363,9 +363,7 @@ def test_persistent_no_ax_window_fails_without_binding_a_false_ready_window(
     assert controller.window_observations[-1]["has_ax_reference"] is False
 
 
-def test_owned_space_focus_is_noop_when_already_active(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_owned_space_focus_is_noop_when_already_active(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     controller = NativeController(root=tmp_path, state="unmanaged", case="resize", height=2)
     controller.space_uuid = "owned"
     commands: list[tuple[str, ...]] = []
@@ -392,9 +390,7 @@ def test_focus_race_is_accepted_only_when_target_space_becomes_active(
     assert controller.focus_observations[-1]["stage"] == "already_focused_race"
 
 
-def test_focus_race_never_mistakes_unrelated_space_for_success(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_focus_race_never_mistakes_unrelated_space_for_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     controller = NativeController(root=tmp_path, state="unmanaged", case="resize", height=2)
     controller.space_uuid = "owned"
     monkeypatch.setattr(controller, "query", lambda *_args: {"uuid": "other", "has-focus": True})
