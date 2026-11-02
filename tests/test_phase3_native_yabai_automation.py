@@ -196,3 +196,97 @@ def test_cleanup_preserves_owned_space_if_another_window_moves_there(tmp_path: P
     controller._destroy_owned_space()
     assert calls == []
     assert "still contains windows" in controller.cleanup_errors[0]
+
+
+def test_window_lookup_uses_full_snapshot_after_yabai_selector_rejects_id(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller = NativeController(root=tmp_path, state="unmanaged", case="resize", height=2)
+    controller.window_id = 7225
+    controller.window_owner_pid = 2205
+    controller.space_index = 3
+    state = {
+        "id": 7225,
+        "pid": 2205,
+        "app": "kitty",
+        "title": "zsh changed the tab title",
+        "space": 3,
+        "is-floating": True,
+    }
+    monkeypatch.setattr(controller, "query_list", lambda *_args: [state])
+    def forbid_window_query(*args: str) -> dict:
+        msg = f"Targeted yabai query must not be used: {args!r}"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(controller, "query", forbid_window_query)
+    assert controller._window() == state
+
+
+def test_window_disappearance_fails_with_candidate_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller = NativeController(root=tmp_path, state="bsp", case="resize", height=2)
+    controller.window_id = 7225
+    controller.space_index = 3
+    unrelated = {"id": 991, "app": "kitty", "title": "unrelated", "pid": 9001, "space": 2}
+    monkeypatch.setattr(controller, "query_list", lambda *_args: [unrelated])
+    with pytest.raises(RuntimeError, match="disappeared or became ambiguous"):
+        controller._window()
+    assert controller.window_observations[-1]["missing_id"] == 7225
+    assert controller.window_observations[-1]["kitty_candidates"][0]["id"] == 991
+
+
+def test_window_id_reuse_rejected_even_if_application_and_space_match(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller = NativeController(root=tmp_path, state="unmanaged", case="resize", height=2)
+    controller.window_id = 7225
+    controller.window_owner_pid = 2205
+    controller.space_index = 3
+    other = {"id": 7225, "pid": 9001, "app": "kitty", "space": 3}
+    monkeypatch.setattr(controller, "query_list", lambda *_args: [other])
+    with pytest.raises(RuntimeError, match="PID changed"):
+        controller._window()
+
+
+def test_spawn_waits_for_two_accessibility_ready_snapshots(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller = NativeController(root=tmp_path, state="unmanaged", case="resize", height=2)
+    controller.space_index = 3
+    raw = {
+        "id": 7225,
+        "pid": 2205,
+        "app": "kitty",
+        "title": controller.title,
+        "space": 3,
+        "is-floating": True,
+        "has-ax-reference": False,
+    }
+    observed: list[bool] = []
+    snapshots = iter([False, True, True])
+    def fake_windows(*args: str) -> list[dict]:
+        assert args == ("--windows",)
+        raw["has-ax-reference"] = next(snapshots, True)
+        observed.append(raw["has-ax-reference"])
+        return [dict(raw)]
+
+    class FakeProcess:
+        pid = 4444
+        def poll(self) -> None:
+            return None
+
+    commands: list[tuple[str, ...]] = []
+    monkeypatch.setattr(controller, "query_list", fake_windows)
+    monkeypatch.setattr(controller, "query", lambda *_args: {"type": "bsp", "index": 3})
+    monkeypatch.setattr(controller, "yabai", lambda *args: commands.append(args) or "")
+    monkeypatch.setattr(controller, "_identify_kitty_window", lambda: None)
+    monkeypatch.setattr("scripts.phase3_native_yabai_automation.subprocess.Popen", lambda *_a, **_kw: FakeProcess())
+    try:
+        controller._spawn()
+    finally:
+        controller._remove_socket()
+    assert controller.window_id == 7225
+    assert controller.window_owner_pid == 2205
+    assert observed[:3] == [False, True, True]
+    assert ("rule", "--remove", controller.rule_label) in commands
