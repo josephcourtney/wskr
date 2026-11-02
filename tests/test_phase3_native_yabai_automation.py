@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -102,10 +103,47 @@ def test_bridge_uses_atomic_events_and_bounded_ack(tmp_path: Path, monkeypatch) 
 def test_foreground_worker_commands_keep_existing_acceptance_gates() -> None:
     for case in ("resize", "paging", "lifecycle", "appearance"):
         argv = command(case, 6, "yabai")
-        assert argv[:2] == [__import__("sys").executable, "-m"]
+        assert argv[:2] == [sys.executable, "-m"]
         assert argv[2] == f"scripts.phase3_native_macos_{case}"
         assert argv[3:5] == ["--mode", "yabai"]
         if case == "resize":
             assert argv[-3:] == ["--height", "6", "--clean-scrollback"]
         if case == "paging":
             assert argv[-1] == "--require-capacity-change"
+
+
+def test_distinct_kitty_and_yabai_window_ids_are_never_confused(tmp_path: Path, monkeypatch) -> None:
+    controller = NativeController(root=tmp_path, state="floating", case="paging", height=2)
+    controller.window_id = 407
+    controller.socket_path = tmp_path / "unused.sock"
+    commands: list[tuple[str, ...]] = []
+
+    def fake_kitty(*args: str) -> str:
+        commands.append(args)
+        return json.dumps([{"tabs": [{"windows": [{"id": 19, "title": "child-changeable-title"}]}]}])
+
+    monkeypatch.setattr(controller, "kitty", fake_kitty)
+    controller._identify_kitty_window()
+    assert controller.window_id == 407
+    assert controller.kitty_window_id == 19
+    assert controller._target() == "id:19"
+    assert commands == [("ls",)]
+
+
+def test_ambiguous_kitty_internal_windows_cannot_receive_input(tmp_path: Path, monkeypatch) -> None:
+    controller = NativeController(root=tmp_path, state="bsp", case="paging", height=2)
+    monkeypatch.setattr(
+        controller,
+        "kitty",
+        lambda *_args: json.dumps(
+            [{"tabs": [{"windows": [{"id": 19}, {"id": 20}]}]}]
+        ),
+    )
+    monkeypatch.setattr("scripts.phase3_native_yabai_automation.time.sleep", lambda _seconds: None)
+    # Avoid a real 10-second wall-clock deadline in portable regression.
+    times = iter([0.0, 15.0])
+    monkeypatch.setattr("scripts.phase3_native_yabai_automation.time.monotonic", lambda: next(times))
+    with pytest.raises(RuntimeError, match="exactly one Kitty-internal"):
+        controller._identify_kitty_window()
+    with pytest.raises(RuntimeError, match="not established"):
+        controller._target()
