@@ -98,6 +98,7 @@ class NativeController:
         self.space_uuid: str | None = None
         self.space_index: int | None = None
         self.window_id: int | None = None
+        self.window_owner_pid: int | None = None
         self.kitty_window_id: int | None = None
         self.kitty_process: subprocess.Popen[bytes] | None = None
         self.socket_dir: Path | None = None
@@ -106,6 +107,7 @@ class NativeController:
         self.shrinks = 0
         self.base_frame: dict | None = None
         self.events: list[dict] = []
+        self.window_observations: list[dict] = []
         self.commands: list[dict] = []
         self.cleanup_errors: list[str] = []
 
@@ -235,12 +237,31 @@ class NativeController:
         return f"id:{self.kitty_window_id}"
 
     def _window(self) -> dict:
+        """Verify stable OS identity using the full yabai window snapshot.
+
+        A freshly created Kitty window can appear in --windows before yabai's
+        targeted --window <id> resolver can address it.
+        """
         if self.window_id is None:
             msg = "Test window not identified"
             raise RuntimeError(msg)
-        result = self.query("--windows", "--window", str(self.window_id))
-        if not _window_matches(result, self.title):
-            msg = "Window identity changed; refusing to manipulate another application"
+        windows = self.query_list("--windows")
+        matches = [w for w in windows if w.get("id") == self.window_id]
+        if len(matches) != _EXACTLY_ONE:
+            candidates = [
+                {"id": w.get("id"), "title": w.get("title"), "pid": w.get("pid"), "space": w.get("space")}
+                for w in windows if str(w.get("app", "")).lower() == "kitty"
+            ]
+            self.window_observations.append({"missing_id": self.window_id, "kitty_candidates": candidates})
+            status = self.kitty_process.poll() if self.kitty_process is not None else None
+            msg = f"Owned Kitty OS window {self.window_id} disappeared or became ambiguous; pid status={status}"
+            raise RuntimeError(msg)
+        result = matches[0]
+        if str(result.get("app", "")).lower() != "kitty":
+            msg = "Owned window ID now refers to a non-Kitty application"
+            raise RuntimeError(msg)
+        if self.window_owner_pid is not None and result.get("pid") != self.window_owner_pid:
+            msg = "Owned Kitty OS window PID changed; refusing possible window-ID reuse"
             raise RuntimeError(msg)
         if result.get("space") != self.space_index:
             msg = "Test window left its isolated yabai space"
@@ -447,6 +468,8 @@ class NativeController:
         result["commands"] = self.commands
         result["space_uuid"] = self.space_uuid
         result["window_id"] = self.window_id
+        result["window_owner_pid"] = self.window_owner_pid
+        result["window_observations"] = self.window_observations
         result["kitty_window_id"] = self.kitty_window_id
         (self.root / "controller.json").write_text(
             json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8"
