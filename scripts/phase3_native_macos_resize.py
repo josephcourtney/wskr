@@ -1,7 +1,7 @@
 """Native macOS Kitty window-resize acceptance; explicitly requires visual screenshots.
 
 Run in a fresh Kitty window:
-    WSKR_FIT=contain uv run python scripts/phase3_native_macos_resize.py --mode unmanaged --height 2
+    WSKR_FIT=contain uv run python -m scripts.phase3_native_macos_resize --mode unmanaged --height 2
 
 Only the selected Kitty *window* is captured. Screen Recording permission
 may be required. The parent process captures the retained image after the
@@ -360,6 +360,26 @@ def _validate_history_args(parser: argparse.ArgumentParser, *, lines: int, clean
         parser.error("--history-lines requires --clean-scrollback in a disposable Kitty window")
 
 
+def _worker_argv(
+    directory: Path, *, mode: str, height: int, clean_scrollback: bool, history_lines: int
+) -> list[str]:
+    """Launch the worker as a module so sibling scripts remain importable."""
+    return [
+        sys.executable,
+        "-m",
+        "scripts.phase3_native_macos_resize",
+        "--worker",
+        "--mode",
+        mode,
+        "--height",
+        str(height),
+        "--directory",
+        str(directory.resolve()),
+        *(["--clean-scrollback"] if clean_scrollback else []),
+        *(["--history-lines", str(history_lines)] if history_lines else []),
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("unmanaged", "yabai"), required=True)
@@ -411,19 +431,13 @@ def main() -> int:
     directory.mkdir(parents=True, exist_ok=False)
     print(f"Evidence directory: {directory}")
     completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - direct child, inherited TTY
-        [
-            sys.executable,
-            str(Path(__file__).resolve()),
-            "--worker",
-            "--mode",
-            args.mode,
-            "--height",
-            str(args.height),
-            "--directory",
-            str(directory.resolve()),
-            *(["--clean-scrollback"] if args.clean_scrollback else []),
-            *(["--history-lines", str(args.history_lines)] if args.history_lines else []),
-        ],
+        _worker_argv(
+            directory,
+            mode=args.mode,
+            height=args.height,
+            clean_scrollback=args.clean_scrollback,
+            history_lines=args.history_lines,
+        ),
         check=False,
     )
     if completed.returncode:
