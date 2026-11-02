@@ -117,3 +117,49 @@ those static checks, add command-order regression tests, and require a fresh
 If `just fix` changed the local working tree, inspect and preserve those
 modifications before fetching/resetting/switching branches. Do not blindly
 discard uncommitted work.
+
+## Follow-up native failure: transient Kitty window identity
+
+The next native run (`20261102T144124Z-unmanaged-resize-2.zip`) passed
+space creation and launched Kitty, but the freshly discovered yabai window
+ID 7225 could not be resolved by the separate targeted
+`query --windows --window 7225` request. This was observed immediately
+after the list query found the title, before any plot was qualified.
+The first check after the conflicting-autostash recovery also had two
+remaining Ruff cleanup diagnostics; the controller now extracts its
+owned-space occupancy guard so the cleanup functions remain lintable.
+
+A similar upstream yabai issue documents window-list entries that do not yet
+have an Accessibility reference and fail targeted ID operations. The
+controller therefore:
+
+- Waits for **two consecutive**, matching yabai ID/PID snapshots with
+  `has-ax-reference` not explicitly false.
+- Uses the **full list query** to locate the bound window thereafter, checking
+  app, PID, window ID and isolated space. A changed terminal title does not
+  silently rebind the controller to another window.
+- Records the startup snapshots, any missing-ID candidates and
+  `kitty-launch.log` in the evidence ZIP to distinguish a disappearing Kitty
+  process from delayed yabai Accessibility registration.
+- Fails rather than selecting another ID when the owner disappears.
+
+No native run with this repair has yet been reviewed. The previous failing
+ZIP is diagnostic evidence, not a passing test.
+
+**Dirty worktree guidance:** `just fix` can leave local modifications that
+conflict with a remote fast-forward, triggering Git's autostash conflicts.
+Prefer an independent verification worktree rather than discarding changes:
+
+```sh
+git fetch origin
+git worktree add --detach ../wskr-yabai-verify-20261102 \
+  origin/feature/p3-native-yabai-automation-20261102
+cd ../wskr-yabai-verify-20261102
+uv sync
+just check
+just native-auto unmanaged resize 2
+```
+
+Attach the new `artifacts/phase3-native-yabai/...zip` when a native failure
+persists; it now contains the controller report, startup log and any
+completed nested harness evidence.
