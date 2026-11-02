@@ -113,6 +113,7 @@ class NativeController:
         self.base_frame: dict | None = None
         self.events: list[dict] = []
         self.commands: list[dict] = []
+        self.cleanup_errors: list[str] = []
 
     def yabai(self, *args: str) -> str:
         argv = ["yabai", "-m", *args]
@@ -394,6 +395,10 @@ class NativeController:
             result["passed_protocol_checks"] = False
         finally:
             self.cleanup()
+            if self.cleanup_errors:
+                result["cleanup_errors"] = self.cleanup_errors
+                result["passed_protocol_checks"] = False
+                result.setdefault("error", "Native test window or space cleanup failed")
             result["events"] = self.events
             result["commands"] = self.commands
             result["space_uuid"] = self.space_uuid
@@ -407,8 +412,8 @@ class NativeController:
         if self.rule_installed:
             try:
                 self.yabai("rule", "--remove", self.rule_label)
-            except (OSError, RuntimeError, subprocess.TimeoutExpired):
-                pass
+            except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+                self.cleanup_errors.append(f"rule removal: {exc}")
         if self.kitty_process is not None and self.kitty_process.poll() is None:
             self.kitty_process.terminate()
             try:
@@ -420,14 +425,14 @@ class NativeController:
             try:
                 prior = next(s for s in self._spaces() if s["uuid"] == self.previous_uuid)
                 self.yabai("space", str(prior["index"]), "--focus")
-            except (OSError, RuntimeError, StopIteration, KeyError, subprocess.TimeoutExpired):
-                pass
+            except (OSError, RuntimeError, StopIteration, KeyError, subprocess.TimeoutExpired) as exc:
+                self.cleanup_errors.append(f"prior space restoration: {exc}")
         if self.space_uuid:
             try:
                 created = next(s for s in self._spaces() if s["uuid"] == self.space_uuid)
                 self.yabai("space", str(created["index"]), "--destroy")
-            except (OSError, RuntimeError, StopIteration, KeyError, subprocess.TimeoutExpired):
-                pass
+            except (OSError, RuntimeError, StopIteration, KeyError, subprocess.TimeoutExpired) as exc:
+                self.cleanup_errors.append(f"owned test space destruction: {exc}")
 
 
 def main() -> int:
