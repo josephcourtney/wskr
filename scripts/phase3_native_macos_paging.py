@@ -104,7 +104,12 @@ def _geometry_from_stage(stage: dict) -> Geometry:
 
 def _take_page(report: dict, directory: Path, stage: str, page_index: int) -> None:
     evidence = _capture(report, directory, stage)
-    _check_page(report, evidence, page_index)
+    if page_index >= 0:
+        _check_page(report, evidence, page_index)
+    else:
+        evidence["color_pixels"] = _color_pixels(Path(evidence["screenshot"]))
+        if any(count > _MAX_UNEXPECTED_PIXELS for count in evidence["color_pixels"]):
+            report["failures"].append(f"{stage}: contact-sheet tile remained on the primary screen")
     _save(report, directory)
 
 
@@ -123,7 +128,7 @@ def _wait_event(fd: int, expected: bytes, *, timeout: float = _MAX_SIGNAL_SECOND
     raise TimeoutError(msg)
 
 
-def _worker(directory: Path, event_fd: int) -> None:
+def _worker(directory: Path, event_fd: int) -> None:  # ruff: ignore[too-many-statements] - native GUI transcript
     import matplotlib as mpl  # ruff: ignore[import-outside-top-level]
 
     mpl.use("module://wskr.render.matplotlib.kitty")
@@ -223,7 +228,7 @@ def _run_sequence(fd: int, directory: Path, report: dict) -> None:
     _take_page(report, directory, "restored_primary", -1)
 
 
-def _main_parent(directory: Path, mode: str) -> int:
+def _main_parent(directory: Path, mode: str) -> int:  # ruff: ignore[too-many-statements] - GUI coordinator
     directory.mkdir(parents=True, exist_ok=False)
     report: dict = {
         "mode": mode,
