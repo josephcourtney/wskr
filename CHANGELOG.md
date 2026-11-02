@@ -5,6 +5,7 @@ Notable completed user-visible changes, following [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- Added strict opt-in `native-paging-capacity` acceptance for an actual contact-sheet capacity transition and `native-appearance` acceptance for foreground-owned dark/light Kitty profile queries, contrast and screenshots; these tools do not themselves establish native GUI signoff.
 - Added an opt-in IPython `%load_ext wskr.render.matplotlib.ipython` hook to cooperatively pump pending Matplotlib figures after executed cells, with idempotent unregister and no stdin ownership or background thread.
 - Added experimental `WSKR_KITTY_ANCHOR=unicode` to anchor nonblocking Kitty graphics to a transparent Unicode-placeholder text cell; native macOS history-reflow tests confirm selected 9×2/9×6 cases, but the default physical placement is unchanged.
 - Added native macOS evidence workflows for multi-figure redraw and explicit close, foreground contact-sheet paging, resizing, and screen restoration; the harnesses require opt-in GUI interaction.
