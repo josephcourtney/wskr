@@ -154,33 +154,48 @@ class NativeController:
         self.space_index = int(space["index"])
         self.yabai("space", str(self.space_index), "--label", self.space_label)
         self.yabai("space", self.space_label, "--layout", "float" if self.state == "float-space" else "bsp")
-        self.yabai("space", "--focus", self.space_label)
-        self._await_owned_space_focus()
+        self._focus_owned_space()
+
+    def _is_owned_space_focused(self) -> bool:
+        """Read actual focused-space UUID; never infer focus from yabai exit status."""
+        focused = self.query("--spaces", "--space")
+        self.focus_observations.append(
+            {
+                "stage": "space_focus",
+                "uuid": focused.get("uuid"),
+                "index": focused.get("index"),
+                "has_focus": focused.get("has-focus"),
+                "is_visible": focused.get("is-visible"),
+            }
+        )
+        return focused.get("uuid") == self.space_uuid and focused.get("has-focus") is not False
 
     def _await_owned_space_focus(self) -> None:
-        """Ensure macOS actually selected our space, not just accepted the command."""
+        """Require actual focused-space UUID after an intentional focus change."""
         deadline = time.monotonic() + _WINDOW_FOCUS_SECONDS
         while time.monotonic() < deadline:
-            focused = self.query("--spaces", "--space")
-            self.focus_observations.append(
-                {
-                    "stage": "space_focus",
-                    "uuid": focused.get("uuid"),
-                    "index": focused.get("index"),
-                    "has_focus": focused.get("has-focus"),
-                    "is_visible": focused.get("is-visible"),
-                }
-            )
-            if focused.get("uuid") == self.space_uuid and focused.get("has-focus") is not False:
+            if self._is_owned_space_focused():
                 return
             time.sleep(_POLL_SECONDS)
         msg = f"Created yabai space did not become active: {self.focus_observations[-5:]}"
         raise RuntimeError(msg)
 
+    def _focus_owned_space(self) -> None:
+        """Focus idempotently, tolerating only a verified already-focused race."""
+        if self._is_owned_space_focused():
+            return
+        try:
+            self.yabai("space", "--focus", self.space_label)
+        except RuntimeError as exc:
+            if "cannot focus an already focused space" not in str(exc) or not self._is_owned_space_focused():
+                raise
+            self.focus_observations.append({"stage": "already_focused_race", "space_uuid": self.space_uuid})
+            return
+        self._await_owned_space_focus()
+
     def _reactivate_owned_window(self) -> None:
         """Focus only the disposable space and the exact private-socket Kitty window."""
-        self.yabai("space", "--focus", self.space_label)
-        self._await_owned_space_focus()
+        self._focus_owned_space()
         self._identify_kitty_window(timeout=3.0)
         self.kitty("focus-window", "--match", self._target())
         self.focus_observations.append(
