@@ -178,8 +178,21 @@ def test_cleanup_uses_action_then_selector_for_exact_owned_space(tmp_path: Path,
     ]
     calls: list[tuple[str, ...]] = []
     monkeypatch.setattr(controller, "_spaces", lambda: spaces)
+    monkeypatch.setattr(controller, "query_list", lambda *_args: [])
     monkeypatch.setattr(controller, "yabai", lambda *args: calls.append(args) or "")
     controller._restore_previous_space()
     controller._destroy_owned_space()
     assert calls == [("space", "--focus", "2"), ("space", "--destroy", "5")]
     assert controller.cleanup_errors == []
+
+
+def test_cleanup_preserves_owned_space_if_another_window_moves_there(tmp_path: Path, monkeypatch) -> None:
+    controller = NativeController(root=tmp_path, state="bsp", case="paging", height=2)
+    controller.space_uuid = "owned"
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(controller, "_spaces", lambda: [{"uuid": "owned", "index": 5}])
+    monkeypatch.setattr(controller, "query_list", lambda *_args: [{"id": 990, "space": 5}])
+    monkeypatch.setattr(controller, "yabai", lambda *args: calls.append(args) or "")
+    controller._destroy_owned_space()
+    assert calls == []
+    assert "still contains windows" in controller.cleanup_errors[0]
