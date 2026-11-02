@@ -475,26 +475,31 @@ foreground Kitty terminal. The parent receives only one-byte render/restore
 signals through a separate pipe. No input is injected and the shell's TTY
 is not read by the coordinator.
 
-The test first asks for a measured Kitty window at least **950 physical px
-wide and 520–650 px tall**. With nine distinctly colored, numbered figures,
-this forces multiple pages. After each screenshot and native instruction,
+The test accepts **any ordinary Kitty window at least 400×240 terminal pixels**,
+with no upper height limit or exact cell-based pixel target. It measures the
+actual window and generates enough distinctly colored, numbered figures to
+guarantee at least two pages, including on tall external monitors. After each screenshot and native instruction,
 focus the Kitty window and type the requested command, ending with Enter:
 
 1. Capture `primary_before` with a text sentinel on the normal screen.
 2. Capture `initial_page` (first contact-sheet page).
 3. Type `n` and Enter, capturing `next_page`.
 4. Type `p` and Enter, capturing `previous_page`.
-5. Narrow to **500–560 physical px wide** while keeping 520–650 px high,
-   capturing `resized_page` after the backend's debounced fit. This changes
-   the layout from two columns to one.
+5. Make the Kitty window **at least 15% narrower than its starting width**.
+   The height may remain unchanged. Capture `resized_page` after the fitted
+   redraw. If the actual geometry crosses the landscape threshold, this also
+   changes two-column layout to one column; otherwise the report records
+   that page capacity did not change.
 6. Type `n` and Enter again, capturing `next_page_small`.
-7. Expand above 950 physical px wide, preserving height, and capture
-   `expanded_page`.
+7. Expand to approximately the original width (at least 85% of the initial
+   measured width) and capture `expanded_page`.
 8. On a **blank input line**, press Enter to quit paging and capture
    `restored_primary`.
 
-Nine unique color tiles identify pages; their expected indices are computed
-from actual `Geometry` and `plan_sheet_pages`. Each contact-sheet PNG is
+The dynamically generated color tiles identify pages; expected indices are computed
+from actual `Geometry` and `plan_sheet_pages`. The report separately records
+`page_capacity_changed` so a resize that does not cross the column/row
+capacity threshold cannot be misrepresented as changing page capacity. Each contact-sheet PNG is
 recorded with its measured dimensions and SHA-256 digest. The report checks
 color presence and absence in captured screenshots; it also rejects any
 contact-sheet tile remaining on the primary screen and checks that the
